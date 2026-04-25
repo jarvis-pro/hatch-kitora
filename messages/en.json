@@ -1,0 +1,152 @@
+{
+  "common": {
+    "theme": {
+      "toggle": "Toggle theme",
+      "light": "Light",
+      "dark": "Dark",
+      "system": "System"
+    },
+    "locale": {
+      "label": "Change language",
+      "names": {
+        "en": "English",
+        "zh": "中文"
+      }
+    }
+  },
+  "marketing": {
+    "nav": {
+      "pricing": "Pricing",
+      "github": "GitHub",
+      "signin": "Sign in",
+      "signup": "Get started"
+    },
+    "footer": {
+      "rights": "All rights reserved.",
+      "built": "Built with Next.js · Open source"
+    },
+    "home": {
+      "eyebrow": "Production-ready SaaS starter",
+      "title": "Ship your global SaaS in days, not months.",
+      "subtitle": "Auth, billing, i18n, email and analytics — wired up so you can focus on what matters: your product.",
+      "cta": {
+        "primary": "Start building",
+        "secondary": "View pricing"
+      },
+      "features": {
+        "fast": {
+          "title": "Fast by default",
+          "desc": "Next.js App Router, edge-ready middleware and a tuned build pipeline."
+        },
+        "global": {
+          "title": "Global from day one",
+          "desc": "i18n routing, locale detection and CDN-first delivery."
+        },
+        "secure": {
+          "title": "Secure foundations",
+          "desc": "Hardened headers, rate limiting and battle-tested auth flows."
+        }
+      }
+    },
+    "pricing": {
+      "title": "Pricing that scales with you",
+      "subtitle": "Start free. Upgrade when you're ready.",
+      "plans": {
+        "free": {
+          "name": "Free",
+          "price": "$0",
+          "tagline": "Perfect for trying things out.",
+          "features": ["1 project", "Community support", "Basic analytics"],
+          "cta": "Get started"
+        },
+        "pro": {
+          "name": "Pro",
+          "price": "$19/mo",
+          "tagline": "For solo builders shipping fast.",
+          "features": ["Unlimited projects", "Priority support", "Custom domains", "Advanced analytics"],
+          "cta": "Upgrade to Pro"
+        },
+        "team": {
+          "name": "Team",
+          "price": "$49/mo",
+          "tagline": "For teams that ship together.",
+          "features": ["Everything in Pro", "Team seats", "SSO (SAML)", "SLA"],
+          "cta": "Choose Team"
+        }
+      }
+    }
+  },
+  "auth": {
+    "login": {
+      "title": "Welcome back",
+      "subtitle": "Sign in to your account to continue.",
+      "fields": {
+        "email": "Email",
+        "password": "Password"
+      },
+      "submit": "Sign in",
+      "submitting": "Signing in…",
+      "noAccount": "Don't have an account?",
+      "signupLink": "Create one",
+      "errors": {
+        "invalid": "Invalid email or password."
+      }
+    },
+    "signup": {
+      "title": "Create your account",
+      "subtitle": "Start your free Kitora workspace.",
+      "fields": {
+        "name": "Name",
+        "email": "Email",
+        "password": "Password"
+      },
+      "submit": "Create account",
+      "submitting": "Creating…",
+      "success": "Account created.",
+      "haveAccount": "Already have an account?",
+      "loginLink": "Sign in",
+      "errors": {
+        "email-taken": "An account with this email already exists.",
+        "invalid-input": "Please check your input and try again."
+      }
+    }
+  },
+  "dashboard": {
+    "nav": {
+      "home": "Overview",
+      "settings": "Settings"
+    },
+    "userMenu": {
+      "account": "Account",
+      "settings": "Settings",
+      "signOut": "Sign out"
+    },
+    "home": {
+      "greeting": "Welcome back, {name}",
+      "friend": "friend",
+      "subtitle": "Here's what's happening today.",
+      "stats": {
+        "users": "Users",
+        "revenue": "Revenue",
+        "activity": "Active sessions"
+      }
+    },
+    "settings": {
+      "title": "Settings",
+      "subtitle": "Manage your workspace preferences.",
+      "placeholder": "Settings UI is coming soon."
+    }
+  },
+  "errors": {
+    "notFound": {
+      "title": "Page not found",
+      "description": "The page you're looking for doesn't exist or has been moved.",
+      "cta": "Go home"
+    },
+    "runtime": {
+      "title": "Something went wrong",
+      "description": "An unexpected error occurred. Please try again.",
+      "cta": "Retry"
+    }
+  }
+}

@@ -1,0 +1,152 @@
+{
+  "common": {
+    "theme": {
+      "toggle": "切换主题",
+      "light": "浅色",
+      "dark": "深色",
+      "system": "跟随系统"
+    },
+    "locale": {
+      "label": "切换语言",
+      "names": {
+        "en": "English",
+        "zh": "中文"
+      }
+    }
+  },
+  "marketing": {
+    "nav": {
+      "pricing": "价格",
+      "github": "GitHub",
+      "signin": "登录",
+      "signup": "开始使用"
+    },
+    "footer": {
+      "rights": "保留所有权利。",
+      "built": "基于 Next.js 构建 · 开源项目"
+    },
+    "home": {
+      "eyebrow": "生产级 SaaS 启动模板",
+      "title": "几天交付你的全球 SaaS，而不是几个月。",
+      "subtitle": "认证、计费、国际化、邮件、埋点 —— 全部接好，你只需要专注于产品本身。",
+      "cta": {
+        "primary": "开始构建",
+        "secondary": "查看价格"
+      },
+      "features": {
+        "fast": {
+          "title": "默认极速",
+          "desc": "Next.js App Router、Edge 中间件与调优过的构建管线。"
+        },
+        "global": {
+          "title": "天生全球化",
+          "desc": "i18n 路由、语言检测、CDN 优先分发。"
+        },
+        "secure": {
+          "title": "稳固的安全基线",
+          "desc": "已加固的安全头、限流以及经过实战的认证流程。"
+        }
+      }
+    },
+    "pricing": {
+      "title": "可随你成长的价格方案",
+      "subtitle": "免费开始，准备好后再升级。",
+      "plans": {
+        "free": {
+          "name": "免费版",
+          "price": "¥0",
+          "tagline": "适合刚开始尝试的你。",
+          "features": ["1 个项目", "社区支持", "基础分析"],
+          "cta": "立即开始"
+        },
+        "pro": {
+          "name": "专业版",
+          "price": "¥138/月",
+          "tagline": "适合快速交付的独立开发者。",
+          "features": ["不限项目数", "优先支持", "自定义域名", "高级分析"],
+          "cta": "升级到专业版"
+        },
+        "team": {
+          "name": "团队版",
+          "price": "¥358/月",
+          "tagline": "适合一起交付的团队。",
+          "features": ["包含专业版全部功能", "团队席位", "SSO (SAML)", "SLA 保障"],
+          "cta": "选择团队版"
+        }
+      }
+    }
+  },
+  "auth": {
+    "login": {
+      "title": "欢迎回来",
+      "subtitle": "登录你的账号继续使用。",
+      "fields": {
+        "email": "邮箱",
+        "password": "密码"
+      },
+      "submit": "登录",
+      "submitting": "登录中…",
+      "noAccount": "还没有账号？",
+      "signupLink": "立即注册",
+      "errors": {
+        "invalid": "邮箱或密码不正确。"
+      }
+    },
+    "signup": {
+      "title": "创建账号",
+      "subtitle": "开始你的 Kitora 免费工作区。",
+      "fields": {
+        "name": "姓名",
+        "email": "邮箱",
+        "password": "密码"
+      },
+      "submit": "创建账号",
+      "submitting": "创建中…",
+      "success": "账号创建成功。",
+      "haveAccount": "已有账号？",
+      "loginLink": "登录",
+      "errors": {
+        "email-taken": "该邮箱已注册。",
+        "invalid-input": "请检查输入并重试。"
+      }
+    }
+  },
+  "dashboard": {
+    "nav": {
+      "home": "概览",
+      "settings": "设置"
+    },
+    "userMenu": {
+      "account": "账户",
+      "settings": "设置",
+      "signOut": "退出登录"
+    },
+    "home": {
+      "greeting": "欢迎回来，{name}",
+      "friend": "朋友",
+      "subtitle": "今天的最新动态。",
+      "stats": {
+        "users": "用户数",
+        "revenue": "收入",
+        "activity": "活跃会话"
+      }
+    },
+    "settings": {
+      "title": "设置",
+      "subtitle": "管理你的工作区偏好。",
+      "placeholder": "设置界面即将上线。"
+    }
+  },
+  "errors": {
+    "notFound": {
+      "title": "页面未找到",
+      "description": "你访问的页面不存在或已被迁移。",
+      "cta": "返回首页"
+    },
+    "runtime": {
+      "title": "出错了",
+      "description": "发生了意料之外的错误，请重试。",
+      "cta": "重试"
+    }
+  }
+}
