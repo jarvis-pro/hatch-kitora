@@ -1,3 +1,4 @@
+import { withSentryConfig } from '@sentry/nextjs';
 import createNextIntlPlugin from 'next-intl/plugin';
 
 const withNextIntl = createNextIntlPlugin('./src/i18n/request.ts');
@@ -60,4 +61,26 @@ const nextConfig = {
   },
 };
 
-export default withNextIntl(nextConfig);
+// Sentry should wrap the outermost config — this lets it inject build-time
+// instrumentation (stack-frame stripping, source-map upload) over whatever the
+// other plugins produce. We only pass an `org`/`project` when the auth token
+// is set, otherwise the source-map upload step is silently skipped.
+const sentryUploadConfigured = !!(
+  process.env.SENTRY_AUTH_TOKEN &&
+  process.env.SENTRY_ORG &&
+  process.env.SENTRY_PROJECT
+);
+
+export default withSentryConfig(withNextIntl(nextConfig), {
+  org: process.env.SENTRY_ORG,
+  project: process.env.SENTRY_PROJECT,
+  authToken: process.env.SENTRY_AUTH_TOKEN,
+  silent: !process.env.CI,
+  hideSourceMaps: true,
+  disableLogger: true,
+  // No-op when auth token / org / project missing — keeps the build green
+  // for forks and OSS users who don't have a Sentry account.
+  sourcemaps: sentryUploadConfigured ? { disable: false } : { disable: true },
+  // Tunnel browser SDK requests through this app, bypassing ad-blockers.
+  tunnelRoute: '/monitoring',
+});
