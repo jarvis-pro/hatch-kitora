@@ -44,6 +44,9 @@ const nextConfig = {
     serverActions: {
       bodySizeLimit: '2mb',
     },
+    // Required by @sentry/nextjs in Next 14 to load `src/instrumentation.ts`.
+    // (Stable in Next 15+ and removed there.)
+    instrumentationHook: true,
   },
   images: {
     remotePatterns: [
