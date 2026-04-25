@@ -1,8 +1,10 @@
 import { headers } from 'next/headers';
 import { NextResponse } from 'next/server';
 import type Stripe from 'stripe';
+import type { SubscriptionStatus } from '@prisma/client';
 
 import { env } from '@/env';
+import { recordAudit } from '@/lib/audit';
 import { prisma } from '@/lib/db';
 import { logger } from '@/lib/logger';
 import { stripe } from '@/lib/stripe/client';
@@ -43,31 +45,59 @@ export async function POST(request: Request) {
     return NextResponse.json({ received: true, ignored: true });
   }
 
+  // Idempotency: Stripe retries on 5xx / timeouts. Try to record the event id;
+  // if it already exists, this throws and we return 200 to ack the duplicate.
   try {
-    switch (event.type) {
-      case 'customer.subscription.created':
-      case 'customer.subscription.updated':
-      case 'customer.subscription.deleted': {
-        await upsertSubscription(event.data.object);
-        break;
-      }
-      case 'checkout.session.completed':
-      case 'invoice.payment_succeeded':
-      case 'invoice.payment_failed': {
-        logger.info({ type: event.type, id: event.id }, 'stripe-event');
-        break;
-      }
-      default:
-        break;
-    }
+    await prisma.stripeEvent.create({
+      data: { id: event.id, type: event.type },
+    });
+  } catch {
+    logger.info({ id: event.id, type: event.type }, 'stripe-webhook-duplicate');
+    return NextResponse.json({ received: true, alreadyProcessed: true });
+  }
+
+  try {
+    await dispatch(event);
     return NextResponse.json({ received: true });
   } catch (error) {
-    logger.error({ err: error, type: event.type }, 'stripe-webhook-handler-failed');
+    // On handler failure, drop the dedupe row so Stripe's retry can re-enter.
+    await prisma.stripeEvent.delete({ where: { id: event.id } }).catch(() => null);
+    logger.error({ err: error, type: event.type, id: event.id }, 'stripe-webhook-handler-failed');
     return NextResponse.json({ error: 'handler-failed' }, { status: 500 });
   }
 }
 
-async function upsertSubscription(sub: Stripe.Subscription) {
+async function dispatch(event: Stripe.Event) {
+  switch (event.type) {
+    case 'checkout.session.completed':
+      return handleCheckoutCompleted(event.data.object);
+
+    case 'customer.subscription.created':
+    case 'customer.subscription.updated':
+    case 'customer.subscription.deleted':
+      return upsertSubscription(event.data.object, event.type);
+
+    case 'invoice.payment_succeeded':
+    case 'invoice.payment_failed':
+      logger.info({ type: event.type, id: event.id }, 'stripe-event');
+      return;
+
+    default:
+      return;
+  }
+}
+
+async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
+  // Subscription mode only: pull the subscription so we get full state.
+  if (session.mode !== 'subscription' || !session.subscription) return;
+
+  const subId =
+    typeof session.subscription === 'string' ? session.subscription : session.subscription.id;
+  const sub = await stripe.subscriptions.retrieve(subId);
+  await upsertSubscription(sub, 'checkout.session.completed');
+}
+
+async function upsertSubscription(sub: Stripe.Subscription, sourceType: string) {
   const userId =
     (typeof sub.metadata?.userId === 'string' && sub.metadata.userId) ||
     (await resolveUserIdFromCustomer(sub.customer));
@@ -78,6 +108,11 @@ async function upsertSubscription(sub: Stripe.Subscription) {
 
   const priceId = sub.items.data[0]?.price.id ?? '';
   const status = mapStatus(sub.status);
+
+  const existing = await prisma.subscription.findUnique({
+    where: { stripeSubscriptionId: sub.id },
+    select: { status: true, stripePriceId: true, cancelAtPeriodEnd: true },
+  });
 
   await prisma.subscription.upsert({
     where: { stripeSubscriptionId: sub.id },
@@ -96,6 +131,28 @@ async function upsertSubscription(sub: Stripe.Subscription) {
       cancelAtPeriodEnd: sub.cancel_at_period_end,
     },
   });
+
+  // Only emit an audit row if something materially changed (or it's brand new).
+  const changed =
+    !existing ||
+    existing.status !== status ||
+    existing.stripePriceId !== priceId ||
+    existing.cancelAtPeriodEnd !== sub.cancel_at_period_end;
+
+  if (changed) {
+    await recordAudit({
+      actorId: null, // Stripe is the actor
+      action: 'billing.subscription_changed',
+      target: userId,
+      metadata: {
+        sourceType,
+        stripeSubscriptionId: sub.id,
+        status,
+        priceId,
+        cancelAtPeriodEnd: sub.cancel_at_period_end,
+      },
+    });
+  }
 }
 
 async function resolveUserIdFromCustomer(
@@ -106,7 +163,7 @@ async function resolveUserIdFromCustomer(
   return user?.id;
 }
 
-function mapStatus(status: Stripe.Subscription.Status) {
+function mapStatus(status: Stripe.Subscription.Status): SubscriptionStatus {
   switch (status) {
     case 'active':
       return 'ACTIVE';
