@@ -56,7 +56,12 @@ export const authConfig = {
         token.id = user.id;
         const role = (user as { role?: 'USER' | 'ADMIN' }).role;
         token.role = role ?? 'USER';
+        const sv = (user as { sessionVersion?: number }).sessionVersion;
+        token.sessionVersion = typeof sv === 'number' ? sv : 0;
       }
+      // The full Node-side config in `src/lib/auth/index.ts` overrides this
+      // callback to additionally validate `token.sessionVersion` against the
+      // database — the edge-safe version here can't query Prisma.
       return token;
     },
     async session({ session, token }) {
