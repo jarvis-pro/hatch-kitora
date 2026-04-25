@@ -177,7 +177,36 @@ Kitora 设计上支持克隆后直接用于新项目，复用步骤如下：
 - [x] CI（GitHub Actions · lint / typecheck / build）
 - [x] 邮箱验证与忘记密码完整流程
 - [x] 管理后台（概览指标 · 用户管理 · 订阅列表）
+- [x] E2E 测试脚手架（Playwright · auth / admin / 重置密码）
 - [ ] 中国区支持（支付宝 / 微信支付 · ICP / 备案）
+
+---
+
+## 🧪 端到端测试
+
+E2E 跑在 Playwright 上，直连一个真实的 Postgres（**不要**用 dev 库）。
+
+```bash
+# 1) 拉一份独立的 Postgres，给测试用
+docker run -d --name kitora-test-pg \
+  -e POSTGRES_USER=kitora -e POSTGRES_PASSWORD=kitora -e POSTGRES_DB=kitora_test \
+  -p 5433:5432 postgres:16-alpine
+
+# 2) 指向它，跑迁移
+export DATABASE_URL=postgresql://kitora:kitora@localhost:5433/kitora_test
+pnpm db:generate
+pnpm db:deploy
+
+# 3) 装 Playwright 浏览器（首次）
+pnpm test:e2e:install
+
+# 4) 跑测试（自动 build + start，再驱动浏览器）
+pnpm test:e2e
+```
+
+调试时建议两个终端：一个 `pnpm dev`，另一个 `E2E_NO_SERVER=1 pnpm test:e2e:ui`。
+
+新加的 spec 放在 `tests/e2e/`，复用 `fixtures/test.ts` 里的 `testUser` / `adminUser` / `signIn`；测试结束自动清掉用户行。
 
 ---
 
