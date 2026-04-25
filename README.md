@@ -186,7 +186,44 @@ Kitora 设计上支持克隆后直接用于新项目，复用步骤如下：
 - [x] 公开 REST API（`/api/v1/me` · 按 token 限流 · admin 后台总览）
 - [x] Stripe 事件面板（按 type 过滤 / 分页 · admin 可见）
 - [x] Loading skeletons（dashboard / billing / settings / admin 全覆盖）
-- [ ] 中国区支持（支付宝 / 微信支付 · ICP / 备案）
+- [x] Email 模板统一布局 + 注册 welcome 邮件
+- [x] Health 探测（DB / Redis）+ Prometheus `/api/metrics`
+- [x] 中国区起步（region 切换 · 支付 provider 抽象 · ICP 备案页）
+
+---
+
+## 🌏 区域 / 中国区
+
+通过 `REGION` env 切换默认市场：
+
+```env
+REGION=global   # 海外市场（Stripe / USD）
+# 或
+REGION=cn       # 中国大陆（支付宝 / 微信支付 · ICP / 备案）
+ICP_NUMBER=京ICP备XXXXXX号-X
+PUBLIC_SECURITY_NUMBER=京公网安备XXXXXXXXXXXX号
+```
+
+`src/lib/billing/provider/` 下抽出统一接口：
+
+- `StripeProvider` — global 默认，已落地
+- `AlipayProvider` / `WechatPayProvider` — 占位，等 ICP 备案过审后接 `alipay-sdk` / `wechatpay-node-v3`
+
+`getProvider()` 按 `REGION` + `WECHAT_PAY_MCH_ID` 自动选择。CN 模式下 footer 自动渲染备案号 + 链接到 `/icp` 公示页；其它模式下 `/icp` 直接 404，避免空页面 SEO 劣化。
+
+---
+
+## 📈 监控 / 探测
+
+`/api/health`：返回 `{ status, uptime, checks: { db, redis } }`，DB/Redis 任一探测失败则 `503`。可被 LB / 监控直接拉。
+
+`/api/metrics`：Prometheus 文本格式（`gauge` / `counter`），需 ADMIN role 的 API token 鉴权：
+
+```bash
+curl -H "Authorization: Bearer kitora_..." https://app.kitora.com/api/metrics
+```
+
+输出 `kitora_users_total`、`kitora_subscriptions_active`、`kitora_audit_log_total` 等指标，直接接入 Prometheus / Grafana。
 
 ---
 
