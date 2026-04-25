@@ -1,9 +1,11 @@
 **/.git
 **/.next
 **/node_modules
-**/.env
-**/.env.*
-!**/.env.example
+# `.env` is committed and only carries non-secret defaults — let it into the
+# build context so `next build` can read it. Keep secrets (`.env.local` and
+# any `.env.*.local` variant) out.
+**/.env.local
+**/.env.*.local
 **/npm-debug.log
 **/.DS_Store
 **/coverage

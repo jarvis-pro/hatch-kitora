@@ -50,14 +50,15 @@ yarn-error.log*
 lerna-debug.log*
 
 # ---- Local env files --------------------------------------------------------
-.env
+# `.env` is COMMITTED — it carries non-secret defaults so the project boots
+# out of the box. Real secrets must live in `.env.local` (or platform env vars
+# in production), which we keep ignored:
 .env.local
 .env.*.local
-.env.development
+# Production / test specific committed files would also be safe to track if
+# they only hold non-secrets; ignoring them by default is conservative:
 .env.production
 .env.test
-# Keep:
-!.env.example
 
 # ---- Deploy / hosting -------------------------------------------------------
 .vercel

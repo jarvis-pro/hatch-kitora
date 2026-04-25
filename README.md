@@ -53,32 +53,32 @@ cd kitora
 
 # 安装依赖
 pnpm install
-
-# 复制环境变量文件
-cp .env.example .env
 ```
 
-### 环境变量
+### 环境变量约定
 
-在 `.env` 中填入以下配置（Next.js 与 Prisma CLI 都直接读这个文件）：
+工程使用 **两层 env**：
+
+| 文件         | 入 git        | 用途                                                                                                  |
+| ------------ | ------------- | ----------------------------------------------------------------------------------------------------- |
+| `.env`       | ✅ committed  | 非秘密的本地默认值（`DATABASE_URL` 指本地 docker、占位 `AUTH_SECRET` 等）。clone 完即可跑 dev/build。 |
+| `.env.local` | ❌ gitignored | 真 secret —— 真 `AUTH_SECRET`、Stripe / Resend / OAuth client secret、生产数据库等。                  |
+
+生产部署时把这些 secret 配在平台后台（Vercel / Fly / Railway 的环境变量面板），**不要**把 `.env.local` 部上去。Next.js 的加载顺序保证 `.env.local` 永远覆盖 `.env`，无需任何特殊处理。
+
+### 本地需要真功能时填什么
+
+新建 `.env.local`，按需写入：
 
 ```env
-# 应用
-NEXT_PUBLIC_APP_URL=http://localhost:3000
+# 必须覆盖：production 安全用的真 AUTH_SECRET
+AUTH_SECRET="<openssl rand -base64 32 的输出>"
 
-# 数据库
-DATABASE_URL=postgresql://user:password@localhost:5432/kitora
-
-# 认证（Auth.js v5；用 `openssl rand -base64 32` 生成 AUTH_SECRET）
-AUTH_SECRET=your-secret
-
-# 支付
-STRIPE_SECRET_KEY=sk_test_...
-STRIPE_WEBHOOK_SECRET=whsec_...
-
-# 邮件（接受 "Name <email@domain>" 或纯邮箱）
-RESEND_API_KEY=re_...
-EMAIL_FROM="Kitora <onboarding@yourdomain.com>"
+# 可选：OAuth、Stripe、Resend、限流 ……（不填 = 该模块进入 noop / disabled）
+AUTH_GITHUB_ID="..."
+AUTH_GITHUB_SECRET="..."
+STRIPE_SECRET_KEY="sk_test_..."
+RESEND_API_KEY="re_..."
 ```
 
 ### 启动开发环境

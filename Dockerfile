@@ -15,7 +15,6 @@ RUN pnpm install --frozen-lockfile
 FROM node:22-alpine AS builder
 WORKDIR /app
 ENV NEXT_TELEMETRY_DISABLED=1 \
-    SKIP_ENV_VALIDATION=1 \
     PNPM_HOME=/usr/local/share/pnpm \
     PATH=/usr/local/share/pnpm:$PATH
 RUN corepack enable && corepack prepare pnpm@latest --activate

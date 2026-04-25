@@ -47,5 +47,6 @@ jobs:
       - name: Build
         run: pnpm build
         env:
-          SKIP_ENV_VALIDATION: '1'
+          # `.env` is committed and provides safe defaults for build-time env
+          # validation. Real secrets are injected via platform env in deploy.
           NEXT_TELEMETRY_DISABLED: '1'
