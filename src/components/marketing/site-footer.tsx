@@ -1,8 +1,14 @@
 import { useTranslations } from 'next-intl';
 
+import { env } from '@/env';
+import { Link } from '@/i18n/routing';
+
 export function SiteFooter() {
   const t = useTranslations('marketing.footer');
   const year = new Date().getFullYear();
+
+  // CN deployments must surface ICP / 公安部备案 numbers in the footer.
+  const showIcp = env.REGION === 'cn' && env.ICP_NUMBER;
 
   return (
     <footer className="border-t">
@@ -10,7 +16,26 @@ export function SiteFooter() {
         <p>
           © {year} Kitora. {t('rights')}
         </p>
-        <p>{t('built')}</p>
+        <p className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1">
+          {showIcp ? (
+            <>
+              <Link href="/icp" className="hover:text-foreground hover:underline">
+                {env.ICP_NUMBER}
+              </Link>
+              {env.PUBLIC_SECURITY_NUMBER ? (
+                <a
+                  href="https://beian.mps.gov.cn/"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="hover:text-foreground hover:underline"
+                >
+                  {env.PUBLIC_SECURITY_NUMBER}
+                </a>
+              ) : null}
+            </>
+          ) : null}
+          <span>{t('built')}</span>
+        </p>
       </div>
     </footer>
   );

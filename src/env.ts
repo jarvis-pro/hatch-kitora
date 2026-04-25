@@ -42,6 +42,22 @@ export const env = createEnv({
     UPSTASH_REDIS_REST_URL: z.string().url().optional(),
     UPSTASH_REDIS_REST_TOKEN: z.string().optional(),
 
+    // Region — toggles default payment provider, footer ICP block, etc.
+    // 'global' targets overseas (Stripe + USD); 'cn' targets mainland China.
+    REGION: z.enum(['global', 'cn']).default('global'),
+
+    // Mainland-China only: shown in the footer to satisfy ICP / 公安部备案
+    // requirements. Both leave empty in 'global' mode.
+    ICP_NUMBER: z.string().optional(),
+    PUBLIC_SECURITY_NUMBER: z.string().optional(),
+
+    // Optional CN-payment credentials — placeholders only. Wire up the actual
+    // SDKs in src/lib/billing/provider/{alipay,wechat}.ts when going live.
+    ALIPAY_APP_ID: z.string().optional(),
+    ALIPAY_PRIVATE_KEY: z.string().optional(),
+    WECHAT_PAY_MCH_ID: z.string().optional(),
+    WECHAT_PAY_API_KEY: z.string().optional(),
+
     // Logging
     LOG_LEVEL: z
       .enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent'])
@@ -85,6 +101,14 @@ export const env = createEnv({
 
     UPSTASH_REDIS_REST_URL: process.env.UPSTASH_REDIS_REST_URL,
     UPSTASH_REDIS_REST_TOKEN: process.env.UPSTASH_REDIS_REST_TOKEN,
+
+    REGION: process.env.REGION,
+    ICP_NUMBER: process.env.ICP_NUMBER,
+    PUBLIC_SECURITY_NUMBER: process.env.PUBLIC_SECURITY_NUMBER,
+    ALIPAY_APP_ID: process.env.ALIPAY_APP_ID,
+    ALIPAY_PRIVATE_KEY: process.env.ALIPAY_PRIVATE_KEY,
+    WECHAT_PAY_MCH_ID: process.env.WECHAT_PAY_MCH_ID,
+    WECHAT_PAY_API_KEY: process.env.WECHAT_PAY_API_KEY,
 
     LOG_LEVEL: process.env.LOG_LEVEL,
 
