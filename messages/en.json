@@ -93,8 +93,77 @@
       "submitting": "Signing in…",
       "noAccount": "Don't have an account?",
       "signupLink": "Create one",
+      "forgotPasswordLink": "Forgot your password?",
       "errors": {
         "invalid": "Invalid email or password."
+      }
+    },
+    "forgotPassword": {
+      "title": "Forgot your password?",
+      "subtitle": "Enter your email and we'll send you a reset link.",
+      "fields": {
+        "email": "Email"
+      },
+      "submit": "Send reset link",
+      "submitting": "Sending…",
+      "sent": "Email sent.",
+      "sentDetail": "If an account exists for that email, we've sent a password reset link. Check your inbox.",
+      "backToLogin": "Back to sign in",
+      "errors": {
+        "invalid-input": "Please enter a valid email.",
+        "rate-limited": "Too many requests. Please try again in a minute."
+      }
+    },
+    "resetPassword": {
+      "title": "Set a new password",
+      "subtitle": "Choose a strong password you haven't used before.",
+      "fields": {
+        "password": "New password",
+        "confirm": "Confirm password"
+      },
+      "submit": "Update password",
+      "submitting": "Updating…",
+      "success": "Password updated. You can now sign in.",
+      "missing": {
+        "title": "Reset link missing",
+        "description": "This page needs a reset token. Request a new email to continue.",
+        "cta": "Request a new link"
+      },
+      "errors": {
+        "invalid": "This reset link is invalid.",
+        "expired": "This reset link has expired. Please request a new one.",
+        "invalid-input": "Please check your input and try again.",
+        "mismatch": "Passwords don't match."
+      }
+    },
+    "verifyEmail": {
+      "fields": {
+        "email": "Email"
+      },
+      "success": {
+        "title": "Email verified",
+        "description": "Your email has been confirmed. You're all set.",
+        "cta": "Continue to sign in"
+      },
+      "expired": {
+        "title": "Link expired",
+        "description": "This verification link has expired. Request a fresh one below."
+      },
+      "invalid": {
+        "title": "Link invalid",
+        "description": "This verification link is invalid or has already been used."
+      },
+      "resend": {
+        "title": "Verify your email",
+        "subtitle": "Enter your email to receive a fresh verification link.",
+        "submit": "Send verification email",
+        "submitting": "Sending…",
+        "sent": "Email sent.",
+        "sentDetail": "If an account exists for that email and isn't yet verified, we've sent a fresh link."
+      },
+      "errors": {
+        "invalid-input": "Please enter a valid email.",
+        "rate-limited": "Too many requests. Please try again in a minute."
       }
     },
     "signup": {

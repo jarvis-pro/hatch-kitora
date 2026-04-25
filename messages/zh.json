@@ -88,8 +88,77 @@
       "submitting": "登录中…",
       "noAccount": "还没有账号？",
       "signupLink": "立即注册",
+      "forgotPasswordLink": "忘记密码？",
       "errors": {
         "invalid": "邮箱或密码不正确。"
+      }
+    },
+    "forgotPassword": {
+      "title": "忘记密码？",
+      "subtitle": "输入邮箱，我们将向你发送重置链接。",
+      "fields": {
+        "email": "邮箱"
+      },
+      "submit": "发送重置链接",
+      "submitting": "发送中…",
+      "sent": "邮件已发送。",
+      "sentDetail": "如果该邮箱已注册，我们已向其发送密码重置链接，请查收邮箱。",
+      "backToLogin": "返回登录",
+      "errors": {
+        "invalid-input": "请输入有效的邮箱。",
+        "rate-limited": "请求过于频繁，请稍后再试。"
+      }
+    },
+    "resetPassword": {
+      "title": "设置新密码",
+      "subtitle": "请选择一个之前未使用过的强密码。",
+      "fields": {
+        "password": "新密码",
+        "confirm": "确认密码"
+      },
+      "submit": "更新密码",
+      "submitting": "更新中…",
+      "success": "密码已更新，现在可以登录。",
+      "missing": {
+        "title": "缺少重置链接",
+        "description": "此页面需要重置 token，请重新请求邮件。",
+        "cta": "重新发送链接"
+      },
+      "errors": {
+        "invalid": "重置链接无效。",
+        "expired": "重置链接已过期，请重新请求。",
+        "invalid-input": "请检查输入并重试。",
+        "mismatch": "两次密码不一致。"
+      }
+    },
+    "verifyEmail": {
+      "fields": {
+        "email": "邮箱"
+      },
+      "success": {
+        "title": "邮箱已验证",
+        "description": "你的邮箱已确认完成。",
+        "cta": "前往登录"
+      },
+      "expired": {
+        "title": "链接已过期",
+        "description": "该验证链接已过期，请在下方重新发送。"
+      },
+      "invalid": {
+        "title": "链接无效",
+        "description": "该验证链接无效或已被使用。"
+      },
+      "resend": {
+        "title": "验证你的邮箱",
+        "subtitle": "输入邮箱即可重新接收验证链接。",
+        "submit": "发送验证邮件",
+        "submitting": "发送中…",
+        "sent": "邮件已发送。",
+        "sentDetail": "如果该邮箱已注册且尚未验证，我们已向其发送新的验证链接。"
+      },
+      "errors": {
+        "invalid-input": "请输入有效的邮箱。",
+        "rate-limited": "请求过于频繁，请稍后再试。"
       }
     },
     "signup": {
