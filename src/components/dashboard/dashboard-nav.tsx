@@ -1,6 +1,6 @@
 'use client';
 
-import { LayoutDashboard, Settings } from 'lucide-react';
+import { CreditCard, LayoutDashboard, Settings } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
 import { Link, usePathname } from '@/i18n/routing';
@@ -8,6 +8,7 @@ import { cn } from '@/lib/utils';
 
 const items = [
   { href: '/dashboard', icon: LayoutDashboard, key: 'home' },
+  { href: '/dashboard/billing', icon: CreditCard, key: 'billing' },
   { href: '/settings', icon: Settings, key: 'settings' },
 ] as const;
 
