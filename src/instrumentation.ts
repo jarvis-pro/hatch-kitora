@@ -1,6 +1,9 @@
 /**
- * Next.js instrumentation hook — required by @sentry/nextjs to wire the
- * server / edge SDK at process boot.
+ * Next.js instrumentation hook — wires up Sentry SDKs at process boot.
+ *
+ * Note: the `CredentialsSignin` stderr filter lives in a Node `--require`
+ * preload (`scripts/silence-auth-noise.cjs`), not here — `register()` runs
+ * after Next.js's logger has already captured its stderr stream.
  *
  * Docs: https://nextjs.org/docs/app/building-your-application/optimizing/instrumentation
  */

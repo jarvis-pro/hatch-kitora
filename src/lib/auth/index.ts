@@ -23,6 +23,25 @@ export const {
 } = NextAuth({
   ...authConfig,
   adapter: PrismaAdapter(prisma),
+  // Route Auth.js noise through pino with sane levels. Wrong password is
+  // user-error, not app-error — keep it at debug so prod logs don't blow up
+  // on every failed login.
+  logger: {
+    error(error) {
+      const name = (error as { name?: string }).name ?? error.constructor.name;
+      if (name === 'CredentialsSignin') {
+        logger.debug({ err: error }, 'auth-credentials-rejected');
+        return;
+      }
+      logger.error({ err: error }, 'auth-error');
+    },
+    warn(code) {
+      logger.warn({ code }, 'auth-warning');
+    },
+    debug(message, metadata) {
+      logger.debug({ metadata }, message);
+    },
+  },
   providers: [
     ...authConfig.providers,
     Credentials({

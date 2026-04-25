@@ -45,6 +45,10 @@ export default defineConfig({
           // Vercel.
           AUTH_URL: BASE_URL,
           AUTH_TRUST_HOST: 'true',
+          // Preload the stderr filter BEFORE any framework module loads —
+          // patching from `instrumentation.ts` is too late because Next.js
+          // captures `process.stderr.write` at its own module init.
+          NODE_OPTIONS: '-r ./scripts/silence-auth-noise.cjs',
         },
       },
 });
