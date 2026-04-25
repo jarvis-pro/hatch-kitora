@@ -18,15 +18,25 @@ export default function LoginPage() {
         <p className="text-sm text-muted-foreground">{t('subtitle')}</p>
       </div>
       <LoginForm />
-      <p className="text-center text-sm text-muted-foreground">
-        {t('noAccount')}{' '}
-        <Link
-          href="/signup"
-          className="font-medium text-foreground underline-offset-4 hover:underline"
-        >
-          {t('signupLink')}
-        </Link>
-      </p>
+      <div className="space-y-2 text-center text-sm text-muted-foreground">
+        <p>
+          <Link
+            href="/forgot-password"
+            className="font-medium text-foreground underline-offset-4 hover:underline"
+          >
+            {t('forgotPasswordLink')}
+          </Link>
+        </p>
+        <p>
+          {t('noAccount')}{' '}
+          <Link
+            href="/signup"
+            className="font-medium text-foreground underline-offset-4 hover:underline"
+          >
+            {t('signupLink')}
+          </Link>
+        </p>
+      </div>
     </div>
   );
 }
