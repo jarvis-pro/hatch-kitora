@@ -183,7 +183,43 @@ Kitora 设计上支持克隆后直接用于新项目，复用步骤如下：
 - [x] Stripe Webhook 加固（事件去重 · checkout 补全 · 订阅变更审计）
 - [x] Connected Accounts（OAuth 提供商绑定 / 解绑）
 - [x] API Tokens（生成 / 撤销 / Bearer 鉴权 · 明文仅显示一次）
+- [x] 公开 REST API（`/api/v1/me` · 按 token 限流 · admin 后台总览）
+- [x] Stripe 事件面板（按 type 过滤 / 分页 · admin 可见）
+- [x] Loading skeletons（dashboard / billing / settings / admin 全覆盖）
 - [ ] 中国区支持（支付宝 / 微信支付 · ICP / 备案）
+
+---
+
+## 🔌 公开 API
+
+提供少量 REST 端点，用 personal API token 鉴权：
+
+```bash
+# 在 settings → API tokens 创建一个 token，明文形如 kitora_<base64url>
+curl -H "Authorization: Bearer kitora_..." https://app.kitora.com/api/v1/me
+```
+
+返回示例：
+
+```json
+{
+  "id": "cl...",
+  "email": "you@example.com",
+  "name": "Jarvis",
+  "role": "user",
+  "emailVerified": true,
+  "createdAt": "2026-04-25T00:00:00.000Z",
+  "plan": {
+    "id": "pro",
+    "name": "Pro",
+    "status": "active",
+    "currentPeriodEnd": "2026-05-25T00:00:00.000Z",
+    "cancelAtPeriodEnd": false
+  }
+}
+```
+
+按 token id 维度限流（默认 60 req/min，env 可调）。响应携带 `X-RateLimit-Remaining` / `X-RateLimit-Reset` 头。
 
 ---
 
