@@ -1,0 +1,56 @@
+import 'server-only';
+
+import type { Prisma } from '@prisma/client';
+
+import { prisma } from '@/lib/db';
+import { logger } from '@/lib/logger';
+import { getClientIp } from '@/lib/request';
+
+/** Canonical action codes — keep these stable; UI maps them to translated copy. */
+export const AUDIT_ACTIONS = [
+  'role.set',
+  'account.password_changed',
+  'account.deleted',
+  'account.sign_out_everywhere',
+  'billing.subscription_changed',
+] as const;
+
+export type AuditAction = (typeof AUDIT_ACTIONS)[number];
+
+/**
+ * `next-intl` rejects `.` in key segments because it parses dots as nesting.
+ * We keep dotted action codes for readability in the DB and translate them
+ * to underscore-form only when looking up message strings.
+ */
+export function auditActionToI18nKey(action: string): string {
+  return action.replaceAll('.', '_');
+}
+
+interface RecordAuditInput {
+  actorId: string | null;
+  action: AuditAction;
+  target?: string | null;
+  metadata?: Prisma.InputJsonValue;
+}
+
+/**
+ * Append an audit log entry. Best-effort — failures are logged but never
+ * thrown, so an audit-store outage cannot block the underlying business
+ * action.
+ */
+export async function recordAudit(input: RecordAuditInput): Promise<void> {
+  try {
+    const ip = await getClientIp();
+    await prisma.auditLog.create({
+      data: {
+        actorId: input.actorId,
+        action: input.action,
+        target: input.target ?? null,
+        metadata: input.metadata,
+        ip: ip === 'unknown' ? null : ip,
+      },
+    });
+  } catch (err) {
+    logger.error({ err, action: input.action }, 'audit-write-failed');
+  }
+}
