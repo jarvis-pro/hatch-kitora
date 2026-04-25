@@ -100,6 +100,10 @@ storybook-static/
 # JetBrains
 *.iml
 
+# Claude Code (per-developer overrides; project-wide config in settings.json
+# is committed)
+.claude/settings.local.json
+
 # ---- OS ---------------------------------------------------------------------
 .DS_Store
 Thumbs.db
