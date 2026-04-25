@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1.7
 
 # ---------- 1. deps -----------------------------------------------------------
-FROM node:20-alpine AS deps
+FROM node:22-alpine AS deps
 RUN apk add --no-cache libc6-compat
 WORKDIR /app
 ENV PNPM_HOME=/usr/local/share/pnpm \
@@ -12,7 +12,7 @@ COPY prisma ./prisma
 RUN pnpm install --frozen-lockfile
 
 # ---------- 2. build ----------------------------------------------------------
-FROM node:20-alpine AS builder
+FROM node:22-alpine AS builder
 WORKDIR /app
 ENV NEXT_TELEMETRY_DISABLED=1 \
     SKIP_ENV_VALIDATION=1 \
@@ -24,7 +24,7 @@ COPY . .
 RUN pnpm prisma generate && pnpm build
 
 # ---------- 3. runner ---------------------------------------------------------
-FROM node:20-alpine AS runner
+FROM node:22-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production \
     NEXT_TELEMETRY_DISABLED=1 \

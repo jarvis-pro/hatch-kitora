@@ -4,7 +4,7 @@
   "private": true,
   "description": "Production-ready Next.js SaaS starter — global by default.",
   "engines": {
-    "node": ">=18.18"
+    "node": ">=22"
   },
   "packageManager": "pnpm@10.33.2",
   "scripts": {
