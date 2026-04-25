@@ -37,5 +37,14 @@ export default defineConfig({
         url: `${BASE_URL}/api/health`,
         reuseExistingServer: !process.env.CI,
         timeout: 120_000,
+        env: {
+          // `next start` runs as NODE_ENV=production where Auth.js defaults
+          // `useSecureCookies: true`. Over plain HTTP that drops the session
+          // cookie and breaks every authenticated test. AUTH_URL's protocol
+          // toggles the flag; AUTH_TRUST_HOST is required since we're not on
+          // Vercel.
+          AUTH_URL: BASE_URL,
+          AUTH_TRUST_HOST: 'true',
+        },
       },
 });

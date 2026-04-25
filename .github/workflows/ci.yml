@@ -75,6 +75,12 @@ jobs:
     env:
       DATABASE_URL: postgresql://kitora:kitora@localhost:5432/kitora_test
       AUTH_SECRET: 0123456789abcdef0123456789abcdef0123456789abcdef
+      # Auth.js v5: AUTH_URL's protocol drives `useSecureCookies`. Without
+      # this, `next start` (NODE_ENV=production) defaults Secure=true and the
+      # session cookie is silently dropped by the browser on plain HTTP — the
+      # exact failure mode that surfaces in e2e as "redirect to /login".
+      AUTH_URL: http://localhost:3000
+      AUTH_TRUST_HOST: 'true'
       NEXT_PUBLIC_APP_URL: http://localhost:3000
       NEXT_TELEMETRY_DISABLED: '1'
 
