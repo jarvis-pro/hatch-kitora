@@ -330,7 +330,8 @@
     "nav": {
       "overview": "概览",
       "users": "用户",
-      "subscriptions": "订阅"
+      "subscriptions": "订阅",
+      "audit": "审计日志"
     },
     "overview": {
       "title": "管理员概览",
@@ -370,6 +371,32 @@
       "errors": {
         "selfDemote": "不能取消自己的管理员角色。",
         "generic": "更新角色失败。"
+      }
+    },
+    "audit": {
+      "title": "审计日志",
+      "subtitle": "敏感操作的只读日志，按时间倒序。",
+      "search": "搜索",
+      "searchPlaceholder": "按操作者邮箱搜索…",
+      "empty": "没有匹配的审计记录。",
+      "system": "系统",
+      "filters": {
+        "all": "全部"
+      },
+      "actions": {
+        "role_set": "修改角色",
+        "account_password_changed": "修改密码",
+        "account_deleted": "删除账号",
+        "account_sign_out_everywhere": "登出所有设备",
+        "billing_subscription_changed": "订阅变更"
+      },
+      "table": {
+        "time": "时间 (UTC)",
+        "actor": "操作者",
+        "action": "操作",
+        "target": "目标",
+        "metadata": "元数据",
+        "ip": "IP"
       }
     },
     "subscriptions": {

@@ -335,7 +335,8 @@
     "nav": {
       "overview": "Overview",
       "users": "Users",
-      "subscriptions": "Subscriptions"
+      "subscriptions": "Subscriptions",
+      "audit": "Audit log"
     },
     "overview": {
       "title": "Admin overview",
@@ -375,6 +376,32 @@
       "errors": {
         "selfDemote": "You can't remove your own admin role.",
         "generic": "Could not update role."
+      }
+    },
+    "audit": {
+      "title": "Audit log",
+      "subtitle": "Append-only journal of sensitive actions.",
+      "search": "Search",
+      "searchPlaceholder": "Search by actor email…",
+      "empty": "No matching audit entries.",
+      "system": "System",
+      "filters": {
+        "all": "All actions"
+      },
+      "actions": {
+        "role_set": "Role changed",
+        "account_password_changed": "Password changed",
+        "account_deleted": "Account deleted",
+        "account_sign_out_everywhere": "Signed out everywhere",
+        "billing_subscription_changed": "Subscription changed"
+      },
+      "table": {
+        "time": "Time (UTC)",
+        "actor": "Actor",
+        "action": "Action",
+        "target": "Target",
+        "metadata": "Metadata",
+        "ip": "IP"
       }
     },
     "subscriptions": {
