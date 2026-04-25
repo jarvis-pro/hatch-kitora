@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 
+import { recordAudit } from '@/lib/audit';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { logger } from '@/lib/logger';
@@ -43,7 +44,14 @@ export async function setUserRoleAction(input: z.infer<typeof setRoleSchema>) {
     { actor: me.id, target: parsed.data.userId, role: parsed.data.role },
     'admin-set-user-role',
   );
+  await recordAudit({
+    actorId: me.id,
+    action: 'role.set',
+    target: parsed.data.userId,
+    metadata: { role: parsed.data.role },
+  });
 
   revalidatePath('/admin/users');
+  revalidatePath('/admin/audit');
   return { ok: true as const };
 }

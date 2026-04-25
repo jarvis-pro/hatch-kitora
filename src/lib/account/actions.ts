@@ -4,6 +4,7 @@ import bcrypt from 'bcryptjs';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 
+import { recordAudit } from '@/lib/audit';
 import { auth, signOut } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { logger } from '@/lib/logger';
@@ -75,6 +76,7 @@ export async function changePasswordAction(input: z.infer<typeof passwordSchema>
   });
 
   logger.info({ userId: me.id }, 'password-changed');
+  await recordAudit({ actorId: me.id, action: 'account.password_changed', target: me.id });
   // The current session's JWT carries the old sessionVersion → it's now
   // invalid too. Sign the user out so the UI redirects cleanly.
   await signOut({ redirectTo: '/login' });
@@ -88,6 +90,7 @@ export async function signOutEverywhereAction() {
     data: { sessionVersion: { increment: 1 } },
   });
   logger.info({ userId: me.id }, 'sign-out-everywhere');
+  await recordAudit({ actorId: me.id, action: 'account.sign_out_everywhere', target: me.id });
   // This call also invalidates the current session — which is consistent with
   // "sign out everywhere" since Edge middleware can't distinguish "current"
   // from "other" device when only the JWT is available.
@@ -105,6 +108,14 @@ export async function deleteAccountAction(input: z.infer<typeof deleteSchema>) {
     return { ok: false as const, error: 'email-mismatch' as const };
   }
 
+  // Record before delete — once the user row is gone we still keep the audit
+  // entry referencing the no-longer-existent actorId.
+  await recordAudit({
+    actorId: me.id,
+    action: 'account.deleted',
+    target: me.id,
+    metadata: { email: me.email ?? null },
+  });
   // Cascading FKs (Account / Session / Subscription) take care of the rest.
   await prisma.user.delete({ where: { id: me.id } });
   logger.info({ userId: me.id }, 'account-deleted');
