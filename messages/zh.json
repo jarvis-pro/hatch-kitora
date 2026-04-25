@@ -25,6 +25,13 @@
       "rights": "保留所有权利。",
       "built": "基于 Next.js 构建 · 开源项目"
     },
+    "icp": {
+      "title": "备案信息",
+      "subtitle": "中国大陆地区合规公示。",
+      "icpLabel": "ICP 备案号",
+      "mpsLabel": "公安备案号",
+      "disclosure": "以上备案号由相关监管机构核发。<link>访问工信部备案查询</link>。"
+    },
     "home": {
       "eyebrow": "生产级 SaaS 启动模板",
       "title": "几天交付你的全球 SaaS，而不是几个月。",

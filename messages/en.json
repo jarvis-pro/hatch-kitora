@@ -25,6 +25,13 @@
       "rights": "All rights reserved.",
       "built": "Built with Next.js · Open source"
     },
+    "icp": {
+      "title": "Filings & Records",
+      "subtitle": "Mainland China compliance information.",
+      "icpLabel": "ICP filing number",
+      "mpsLabel": "Public security record",
+      "disclosure": "These records are issued by Chinese regulators. <link>Official ICP lookup</link>."
+    },
     "home": {
       "eyebrow": "Production-ready SaaS starter",
       "title": "Ship your global SaaS in days, not months.",
