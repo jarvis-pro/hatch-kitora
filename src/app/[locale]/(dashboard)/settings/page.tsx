@@ -2,11 +2,14 @@ import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 import { getTranslations } from 'next-intl/server';
 
+import { ApiTokens } from '@/components/account/api-tokens';
+import { ConnectedAccounts } from '@/components/account/connected-accounts';
 import { DangerZone } from '@/components/account/danger-zone';
 import { PasswordForm } from '@/components/account/password-form';
 import { ProfileForm } from '@/components/account/profile-form';
 import { SessionsCard } from '@/components/account/sessions-card';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { env } from '@/env';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 
@@ -16,6 +19,14 @@ export const metadata: Metadata = {
 
 export const dynamic = 'force-dynamic';
 
+/** Providers configured at deploy time — only show those with credentials set. */
+function availableOAuthProviders(): readonly { id: string; label: string }[] {
+  const list: { id: string; label: string }[] = [];
+  if (env.AUTH_GITHUB_ID && env.AUTH_GITHUB_SECRET) list.push({ id: 'github', label: 'GitHub' });
+  if (env.AUTH_GOOGLE_ID && env.AUTH_GOOGLE_SECRET) list.push({ id: 'google', label: 'Google' });
+  return list;
+}
+
 export default async function SettingsPage() {
   const session = await auth();
   if (!session?.user?.id) redirect('/login');
@@ -24,13 +35,33 @@ export default async function SettingsPage() {
     getTranslations('account'),
     prisma.user.findUnique({
       where: { id: session.user.id },
-      select: { id: true, name: true, email: true, passwordHash: true },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        passwordHash: true,
+        accounts: { select: { provider: true } },
+        apiTokens: {
+          where: { revokedAt: null },
+          orderBy: { createdAt: 'desc' },
+          select: {
+            id: true,
+            name: true,
+            prefix: true,
+            createdAt: true,
+            lastUsedAt: true,
+            expiresAt: true,
+            revokedAt: true,
+          },
+        },
+      },
     }),
   ]);
 
   if (!user) redirect('/login');
 
   const hasPassword = Boolean(user.passwordHash);
+  const oauthProviders = availableOAuthProviders();
 
   return (
     <div className="space-y-6">
@@ -60,6 +91,32 @@ export default async function SettingsPage() {
           </CardContent>
         </Card>
       ) : null}
+
+      {oauthProviders.length > 0 ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>{t('connected.title')}</CardTitle>
+            <CardDescription>{t('connected.description')}</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ConnectedAccounts
+              available={oauthProviders}
+              linked={user.accounts.map((a) => ({ provider: a.provider }))}
+              hasPassword={hasPassword}
+            />
+          </CardContent>
+        </Card>
+      ) : null}
+
+      <Card>
+        <CardHeader>
+          <CardTitle>{t('apiTokens.title')}</CardTitle>
+          <CardDescription>{t('apiTokens.description')}</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <ApiTokens tokens={user.apiTokens} />
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>
