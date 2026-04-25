@@ -1,5 +1,6 @@
 'use client';
 
+import * as Sentry from '@sentry/nextjs';
 import { useEffect } from 'react';
 import { useTranslations } from 'next-intl';
 
@@ -15,8 +16,9 @@ export default function ErrorPage({
   const t = useTranslations('errors.runtime');
 
   useEffect(() => {
-    // Client-side: just surface to the browser console. Plug a real client
-    // error reporter (Sentry, PostHog, …) in here when you set one up.
+    // Forward to Sentry (no-op when DSN unset) and keep the console line for
+    // local dev where the network panel might not be open.
+    Sentry.captureException(error);
     console.error('[unhandled-error]', { digest: error.digest, message: error.message });
   }, [error]);
 
