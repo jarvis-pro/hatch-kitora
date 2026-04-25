@@ -180,6 +180,9 @@ Kitora 设计上支持克隆后直接用于新项目，复用步骤如下：
 - [x] E2E 测试脚手架（Playwright · auth / admin / 重置密码）
 - [x] 操作审计日志（角色变更 / 改密 / 删除账号 / 登出全部）
 - [x] Sentry 错误上报（client / server / edge · source map）
+- [x] Stripe Webhook 加固（事件去重 · checkout 补全 · 订阅变更审计）
+- [x] Connected Accounts（OAuth 提供商绑定 / 解绑）
+- [x] API Tokens（生成 / 撤销 / Bearer 鉴权 · 明文仅显示一次）
 - [ ] 中国区支持（支付宝 / 微信支付 · ICP / 备案）
 
 ---
