@@ -179,7 +179,33 @@ Kitora 设计上支持克隆后直接用于新项目，复用步骤如下：
 - [x] 管理后台（概览指标 · 用户管理 · 订阅列表）
 - [x] E2E 测试脚手架（Playwright · auth / admin / 重置密码）
 - [x] 操作审计日志（角色变更 / 改密 / 删除账号 / 登出全部）
+- [x] Sentry 错误上报（client / server / edge · source map）
 - [ ] 中国区支持（支付宝 / 微信支付 · ICP / 备案）
+
+---
+
+## 🩻 错误上报（Sentry）
+
+Sentry 已经接好，开关由环境变量决定，留空时**整个 SDK no-op，零网络请求**。最少只需一个 DSN：
+
+```env
+# 浏览器与服务端共用 — 留空就关闭
+NEXT_PUBLIC_SENTRY_DSN=
+
+# 上传 source map（可选，仅 CI build 阶段需要）
+SENTRY_AUTH_TOKEN=
+SENTRY_ORG=
+SENTRY_PROJECT=
+SENTRY_ENVIRONMENT=production
+```
+
+接入位置：
+
+- `sentry.{client,server,edge}.config.ts` — 三个运行时各一份
+- `src/instrumentation.ts` — Next.js boot hook，`NEXT_RUNTIME` 路由到对应 config
+- `next.config.mjs` — `withSentryConfig` 包裹，仅当 `SENTRY_AUTH_TOKEN` / `SENTRY_ORG` / `SENTRY_PROJECT` 同时存在才上传 source map
+- `src/app/[locale]/error.tsx` 与 `src/app/global-error.tsx` — 错误边界手动 `captureException`
+- `tunnelRoute: '/monitoring'` — 浏览器 SDK 走自家域绕过广告拦截器
 
 ---
 
