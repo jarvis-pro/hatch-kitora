@@ -1,6 +1,6 @@
 'use client';
 
-import { LayoutDashboard, Users, CreditCard } from 'lucide-react';
+import { CreditCard, LayoutDashboard, ScrollText, Users } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
 import { Link, usePathname } from '@/i18n/routing';
@@ -10,6 +10,7 @@ const items = [
   { href: '/admin', icon: LayoutDashboard, key: 'overview' },
   { href: '/admin/users', icon: Users, key: 'users' },
   { href: '/admin/subscriptions', icon: CreditCard, key: 'subscriptions' },
+  { href: '/admin/audit', icon: ScrollText, key: 'audit' },
 ] as const;
 
 export function AdminNav() {
