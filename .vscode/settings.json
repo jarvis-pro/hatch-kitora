@@ -1,3 +1,11 @@
 {
-  "prisma.pinToPrisma6": true
+  "prisma.pinToPrisma6": true,
+  // 显式声明 components.json 使用 shadcn/ui 的远程 schema —— 等价于"信任此源"，
+  // 让 VS Code 不再在 $schema 字段下抛 "schema 源不受信任" 的警告。
+  "json.schemas": [
+    {
+      "fileMatch": ["components.json"],
+      "url": "https://ui.shadcn.com/schema.json"
+    }
+  ]
 }
