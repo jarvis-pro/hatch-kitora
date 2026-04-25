@@ -83,6 +83,37 @@ model VerificationToken {
 }
 
 // ---------------------------------------------------------------------------
+// Self-managed tokens — email verification & password reset
+// ---------------------------------------------------------------------------
+//
+// We store only sha256(token); the raw token is delivered via email link.
+// On consume we compare hashes and delete the row (single-use).
+
+model EmailVerificationToken {
+  id         String    @id @default(cuid())
+  userId     String
+  tokenHash  String    @unique
+  expires    DateTime
+  consumedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([userId])
+  @@index([expires])
+}
+
+model PasswordResetToken {
+  id         String    @id @default(cuid())
+  userId     String
+  tokenHash  String    @unique
+  expires    DateTime
+  consumedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([userId])
+  @@index([expires])
+}
+
+// ---------------------------------------------------------------------------
 // Billing — Stripe subscriptions
 // ---------------------------------------------------------------------------
 
