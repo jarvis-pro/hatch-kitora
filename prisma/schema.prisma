@@ -27,6 +27,10 @@ model User {
   passwordHash  String? // for credentials provider
   role          UserRole  @default(USER)
   locale        String    @default("en")
+  // Bumped whenever the user wants to invalidate every issued JWT (password
+  // change, "sign out everywhere", account deletion). Compared inside the
+  // jwt callback — mismatch forces the holder to sign in again.
+  sessionVersion Int      @default(0)
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
