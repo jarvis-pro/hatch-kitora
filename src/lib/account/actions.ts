@@ -22,6 +22,10 @@ const deleteSchema = z.object({
   emailConfirm: z.string().email(),
 });
 
+const unlinkProviderSchema = z.object({
+  provider: z.string().min(1).max(40),
+});
+
 async function requireUser() {
   const session = await auth();
   if (!session?.user?.id) {
@@ -95,6 +99,38 @@ export async function signOutEverywhereAction() {
   // "sign out everywhere" since Edge middleware can't distinguish "current"
   // from "other" device when only the JWT is available.
   await signOut({ redirectTo: '/login' });
+  return { ok: true as const };
+}
+
+export async function unlinkProviderAction(input: z.infer<typeof unlinkProviderSchema>) {
+  const me = await requireUser();
+  const parsed = unlinkProviderSchema.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false as const, error: 'invalid-input' as const };
+  }
+
+  const user = await prisma.user.findUnique({
+    where: { id: me.id },
+    select: { passwordHash: true, accounts: { select: { provider: true } } },
+  });
+  if (!user) {
+    return { ok: false as const, error: 'not-found' as const };
+  }
+
+  const otherProviders = user.accounts.filter((a) => a.provider !== parsed.data.provider);
+  // Refuse if removing this would leave the user with no way to log in.
+  if (!user.passwordHash && otherProviders.length === 0) {
+    return { ok: false as const, error: 'last-login-method' as const };
+  }
+
+  const result = await prisma.account.deleteMany({
+    where: { userId: me.id, provider: parsed.data.provider },
+  });
+  if (result.count === 0) {
+    return { ok: false as const, error: 'not-linked' as const };
+  }
+
+  logger.info({ userId: me.id, provider: parsed.data.provider }, 'oauth-provider-unlinked');
   return { ok: true as const };
 }
 
