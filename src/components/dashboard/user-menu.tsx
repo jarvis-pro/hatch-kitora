@@ -41,9 +41,7 @@ export function UserMenu({ user }: UserMenuProps) {
       <DropdownMenuContent align="end" className="w-56">
         <DropdownMenuLabel>
           <p className="text-sm font-medium">{user.name ?? t('account')}</p>
-          {user.email ? (
-            <p className="text-xs text-muted-foreground">{user.email}</p>
-          ) : null}
+          {user.email ? <p className="text-xs text-muted-foreground">{user.email}</p> : null}
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuItem asChild>

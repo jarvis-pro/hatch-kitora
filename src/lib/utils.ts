@@ -18,11 +18,7 @@ export function formatDate(date: Date | string, locale = 'en-US'): string {
   }).format(typeof date === 'string' ? new Date(date) : date);
 }
 
-export function formatCurrency(
-  amountInCents: number,
-  currency = 'USD',
-  locale = 'en-US',
-): string {
+export function formatCurrency(amountInCents: number, currency = 'USD', locale = 'en-US'): string {
   return new Intl.NumberFormat(locale, {
     style: 'currency',
     currency,

@@ -27,8 +27,7 @@ export default function VerifyEmail({ verifyUrl, name = 'there' }: VerifyEmailPr
           <Container className="mx-auto max-w-xl px-6 py-10">
             <Heading className="text-2xl font-bold text-zinc-900">Verify your email</Heading>
             <Text className="text-base leading-6 text-zinc-700">
-              Hi {name}, please confirm your email address to finish setting up your Kitora
-              account.
+              Hi {name}, please confirm your email address to finish setting up your Kitora account.
             </Text>
             <Section className="mt-6">
               <Button

@@ -19,7 +19,11 @@ function noopLimiter(): Limiter {
   };
 }
 
-function buildLimiter(prefix: string, requests: number, window: `${number} ${'s' | 'm' | 'h'}`): Limiter {
+function buildLimiter(
+  prefix: string,
+  requests: number,
+  window: `${number} ${'s' | 'm' | 'h'}`,
+): Limiter {
   if (!env.UPSTASH_REDIS_REST_URL || !env.UPSTASH_REDIS_REST_TOKEN) {
     return noopLimiter();
   }

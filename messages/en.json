@@ -63,7 +63,12 @@
           "name": "Pro",
           "price": "$19/mo",
           "tagline": "For solo builders shipping fast.",
-          "features": ["Unlimited projects", "Priority support", "Custom domains", "Advanced analytics"],
+          "features": [
+            "Unlimited projects",
+            "Priority support",
+            "Custom domains",
+            "Advanced analytics"
+          ],
           "cta": "Upgrade to Pro"
         },
         "team": {

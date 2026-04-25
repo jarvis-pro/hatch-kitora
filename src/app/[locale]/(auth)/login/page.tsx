@@ -20,7 +20,10 @@ export default function LoginPage() {
       <LoginForm />
       <p className="text-center text-sm text-muted-foreground">
         {t('noAccount')}{' '}
-        <Link href="/signup" className="font-medium text-foreground underline-offset-4 hover:underline">
+        <Link
+          href="/signup"
+          className="font-medium text-foreground underline-offset-4 hover:underline"
+        >
           {t('signupLink')}
         </Link>
       </p>

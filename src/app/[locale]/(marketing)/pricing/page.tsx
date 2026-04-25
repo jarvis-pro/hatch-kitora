@@ -34,7 +34,11 @@ export default function PricingPage() {
                 </li>
               ))}
             </ul>
-            <Button asChild className="mt-6 w-full" variant={plan.id === 'pro' ? 'default' : 'outline'}>
+            <Button
+              asChild
+              className="mt-6 w-full"
+              variant={plan.id === 'pro' ? 'default' : 'outline'}
+            >
               <Link href={plan.id === 'free' ? '/signup' : `/checkout?plan=${plan.id}`}>
                 {t(`plans.${plan.id}.cta`)}
               </Link>

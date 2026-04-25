@@ -31,7 +31,11 @@ export default function HomePage() {
       </section>
 
       <section className="container grid gap-6 pb-24 md:grid-cols-3">
-        <FeatureCard icon={<Zap className="size-5" />} title={t('features.fast.title')} desc={t('features.fast.desc')} />
+        <FeatureCard
+          icon={<Zap className="size-5" />}
+          title={t('features.fast.title')}
+          desc={t('features.fast.desc')}
+        />
         <FeatureCard
           icon={<Globe2 className="size-5" />}
           title={t('features.global.title')}

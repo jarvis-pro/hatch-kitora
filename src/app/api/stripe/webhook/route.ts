@@ -98,7 +98,9 @@ async function upsertSubscription(sub: Stripe.Subscription) {
   });
 }
 
-async function resolveUserIdFromCustomer(customer: string | Stripe.Customer | Stripe.DeletedCustomer) {
+async function resolveUserIdFromCustomer(
+  customer: string | Stripe.Customer | Stripe.DeletedCustomer,
+) {
   const customerId = typeof customer === 'string' ? customer : customer.id;
   const user = await prisma.user.findFirst({ where: { stripeCustomerId: customerId } });
   return user?.id;

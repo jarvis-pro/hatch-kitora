@@ -48,9 +48,7 @@ export function LoginForm() {
       <div className="space-y-2">
         <Label htmlFor="email">{t('fields.email')}</Label>
         <Input id="email" type="email" autoComplete="email" {...register('email')} />
-        {errors.email ? (
-          <p className="text-xs text-destructive">{errors.email.message}</p>
-        ) : null}
+        {errors.email ? <p className="text-xs text-destructive">{errors.email.message}</p> : null}
       </div>
       <div className="space-y-2">
         <Label htmlFor="password">{t('fields.password')}</Label>

@@ -28,7 +28,9 @@ export default function WelcomeEmail({
       <Tailwind>
         <Body className="bg-white font-sans">
           <Container className="mx-auto max-w-xl px-6 py-10">
-            <Heading className="text-2xl font-bold text-zinc-900">Welcome aboard, {name} 👋</Heading>
+            <Heading className="text-2xl font-bold text-zinc-900">
+              Welcome aboard, {name} 👋
+            </Heading>
             <Text className="text-base leading-6 text-zinc-700">
               We're excited to have you on Kitora. Your workspace is ready and you can start
               building right away.

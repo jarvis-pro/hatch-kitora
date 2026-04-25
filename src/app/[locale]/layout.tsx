@@ -29,7 +29,8 @@ export const metadata: Metadata = {
     default: 'Kitora — Production-ready SaaS starter',
     template: '%s · Kitora',
   },
-  description: 'Build, ship and scale a global SaaS with Next.js — auth, billing and i18n included.',
+  description:
+    'Build, ship and scale a global SaaS with Next.js — auth, billing and i18n included.',
   keywords: ['Next.js', 'SaaS', 'Starter', 'Stripe', 'NextAuth', 'i18n'],
   authors: [{ name: 'Kitora' }],
   openGraph: {
