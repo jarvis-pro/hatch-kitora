@@ -147,3 +147,26 @@ enum SubscriptionStatus {
   INCOMPLETE_EXPIRED
   UNPAID
 }
+
+// ---------------------------------------------------------------------------
+// Audit log — append-only operational journal
+// ---------------------------------------------------------------------------
+//
+// Records sensitive actions (role changes, password change, account deletion,
+// sign-out-everywhere, future billing ops). Read-only via the admin UI.
+// `actorId` may reference a deleted user — keep it nullable, no FK so the row
+// survives the actor's deletion.
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  actorId   String?
+  action    String
+  target    String?
+  metadata  Json?
+  ip        String?
+  createdAt DateTime @default(now())
+
+  @@index([actorId])
+  @@index([action])
+  @@index([createdAt])
+}
