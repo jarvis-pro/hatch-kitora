@@ -40,9 +40,13 @@ export const authConfig = {
     authorized({ auth, request }) {
       const isLoggedIn = !!auth?.user;
       const { pathname } = request.nextUrl;
-      const isProtected = /^\/[^/]+\/(dashboard|settings)/.test(pathname);
+      const isProtected = /^\/[^/]+\/(dashboard|settings|admin)/.test(pathname);
+      const isAdminOnly = /^\/[^/]+\/admin/.test(pathname);
 
       if (isProtected && !isLoggedIn) {
+        return false;
+      }
+      if (isAdminOnly && auth?.user?.role !== 'ADMIN') {
         return false;
       }
       return true;
