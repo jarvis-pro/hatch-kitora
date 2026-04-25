@@ -300,6 +300,51 @@
         "generic": "更新密码失败。"
       }
     },
+    "connected": {
+      "title": "已连接账户",
+      "description": "在密码登录之外，通过下列第三方登录。",
+      "noProviders": "当前部署未配置任何 OAuth 提供商。",
+      "statusLinked": "已连接",
+      "statusNotLinked": "未连接",
+      "connect": "连接",
+      "unlink": "解绑",
+      "working": "处理中…",
+      "unlinked": "已解绑。",
+      "confirmUnlink": "确认解绑该提供商？",
+      "errors": {
+        "lastLoginMethod": "不能解绑唯一的登录方式。",
+        "notLinked": "该提供商未连接到当前账号。",
+        "invalidInput": "请求无效。",
+        "generic": "解绑失败。"
+      }
+    },
+    "apiTokens": {
+      "title": "API 令牌",
+      "description": "用于调用 API 的个人令牌。明文仅在创建时显示一次。",
+      "createLabel": "令牌名称",
+      "createPlaceholder": "例如：CI 部署、我的 Mac",
+      "create": "生成令牌",
+      "creating": "生成中…",
+      "revealedTitle": "{name} — 请立即复制",
+      "revealedHint": "之后不会再显示，请保存到密钥管理器中。",
+      "copy": "复制",
+      "copied": "已复制到剪贴板。",
+      "dismiss": "我已保存",
+      "lastUsed": "最近使用 {date}",
+      "created": "创建于 {date}",
+      "expires": "过期于 {date}",
+      "revoke": "撤销",
+      "revoked": "令牌已撤销。",
+      "confirmRevoke": "撤销该令牌？正在使用的客户端会立刻失效。",
+      "revokedTag": "已撤销",
+      "expiredTag": "已过期",
+      "empty": "暂无活跃令牌，可在上方创建。",
+      "errors": {
+        "create": "创建令牌失败。",
+        "revoke": "撤销令牌失败。",
+        "copy": "复制失败。"
+      }
+    },
     "sessions": {
       "title": "活跃会话",
       "descriptionShort": "在所有设备上登出当前账号。",

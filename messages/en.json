@@ -305,6 +305,51 @@
         "generic": "Could not update password."
       }
     },
+    "connected": {
+      "title": "Connected accounts",
+      "description": "Sign in with these third-party providers in addition to your password.",
+      "noProviders": "No OAuth providers are configured for this deployment.",
+      "statusLinked": "Linked",
+      "statusNotLinked": "Not linked",
+      "connect": "Connect",
+      "unlink": "Disconnect",
+      "working": "Working…",
+      "unlinked": "Provider disconnected.",
+      "confirmUnlink": "Disconnect this provider?",
+      "errors": {
+        "lastLoginMethod": "You can't disconnect your only sign-in method.",
+        "notLinked": "This provider isn't linked to your account.",
+        "invalidInput": "Invalid request.",
+        "generic": "Could not disconnect provider."
+      }
+    },
+    "apiTokens": {
+      "title": "API tokens",
+      "description": "Personal tokens for the API. Each token is shown exactly once at creation.",
+      "createLabel": "Token name",
+      "createPlaceholder": "e.g. CI deploys, my Mac",
+      "create": "Generate token",
+      "creating": "Generating…",
+      "revealedTitle": "{name} — copy this token now",
+      "revealedHint": "We won't show it again. Store it in a secret manager.",
+      "copy": "Copy",
+      "copied": "Copied to clipboard.",
+      "dismiss": "I've saved it",
+      "lastUsed": "last used {date}",
+      "created": "created {date}",
+      "expires": "expires {date}",
+      "revoke": "Revoke",
+      "revoked": "Token revoked.",
+      "confirmRevoke": "Revoke this token? Any clients using it will lose access immediately.",
+      "revokedTag": "revoked",
+      "expiredTag": "expired",
+      "empty": "No active tokens. Create one above to get started.",
+      "errors": {
+        "create": "Could not create token.",
+        "revoke": "Could not revoke token.",
+        "copy": "Could not copy to clipboard."
+      }
+    },
     "sessions": {
       "title": "Active sessions",
       "descriptionShort": "Sign out of every device that has an active session.",
