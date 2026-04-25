@@ -211,6 +211,78 @@
       "placeholder": "Settings UI is coming soon."
     }
   },
+  "admin": {
+    "nav": {
+      "overview": "Overview",
+      "users": "Users",
+      "subscriptions": "Subscriptions"
+    },
+    "overview": {
+      "title": "Admin overview",
+      "subtitle": "Key metrics across your workspace.",
+      "cards": {
+        "totalUsers": "Total users",
+        "newUsers": "New users",
+        "newUsersHint": "Last 7 days",
+        "activeSubs": "Active subscriptions",
+        "mrr": "MRR (approx.)",
+        "mrrHint": "Sum of active plan prices"
+      }
+    },
+    "users": {
+      "title": "Users",
+      "subtitle": "Search, audit and manage user roles.",
+      "search": "Search",
+      "searchPlaceholder": "Search by email or name…",
+      "empty": "No users found.",
+      "roleLabel": "Role",
+      "roleUpdated": "Role updated.",
+      "role": {
+        "user": "User",
+        "admin": "Admin"
+      },
+      "verified": {
+        "yes": "Verified",
+        "no": "Pending"
+      },
+      "table": {
+        "email": "Email",
+        "name": "Name",
+        "verified": "Verified",
+        "createdAt": "Joined",
+        "role": "Role"
+      },
+      "errors": {
+        "selfDemote": "You can't remove your own admin role.",
+        "generic": "Could not update role."
+      }
+    },
+    "subscriptions": {
+      "title": "Subscriptions",
+      "subtitle": "All Stripe subscriptions, newest first.",
+      "empty": "No subscriptions match this filter.",
+      "cancelAtEnd": "cancels at period end",
+      "filters": {
+        "all": "All"
+      },
+      "status": {
+        "ACTIVE": "Active",
+        "TRIALING": "Trialing",
+        "PAST_DUE": "Past due",
+        "CANCELED": "Canceled",
+        "INCOMPLETE": "Incomplete",
+        "INCOMPLETE_EXPIRED": "Expired",
+        "UNPAID": "Unpaid"
+      },
+      "table": {
+        "user": "User",
+        "status": "Status",
+        "priceId": "Price ID",
+        "periodEnd": "Period end",
+        "createdAt": "Created"
+      }
+    }
+  },
   "errors": {
     "notFound": {
       "title": "Page not found",

@@ -206,6 +206,78 @@
       "placeholder": "设置界面即将上线。"
     }
   },
+  "admin": {
+    "nav": {
+      "overview": "概览",
+      "users": "用户",
+      "subscriptions": "订阅"
+    },
+    "overview": {
+      "title": "管理员概览",
+      "subtitle": "工作区核心指标一览。",
+      "cards": {
+        "totalUsers": "总用户数",
+        "newUsers": "新增用户",
+        "newUsersHint": "近 7 天",
+        "activeSubs": "活跃订阅",
+        "mrr": "MRR（估算）",
+        "mrrHint": "活跃订阅价格之和"
+      }
+    },
+    "users": {
+      "title": "用户",
+      "subtitle": "搜索、审计与管理用户角色。",
+      "search": "搜索",
+      "searchPlaceholder": "按邮箱或姓名搜索…",
+      "empty": "未找到用户。",
+      "roleLabel": "角色",
+      "roleUpdated": "角色已更新。",
+      "role": {
+        "user": "普通用户",
+        "admin": "管理员"
+      },
+      "verified": {
+        "yes": "已验证",
+        "no": "待验证"
+      },
+      "table": {
+        "email": "邮箱",
+        "name": "姓名",
+        "verified": "邮箱状态",
+        "createdAt": "注册时间",
+        "role": "角色"
+      },
+      "errors": {
+        "selfDemote": "不能取消自己的管理员角色。",
+        "generic": "更新角色失败。"
+      }
+    },
+    "subscriptions": {
+      "title": "订阅",
+      "subtitle": "所有 Stripe 订阅，按时间倒序。",
+      "empty": "当前过滤条件下没有订阅。",
+      "cancelAtEnd": "周期结束后取消",
+      "filters": {
+        "all": "全部"
+      },
+      "status": {
+        "ACTIVE": "活跃",
+        "TRIALING": "试用中",
+        "PAST_DUE": "逾期",
+        "CANCELED": "已取消",
+        "INCOMPLETE": "未完成",
+        "INCOMPLETE_EXPIRED": "已过期",
+        "UNPAID": "未支付"
+      },
+      "table": {
+        "user": "用户",
+        "status": "状态",
+        "priceId": "Price ID",
+        "periodEnd": "周期结束",
+        "createdAt": "创建时间"
+      }
+    }
+  },
   "errors": {
     "notFound": {
       "title": "页面未找到",
