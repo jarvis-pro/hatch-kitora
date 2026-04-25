@@ -10,7 +10,7 @@ import { logger } from '@/lib/logger';
 import { strictLimiter } from '@/lib/rate-limit';
 import { getClientIp } from '@/lib/request';
 
-import { sendPasswordResetEmail, sendVerificationEmail } from './email-flows';
+import { sendPasswordResetEmail, sendVerificationEmail, sendWelcomeEmail } from './email-flows';
 import { hashToken } from './tokens';
 
 const signupSchema = z.object({
@@ -50,11 +50,12 @@ export async function signupAction(input: z.infer<typeof signupSchema>) {
     data: { name, email, passwordHash },
   });
 
-  // Fire the verification email but don't block signup if it fails — the user
-  // can request a fresh link from /verify-email.
+  // Fire the verification + welcome emails but don't block signup if either
+  // fails — the user can still log in and request a verification re-send.
   void sendVerificationEmail(user).catch((err) =>
     logger.error({ err, userId: user.id }, 'signup-verify-send-failed'),
   );
+  void sendWelcomeEmail(user);
 
   try {
     await signIn('credentials', {

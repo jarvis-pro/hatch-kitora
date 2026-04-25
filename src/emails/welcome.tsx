@@ -1,16 +1,6 @@
-import {
-  Body,
-  Button,
-  Container,
-  Head,
-  Heading,
-  Hr,
-  Html,
-  Preview,
-  Section,
-  Tailwind,
-  Text,
-} from '@react-email/components';
+import { Button, Section, Text } from '@react-email/components';
+
+import { EmailLayout } from './_layout';
 
 interface WelcomeEmailProps {
   name?: string;
@@ -22,34 +12,26 @@ export default function WelcomeEmail({
   appUrl = 'https://kitora.dev',
 }: WelcomeEmailProps) {
   return (
-    <Html>
-      <Head />
-      <Preview>Welcome to Kitora — let's get you started.</Preview>
-      <Tailwind>
-        <Body className="bg-white font-sans">
-          <Container className="mx-auto max-w-xl px-6 py-10">
-            <Heading className="text-2xl font-bold text-zinc-900">
-              Welcome aboard, {name} 👋
-            </Heading>
-            <Text className="text-base leading-6 text-zinc-700">
-              We're excited to have you on Kitora. Your workspace is ready and you can start
-              building right away.
-            </Text>
-            <Section className="mt-6">
-              <Button
-                href={`${appUrl}/dashboard`}
-                className="rounded-md bg-zinc-900 px-5 py-3 text-sm font-medium text-white"
-              >
-                Open your dashboard
-              </Button>
-            </Section>
-            <Hr className="my-8 border-zinc-200" />
-            <Text className="text-xs text-zinc-500">
-              If you didn't create this account, you can safely ignore this email.
-            </Text>
-          </Container>
-        </Body>
-      </Tailwind>
-    </Html>
+    <EmailLayout
+      preview="Welcome to Kitora — let's get you started."
+      heading={`Welcome aboard, ${name}`}
+      footerNote="If you didn't create this account, you can safely ignore this email."
+    >
+      <Text className="text-base leading-6 text-zinc-700">
+        We're excited to have you on Kitora. Your workspace is ready and you can start building
+        right away.
+      </Text>
+      <Section className="mt-2">
+        <Button
+          href={`${appUrl}/dashboard`}
+          className="rounded-md bg-zinc-900 px-5 py-3 text-sm font-medium text-white"
+        >
+          Open your dashboard
+        </Button>
+      </Section>
+      <Text className="text-sm text-zinc-600">
+        Need help? Reply to this email and we'll get back to you.
+      </Text>
+    </EmailLayout>
   );
 }

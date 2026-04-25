@@ -4,6 +4,7 @@ import { env } from '@/env';
 import { prisma } from '@/lib/db';
 import ResetPasswordEmail from '@/emails/reset-password';
 import VerifyEmail from '@/emails/verify-email';
+import WelcomeEmail from '@/emails/welcome';
 import { sendEmail } from '@/lib/email/send';
 import { logger } from '@/lib/logger';
 
@@ -13,6 +14,22 @@ interface UserLike {
   id: string;
   email: string;
   name?: string | null;
+}
+
+/**
+ * Fire-and-forget welcome email. Delivery failures are swallowed (logged) —
+ * a flaky mail provider must NOT block the signup flow.
+ */
+export async function sendWelcomeEmail(user: UserLike) {
+  try {
+    await sendEmail({
+      to: user.email,
+      subject: 'Welcome to Kitora',
+      react: WelcomeEmail({ name: user.name ?? undefined, appUrl: env.NEXT_PUBLIC_APP_URL }),
+    });
+  } catch (error) {
+    logger.error({ err: error, userId: user.id }, 'welcome-email-send-failed');
+  }
 }
 
 /**
