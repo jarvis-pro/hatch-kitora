@@ -16,11 +16,16 @@ import { env } from '@/env';
  *
  *     pnpm dev | pnpm exec pino-pretty
  */
+// `env.LOG_LEVEL` normally goes through zod's `.default('info')`, but when
+// SKIP_ENV_VALIDATION=1 (CI / build) zod is bypassed and the value can be
+// undefined. Pino throws on an undefined level, so we hard-fall-back here.
+const level = env.LOG_LEVEL ?? 'info';
+
 export const logger = pino({
-  level: env.LOG_LEVEL,
+  level,
   base: {
     app: 'kitora',
-    env: env.NODE_ENV,
+    env: env.NODE_ENV ?? 'production',
   },
 });
 
