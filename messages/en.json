@@ -211,6 +211,71 @@
       "placeholder": "Settings UI is coming soon."
     }
   },
+  "account": {
+    "title": "Settings",
+    "subtitle": "Manage your profile, security and account.",
+    "profile": {
+      "title": "Profile",
+      "description": "Update your display name. Email is the canonical identifier and cannot be changed here.",
+      "fields": {
+        "email": "Email",
+        "name": "Name"
+      },
+      "emailHint": "To change your email, contact support.",
+      "save": "Save changes",
+      "saving": "Saving…",
+      "saved": "Profile updated.",
+      "errors": {
+        "generic": "Could not save profile."
+      }
+    },
+    "security": {
+      "title": "Password",
+      "description": "Change your password. You'll be signed out and asked to log in again.",
+      "fields": {
+        "current": "Current password",
+        "new": "New password",
+        "confirm": "Confirm new password"
+      },
+      "save": "Update password",
+      "saving": "Updating…",
+      "saved": "Password updated.",
+      "hint": "Use at least 8 characters. We recommend a passphrase.",
+      "errors": {
+        "wrongPassword": "Current password is incorrect.",
+        "noPassword": "This account uses social sign-in only.",
+        "invalidInput": "Please check your input.",
+        "mismatch": "Passwords don't match.",
+        "reuse": "New password must be different.",
+        "generic": "Could not update password."
+      }
+    },
+    "sessions": {
+      "title": "Active sessions",
+      "descriptionShort": "Sign out of every device that has an active session.",
+      "description": "This invalidates every issued session token, including the one on this device. You'll need to sign in again afterwards.",
+      "action": "Sign out everywhere",
+      "working": "Signing out…",
+      "confirm": "This will sign you out on every device. Continue?",
+      "errors": {
+        "generic": "Could not sign out other sessions."
+      }
+    },
+    "danger": {
+      "title": "Delete account",
+      "descriptionShort": "Permanently delete your account and all associated data.",
+      "description": "This will permanently remove your account, subscriptions and personal data. This cannot be undone.",
+      "confirmLabel": "Type your email to confirm: {email}",
+      "confirmDialog": "Are you absolutely sure? This cannot be undone.",
+      "action": "Delete my account",
+      "working": "Deleting…",
+      "errors": {
+        "emailMismatch": "Email does not match.",
+        "invalidInput": "Please check your input.",
+        "generic": "Could not delete account."
+      }
+    }
+  },
   "admin": {
     "nav": {
       "overview": "Overview",
