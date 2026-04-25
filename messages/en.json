@@ -381,6 +381,8 @@
       "overview": "Overview",
       "users": "Users",
       "subscriptions": "Subscriptions",
+      "apiTokens": "API tokens",
+      "stripeEvents": "Stripe events",
       "audit": "Audit log"
     },
     "overview": {
@@ -421,6 +423,44 @@
       "errors": {
         "selfDemote": "You can't remove your own admin role.",
         "generic": "Could not update role."
+      }
+    },
+    "apiTokens": {
+      "title": "API tokens",
+      "subtitle": "All personal access tokens issued by users.",
+      "empty": "No tokens match this filter.",
+      "filters": {
+        "all": "All",
+        "active": "Active",
+        "revoked": "Revoked",
+        "expired": "Expired"
+      },
+      "statusValue": {
+        "active": "Active",
+        "revoked": "Revoked",
+        "expired": "Expired"
+      },
+      "table": {
+        "user": "User",
+        "name": "Name",
+        "prefix": "Prefix",
+        "status": "Status",
+        "lastUsed": "Last used",
+        "created": "Created",
+        "expires": "Expires"
+      }
+    },
+    "stripeEvents": {
+      "title": "Stripe events",
+      "subtitle": "Processed Stripe webhook events (used for idempotency).",
+      "empty": "No events processed yet.",
+      "filters": {
+        "all": "All"
+      },
+      "table": {
+        "processedAt": "Processed (UTC)",
+        "id": "Event ID",
+        "type": "Type"
       }
     },
     "audit": {

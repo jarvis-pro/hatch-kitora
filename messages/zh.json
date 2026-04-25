@@ -376,6 +376,8 @@
       "overview": "概览",
       "users": "用户",
       "subscriptions": "订阅",
+      "apiTokens": "API 令牌",
+      "stripeEvents": "Stripe 事件",
       "audit": "审计日志"
     },
     "overview": {
@@ -416,6 +418,44 @@
       "errors": {
         "selfDemote": "不能取消自己的管理员角色。",
         "generic": "更新角色失败。"
+      }
+    },
+    "apiTokens": {
+      "title": "API 令牌",
+      "subtitle": "所有用户签发的个人访问令牌。",
+      "empty": "没有匹配的令牌。",
+      "filters": {
+        "all": "全部",
+        "active": "活跃",
+        "revoked": "已撤销",
+        "expired": "已过期"
+      },
+      "statusValue": {
+        "active": "活跃",
+        "revoked": "已撤销",
+        "expired": "已过期"
+      },
+      "table": {
+        "user": "用户",
+        "name": "名称",
+        "prefix": "前缀",
+        "status": "状态",
+        "lastUsed": "最近使用",
+        "created": "创建时间",
+        "expires": "过期时间"
+      }
+    },
+    "stripeEvents": {
+      "title": "Stripe 事件",
+      "subtitle": "已处理的 Stripe webhook 事件（用于幂等去重）。",
+      "empty": "暂无已处理事件。",
+      "filters": {
+        "all": "全部"
+      },
+      "table": {
+        "processedAt": "处理时间 (UTC)",
+        "id": "事件 ID",
+        "type": "类型"
       }
     },
     "audit": {
