@@ -35,7 +35,10 @@ const nextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
   compress: true,
-  output: 'standalone',
+  // Only emit the standalone server bundle when explicitly requested (Docker
+  // build). Vercel and `next start` don't need it, and standalone confuses
+  // both `pnpm start` (warning) and Sentry's build-trace collector.
+  output: process.env.BUILD_STANDALONE === '1' ? 'standalone' : undefined,
   // Keep these packages outside the webpack bundle on the server — they ship
   // their own runtime resolution that webpack would otherwise break.
   // (In Next 15+ this option is renamed to `serverExternalPackages`.)
