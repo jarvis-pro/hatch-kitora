@@ -188,6 +188,7 @@
   "dashboard": {
     "nav": {
       "home": "Overview",
+      "billing": "Billing",
       "settings": "Settings"
     },
     "userMenu": {
@@ -198,17 +199,71 @@
     "home": {
       "greeting": "Welcome back, {name}",
       "friend": "friend",
-      "subtitle": "Here's what's happening today.",
+      "subtitle": "Here's a snapshot of your account.",
+      "checkoutSuccess": "Payment confirmed — your subscription is now active.",
+      "verifyEmailNotice": "Your email isn't verified yet. Verify it to secure your account.",
+      "verifyEmailCta": "Verify email",
       "stats": {
-        "users": "Users",
-        "revenue": "Revenue",
-        "activity": "Active sessions"
+        "plan": "Current plan",
+        "planHint": "Renews {date}",
+        "planFree": "Free tier — upgrade any time.",
+        "account": "Account",
+        "accountVerified": "Verified",
+        "accountPending": "Pending",
+        "memberFor": "Member for {days} days",
+        "nextSteps": "Quick links"
+      },
+      "quickLinks": {
+        "billing": "Manage billing",
+        "settings": "Account settings"
       }
     },
     "settings": {
       "title": "Settings",
       "subtitle": "Manage your workspace preferences.",
       "placeholder": "Settings UI is coming soon."
+    }
+  },
+  "billing": {
+    "title": "Billing",
+    "subtitle": "Plan, renewal and invoices.",
+    "currentPlan": "Current plan",
+    "priceLine": "{price} per {interval}",
+    "priceFree": "Free — no charge.",
+    "freeBlurb": "You're on the Free plan. Upgrade to unlock paid features.",
+    "willRenew": "Auto-renews",
+    "willCancel": "Cancels at period end",
+    "upgrade": "Upgrade plan",
+    "viewPlans": "View all plans",
+    "interval": {
+      "month": "month",
+      "year": "year"
+    },
+    "fields": {
+      "status": "Status",
+      "periodEnd": "Period ends",
+      "renewal": "Renewal"
+    },
+    "manage": {
+      "cta": "Manage subscription",
+      "opening": "Opening portal…"
+    },
+    "invoices": {
+      "title": "Invoices & payment methods",
+      "description": "Manage payment methods and download past invoices in the Stripe portal.",
+      "empty": "No invoices yet — invoices appear here after your first paid period."
+    },
+    "status": {
+      "ACTIVE": "Active",
+      "TRIALING": "Trialing",
+      "PAST_DUE": "Past due",
+      "CANCELED": "Canceled",
+      "INCOMPLETE": "Incomplete",
+      "INCOMPLETE_EXPIRED": "Expired",
+      "UNPAID": "Unpaid"
+    },
+    "errors": {
+      "portal": "Could not open the billing portal. Please try again."
     }
   },
   "account": {

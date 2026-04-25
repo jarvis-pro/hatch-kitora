@@ -183,6 +183,7 @@
   "dashboard": {
     "nav": {
       "home": "概览",
+      "billing": "账单",
       "settings": "设置"
     },
     "userMenu": {
@@ -193,17 +194,71 @@
     "home": {
       "greeting": "欢迎回来，{name}",
       "friend": "朋友",
-      "subtitle": "今天的最新动态。",
+      "subtitle": "你账户的最新一览。",
+      "checkoutSuccess": "支付已确认，订阅已激活。",
+      "verifyEmailNotice": "你的邮箱还未验证，建议尽快完成验证以保护账户。",
+      "verifyEmailCta": "去验证",
       "stats": {
-        "users": "用户数",
-        "revenue": "收入",
-        "activity": "活跃会话"
+        "plan": "当前计划",
+        "planHint": "续费日 {date}",
+        "planFree": "免费版 — 随时升级。",
+        "account": "账户",
+        "accountVerified": "已验证",
+        "accountPending": "待验证",
+        "memberFor": "已加入 {days} 天",
+        "nextSteps": "快捷入口"
+      },
+      "quickLinks": {
+        "billing": "管理账单",
+        "settings": "账户设置"
       }
     },
     "settings": {
       "title": "设置",
       "subtitle": "管理你的工作区偏好。",
       "placeholder": "设置界面即将上线。"
+    }
+  },
+  "billing": {
+    "title": "账单",
+    "subtitle": "查看计划、续费与发票。",
+    "currentPlan": "当前计划",
+    "priceLine": "{price} / {interval}",
+    "priceFree": "免费版 — 无需付费。",
+    "freeBlurb": "你正在使用免费版，升级即可解锁更多功能。",
+    "willRenew": "自动续费",
+    "willCancel": "周期结束后取消",
+    "upgrade": "升级计划",
+    "viewPlans": "查看所有计划",
+    "interval": {
+      "month": "月",
+      "year": "年"
+    },
+    "fields": {
+      "status": "状态",
+      "periodEnd": "周期结束",
+      "renewal": "续费"
+    },
+    "manage": {
+      "cta": "管理订阅",
+      "opening": "正在打开门户…"
+    },
+    "invoices": {
+      "title": "发票与支付方式",
+      "description": "在 Stripe 门户中管理支付方式、下载历史发票。",
+      "empty": "暂无发票，首期付费完成后会显示在此。"
+    },
+    "status": {
+      "ACTIVE": "活跃",
+      "TRIALING": "试用中",
+      "PAST_DUE": "逾期",
+      "CANCELED": "已取消",
+      "INCOMPLETE": "未完成",
+      "INCOMPLETE_EXPIRED": "已过期",
+      "UNPAID": "未支付"
+    },
+    "errors": {
+      "portal": "无法打开账单门户，请稍后再试。"
     }
   },
   "account": {
