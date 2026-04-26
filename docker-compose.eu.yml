@@ -1,0 +1,64 @@
+# Kitora local-dev compose — EU region.
+#
+# RFC 0005 PR-3 — placeholder. The EU residency stack is on the "nice to
+# have" track rather than the hard-blocker track (cf. RFC 0005 §1); no
+# RFC has been chartered to ship it yet, so this file is structurally
+# parallel to docker-compose.cn.yml but boots Stripe / Resend / S3 (the
+# global providers) since EU customers can run on the same SaaS
+# integrations behind an EU-region database. When EU residency lights
+# up, replace the provider switch in `src/lib/region/providers.ts` with
+# the EU concrete classes and remove this comment.
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: kitora-eu-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: kitora_eu
+    ports:
+      - '5632:5432'
+    volumes:
+      - postgres_eu_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: kitora-eu-redis
+    restart: unless-stopped
+    ports:
+      - '6579:6379'
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        KITORA_REGION: EU
+    container_name: kitora-eu-app
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    env_file:
+      - .env.local.eu
+    environment:
+      KITORA_REGION: EU
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/kitora_eu?schema=public
+    ports:
+      - '3200:3000'
+
+volumes:
+  postgres_eu_data:

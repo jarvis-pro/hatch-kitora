@@ -1,0 +1,67 @@
+# Kitora local-dev compose — CN region (mainland China).
+#
+# RFC 0005 PR-3 — placeholder. A working CN stack lights up in RFC 0006
+# alongside the actual provider integrations: Aliyun RDS PostgreSQL,
+# Aliyun Redis, Aliyun OSS, Aliyun DirectMail, and Alipay or WeChat Pay.
+# For local development today this file boots a vanilla Postgres + Redis
+# pair under independent volumes (so it doesn't share state with the
+# GLOBAL stack on the same machine) and starts the app with
+# `KITORA_REGION=CN`. The provider factory (`src/lib/region/providers.ts`)
+# will throw `not-implemented` on email/storage/billing calls until RFC
+# 0006 wires the Aliyun-side implementations — sign-up flows that
+# don't touch those rails (credentials login, dashboard, audit) will
+# work end-to-end.
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: kitora-cn-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: kitora_cn
+    ports:
+      - '5532:5432' # offset port to avoid collision with the GLOBAL stack
+    volumes:
+      - postgres_cn_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: kitora-cn-redis
+    restart: unless-stopped
+    ports:
+      - '6479:6379'
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        KITORA_REGION: CN
+    container_name: kitora-cn-app
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    env_file:
+      - .env.local.cn
+    environment:
+      KITORA_REGION: CN
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/kitora_cn?schema=public
+    ports:
+      - '3100:3000' # offset port — run alongside GLOBAL on :3000
+
+volumes:
+  postgres_cn_data:

@@ -26,7 +26,16 @@ RUN pnpm prisma generate && pnpm build
 # ---------- 3. runner ---------------------------------------------------------
 FROM node:22-alpine AS runner
 WORKDIR /app
-ENV NODE_ENV=production \
+
+# RFC 0005 — region the resulting image serves. CI / build-args set this
+# per-pipeline (`--build-arg KITORA_REGION=CN`); the same Dockerfile
+# produces GLOBAL / CN / EU images by flipping this one value. We bake
+# the var into the image's ENV so `currentRegion()` (and the edge-runtime
+# middleware shim that reads it directly) resolve correctly without
+# needing every compose file to re-set it.
+ARG KITORA_REGION=GLOBAL
+ENV KITORA_REGION=$KITORA_REGION \
+    NODE_ENV=production \
     NEXT_TELEMETRY_DISABLED=1 \
     PORT=3000
 

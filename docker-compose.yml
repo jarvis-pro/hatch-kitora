@@ -1,3 +1,20 @@
+# Kitora local-dev compose — GLOBAL region.
+#
+# RFC 0005 (Multi-region) splits Kitora into one stack per residency
+# region. This file is the GLOBAL stack (kitora.io); per-region siblings
+# live alongside:
+#
+#   docker-compose.cn.yml   — kitora.cn (mainland China; RFC 0006 stub)
+#   docker-compose.eu.yml   — kitora.eu (placeholder; no timeline)
+#
+# Each region uses its own database / redis volume so a CN dev cluster
+# never reads GLOBAL rows by accident. To run a non-default region
+# locally, point `docker compose -f docker-compose.<region>.yml up`.
+#
+# The image's `KITORA_REGION` env (baked at build time via the Dockerfile
+# `ARG` of the same name) is the source of truth for `currentRegion()`.
+# We re-export it here too as a safety net for `docker compose run` style
+# one-offs that might use a stock image.
 services:
   postgres:
     image: postgres:16-alpine
@@ -33,6 +50,8 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      args:
+        KITORA_REGION: GLOBAL
     container_name: kitora-app
     restart: unless-stopped
     depends_on:
@@ -43,6 +62,7 @@ services:
     env_file:
       - .env.local
     environment:
+      KITORA_REGION: GLOBAL
       DATABASE_URL: postgresql://postgres:postgres@postgres:5432/kitora?schema=public
     ports:
       - '3000:3000'
