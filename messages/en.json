@@ -426,6 +426,15 @@
       },
       "empty": "No export requests yet."
     },
+    "deletion": {
+      "banner": {
+        "message": "Your account is scheduled for deletion on {date}. You can cancel any time before that date.",
+        "cancel": "Cancel deletion",
+        "cancelling": "Cancelling…",
+        "cancelled": "Account deletion cancelled.",
+        "error": "Could not cancel deletion. Please try again."
+      }
+    },
     "twoFactor": {
       "title": "Two-factor authentication",
       "descriptionDisabled": "Add a second factor to your sign-in to protect against password leaks.",
@@ -460,12 +469,12 @@
     },
     "danger": {
       "title": "Delete account",
-      "descriptionShort": "Permanently delete your account and all associated data.",
-      "description": "This will permanently remove your account, subscriptions and personal data. This cannot be undone.",
+      "descriptionShort": "Schedule your account for deletion. You have 30 days to change your mind.",
+      "description": "Your account will be scheduled for deletion. You have 30 days to sign back in and cancel; after that, all data is permanently removed and irrecoverable.",
       "confirmLabel": "Type your email to confirm: {email}",
-      "confirmDialog": "Are you absolutely sure? This cannot be undone.",
-      "action": "Delete my account",
-      "working": "Deleting…",
+      "confirmDialog": "Schedule deletion? You'll be signed out and have 30 days to cancel by signing back in.",
+      "action": "Schedule deletion",
+      "working": "Scheduling…",
       "errors": {
         "emailMismatch": "Email does not match.",
         "invalidInput": "Please check your input.",
@@ -600,7 +609,10 @@
         "2fa_disabled": "2FA disabled",
         "2fa_backup_regenerated": "2FA backup codes regenerated",
         "account_export_requested": "Data export requested",
-        "org_export_requested": "Organization export requested"
+        "org_export_requested": "Organization export requested",
+        "account_deletion_scheduled": "Account deletion scheduled",
+        "account_deletion_cancelled": "Account deletion cancelled",
+        "org_2fa_required_changed": "Organization 2FA requirement changed"
       },
       "table": {
         "time": "Time (UTC)",
@@ -649,7 +661,28 @@
       "cta": "Retry"
     }
   },
+  "onboarding": {
+    "tfa": {
+      "title": "Two-factor authentication required",
+      "description": "{org} requires every member to have 2FA enabled before accessing the workspace.",
+      "cta": "Set up 2FA",
+      "note": "Once you enable 2FA in Settings, return to your dashboard and the wall will lift automatically."
+    }
+  },
   "orgs": {
+    "require2fa": {
+      "descriptionDisabled": "Members can sign in without 2FA. Enable to require all current and future members to have 2FA on.",
+      "descriptionEnabled": "All members must have 2FA on. Members without it are walled off until they enroll.",
+      "enable": "Require 2FA",
+      "disable": "Stop requiring 2FA",
+      "working": "Saving…",
+      "enabled": "Org now requires 2FA for all members.",
+      "disabled": "Org no longer requires 2FA.",
+      "errors": {
+        "callerNeeds2fa": "Enable 2FA on your own account first, otherwise you'd lock yourself out.",
+        "generic": "Could not update the policy."
+      }
+    },
     "switcher": {
       "label": "Workspace",
       "errors": {

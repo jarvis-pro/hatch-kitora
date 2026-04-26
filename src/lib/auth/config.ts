@@ -71,6 +71,11 @@ export const authConfig = {
         if (tfa) {
           token.tfa_pending = true;
         }
+        // RFC 0002 PR-4 — account lifecycle state at sign-in. Re-validated
+        // on every subsequent jwt() call (Node side) so a state change
+        // without re-login still takes effect.
+        const status = (user as { status?: 'ACTIVE' | 'PENDING_DELETION' }).status;
+        token.status = status ?? 'ACTIVE';
       }
       // The full Node-side config in `src/lib/auth/index.ts` overrides this
       // callback to additionally validate `token.sessionVersion` against the
@@ -93,6 +98,11 @@ export const authConfig = {
       // unverified users to /login/2fa.
       if (token.tfa_pending === true) {
         session.tfaPending = true;
+      }
+      // RFC 0002 PR-4 — surface user lifecycle status so middleware can
+      // route PENDING_DELETION users to the cancel-deletion screen.
+      if (token.status === 'PENDING_DELETION') {
+        session.userStatus = 'PENDING_DELETION';
       }
       return session;
     },

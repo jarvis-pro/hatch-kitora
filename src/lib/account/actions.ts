@@ -8,9 +8,14 @@ import { z } from 'zod';
 import { recordAudit } from '@/lib/audit';
 import { signOut } from '@/lib/auth';
 import { revokeAllDeviceSessions } from '@/lib/auth/device-session';
+import {
+  sendAccountDeletionCancelledEmail,
+  sendAccountDeletionScheduledEmail,
+} from '@/lib/auth/email-flows';
 import { requireActiveOrg, requireUser } from '@/lib/auth/session';
 import { prisma } from '@/lib/db';
 import { logger } from '@/lib/logger';
+import { getClientIp } from '@/lib/request';
 
 const profileSchema = z.object({
   name: z.string().min(1).max(80),
@@ -146,6 +151,18 @@ export async function unlinkProviderAction(input: z.infer<typeof unlinkProviderS
   return { ok: true as const };
 }
 
+/**
+ * RFC 0002 PR-4 — schedule (not immediately execute) account deletion.
+ *
+ * State transition: ACTIVE → PENDING_DELETION with `deletionScheduledAt =
+ * now + 30d`. The user can still sign in (so they can cancel), but the
+ * middleware will route them to /settings/account/* and nothing else.
+ * Hard-delete happens via the daily cron `scripts/run-deletion-cron.ts`.
+ *
+ * We bump `sessionVersion` and revoke every DeviceSession in the same
+ * transaction — the user must re-authenticate after scheduling, which
+ * also makes "fire-and-forget on a stolen laptop" much harder.
+ */
 export async function deleteAccountAction(input: z.infer<typeof deleteSchema>) {
   const me = await requireActiveOrg();
   const sessionUser = await requireUser();
@@ -157,7 +174,7 @@ export async function deleteAccountAction(input: z.infer<typeof deleteSchema>) {
     return { ok: false as const, error: 'email-mismatch' as const };
   }
 
-  // 安全检查：如果用户还是某个**非 personal**组织的 OWNER，直接拒绝删账号 ——
+  // 安全检查：如果用户还是某个**非 personal**组织的 OWNER，直接拒绝调度删除 ——
   // 否则会留下没有 OWNER 的组织（成员还在但没人能管理 / 计费）。让用户先
   // 在那些 org 转让所有权或删除组织。
   const ownedMemberships = await prisma.membership.findMany({
@@ -175,33 +192,87 @@ export async function deleteAccountAction(input: z.infer<typeof deleteSchema>) {
     };
   }
 
-  // 记录审计。orgId 写 audit 行的瞬间还有效（Membership 还没删），audit 表
-  // 不加 FK，所以 org 删后该行保留。
+  const scheduledAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+  const ip = await getClientIp();
+
+  await prisma.user.update({
+    where: { id: me.userId },
+    data: {
+      status: 'PENDING_DELETION',
+      deletionScheduledAt: scheduledAt,
+      deletionRequestedFromIp: ip,
+      // Bump so every other JWT (and every other session row) becomes
+      // invalid — a "scheduled-for-delete" account should not stay live
+      // anywhere it was logged in.
+      sessionVersion: { increment: 1 },
+    },
+  });
+  await revokeAllDeviceSessions(me.userId);
+
   await recordAudit({
     actorId: me.userId,
     orgId: me.orgId,
-    action: 'account.deleted',
+    action: 'account.deletion_scheduled',
     target: me.userId,
-    metadata: { email: sessionUser.email ?? null },
+    metadata: { scheduledAt: scheduledAt.toISOString(), email: sessionUser.email ?? null },
   });
-
-  // 同事务删 personal org（每个 user 至少一个，理论上只有一个）+ user。
-  // Cascade 会带走 Account / Session / Subscription / ApiToken / Membership /
-  // Invitation。
-  const personalOrgIds = ownedMemberships
-    .map((m) => m.organization)
-    .filter((o) => o.slug.startsWith('personal-'))
-    .map((o) => o.id);
-
-  await prisma.$transaction([
-    ...personalOrgIds.map((id) => prisma.organization.delete({ where: { id } })),
-    prisma.user.delete({ where: { id: me.userId } }),
-  ]);
   logger.info(
-    { userId: me.userId, personalOrgIds, count: personalOrgIds.length },
-    'account-deleted',
+    { userId: me.userId, scheduledAt: scheduledAt.toISOString() },
+    'account-deletion-scheduled',
   );
 
-  await signOut({ redirectTo: '/' });
+  if (sessionUser.email) {
+    void sendAccountDeletionScheduledEmail(
+      { id: me.userId, email: sessionUser.email, name: sessionUser.name ?? null },
+      scheduledAt,
+    );
+  }
+
+  // signOut here too — the next page should be /login, where the user
+  // signs back in to land on the cancellation banner.
+  await signOut({ redirectTo: '/login' });
+  return { ok: true as const };
+}
+
+/**
+ * RFC 0002 PR-4 — undo a scheduled deletion. Allowed any time before
+ * `deletionScheduledAt` lapses, idempotent (calling on an already-ACTIVE
+ * account just returns ok). Surfaced via the dashboard banner.
+ */
+export async function cancelAccountDeletionAction() {
+  const me = await requireUser();
+
+  const fresh = await prisma.user.findUniqueOrThrow({
+    where: { id: me.id },
+    select: { status: true, email: true, name: true },
+  });
+  if (fresh.status === 'ACTIVE') {
+    return { ok: true as const, alreadyActive: true as const };
+  }
+
+  await prisma.user.update({
+    where: { id: me.id },
+    data: {
+      status: 'ACTIVE',
+      deletionScheduledAt: null,
+      deletionRequestedFromIp: null,
+    },
+  });
+  await recordAudit({
+    actorId: me.id,
+    action: 'account.deletion_cancelled',
+    target: me.id,
+  });
+  logger.info({ userId: me.id }, 'account-deletion-cancelled');
+
+  if (fresh.email) {
+    void sendAccountDeletionCancelledEmail({
+      id: me.id,
+      email: fresh.email,
+      name: fresh.name,
+    });
+  }
+  revalidatePath('/settings');
+  revalidatePath('/dashboard');
   return { ok: true as const };
 }

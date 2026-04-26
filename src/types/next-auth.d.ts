@@ -23,12 +23,20 @@ declare module 'next-auth' {
      * RSC redirect such users to /login/2fa.
      */
     tfaPending?: boolean;
+    /**
+     * RFC 0002 PR-4: 'PENDING_DELETION' iff the user has scheduled their
+     * account for deletion. Middleware funnels these users to the
+     * cancel-deletion page; they can't do anything else until they
+     * either cancel or the cron deletes them.
+     */
+    userStatus?: 'ACTIVE' | 'PENDING_DELETION';
   }
 
   interface User {
     role?: 'USER' | 'ADMIN';
     sessionVersion?: number;
     twoFactorEnabled?: boolean;
+    status?: 'ACTIVE' | 'PENDING_DELETION';
   }
 }
 
@@ -43,5 +51,7 @@ declare module 'next-auth/jwt' {
     sidHash?: string;
     /** RFC 0002 PR-2: true between sign-in and a successful TOTP challenge. */
     tfa_pending?: boolean;
+    /** RFC 0002 PR-4: account lifecycle state. */
+    status?: 'ACTIVE' | 'PENDING_DELETION';
   }
 }

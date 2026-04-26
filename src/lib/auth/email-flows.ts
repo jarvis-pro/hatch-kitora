@@ -2,6 +2,8 @@ import 'server-only';
 
 import { env } from '@/env';
 import { prisma } from '@/lib/db';
+import AccountDeletionCancelledEmail from '@/emails/account-deletion-cancelled';
+import AccountDeletionScheduledEmail from '@/emails/account-deletion-scheduled';
 import DataExportReadyEmail from '@/emails/data-export-ready';
 import ResetPasswordEmail from '@/emails/reset-password';
 import TwoFactorDisabledEmail from '@/emails/two-factor-disabled';
@@ -169,5 +171,46 @@ export async function sendDataExportReadyEmail(
     });
   } catch (error) {
     logger.error({ err: error, userId: user.id }, 'data-export-ready-email-failed');
+  }
+}
+
+/**
+ * RFC 0002 PR-4 — sent when a user schedules account deletion. Acts as a
+ * tripwire: if the recipient didn't request it, the link in the email
+ * brings them straight back to /settings to cancel.
+ */
+export async function sendAccountDeletionScheduledEmail(user: UserLike, scheduledFor: Date) {
+  try {
+    await sendEmail({
+      to: user.email,
+      subject: 'Your Kitora account is scheduled for deletion',
+      react: AccountDeletionScheduledEmail({
+        name: user.name ?? undefined,
+        appUrl: env.NEXT_PUBLIC_APP_URL,
+        // ISO date string is unambiguous across locales — the email body
+        // can be improved later with locale-aware formatting if we add
+        // i18n to email templates.
+        scheduledFor: scheduledFor.toISOString().slice(0, 10),
+      }),
+    });
+  } catch (error) {
+    logger.error({ err: error, userId: user.id }, 'account-deletion-scheduled-email-failed');
+  }
+}
+
+/**
+ * RFC 0002 PR-4 — sent when a user cancels their scheduled deletion.
+ * Confirms the in-app action by hitting the inbox too, useful as an
+ * audit trail.
+ */
+export async function sendAccountDeletionCancelledEmail(user: UserLike) {
+  try {
+    await sendEmail({
+      to: user.email,
+      subject: 'Your Kitora account deletion has been cancelled',
+      react: AccountDeletionCancelledEmail({ name: user.name ?? undefined }),
+    });
+  } catch (error) {
+    logger.error({ err: error, userId: user.id }, 'account-deletion-cancelled-email-failed');
   }
 }

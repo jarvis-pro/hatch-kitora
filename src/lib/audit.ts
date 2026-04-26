@@ -30,6 +30,10 @@ export const AUDIT_ACTIONS = [
   // RFC 0002 PR-3 — Data export
   'account.export_requested',
   'org.export_requested',
+  // RFC 0002 PR-4 — Deletion grace period + Org 2FA enforcement
+  'account.deletion_scheduled',
+  'account.deletion_cancelled',
+  'org.2fa_required_changed',
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];

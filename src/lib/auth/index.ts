@@ -77,6 +77,7 @@ export const {
           role: user.role,
           sessionVersion: user.sessionVersion,
           twoFactorEnabled: user.twoFactorEnabled,
+          status: user.status,
         };
       },
     }),
@@ -127,7 +128,12 @@ export const {
       if (!user && base.id) {
         const fresh = await prisma.user.findUnique({
           where: { id: base.id as string },
-          select: { sessionVersion: true, role: true, twoFactorEnabled: true },
+          select: {
+            sessionVersion: true,
+            role: true,
+            twoFactorEnabled: true,
+            status: true,
+          },
         });
         if (!fresh) {
           // User was deleted — invalidate the token entirely.
@@ -139,6 +145,10 @@ export const {
         // Reflect current role in the token (e.g. an admin promotion takes
         // effect on the next request without forcing a re-login).
         base.role = fresh.role;
+        // RFC 0002 PR-4 — keep `status` in sync so middleware sees the
+        // PENDING_DELETION flip the moment the action commits, no need
+        // to wait for a fresh JWT mint.
+        base.status = fresh.status;
 
         // ── RFC 0002 PR-2: tfa_pending state machine ──────────────────
         //

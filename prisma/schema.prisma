@@ -35,6 +35,12 @@ model User {
   // join TwoFactorSecret on every request. Flipped in the same tx as the
   // TwoFactorSecret.enabledAt write; truthy iff a confirmed TOTP secret exists.
   twoFactorEnabled Boolean @default(false)
+  // RFC 0002 PR-4 — account deletion grace period. Users in PENDING_DELETION
+  // can only access /settings/account/* (cancel path); cron runs daily,
+  // hard-deletes anyone past `deletionScheduledAt`.
+  status                  UserStatus @default(ACTIVE)
+  deletionScheduledAt     DateTime?
+  deletionRequestedFromIp String?
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 
@@ -46,11 +52,30 @@ model User {
   twoFactorSecret TwoFactorSecret?
 
   @@index([email])
+  // RFC 0002 PR-4 — supports the daily deletion cron's hot path.
+  @@index([status, deletionScheduledAt])
 }
 
 enum UserRole {
   USER
   ADMIN
+}
+
+// RFC 0002 PR-4 — account lifecycle states.
+//
+// ACTIVE             — normal operation.
+// PENDING_DELETION   — user has requested deletion; `deletionScheduledAt`
+//                      is set 30 days in the future. Login is still
+//                      allowed (so they can cancel), but every request
+//                      is wallpapered into /settings/account by middleware.
+//
+// Hard-delete (the row + all cascading data) happens via the daily cron
+// in `scripts/run-deletion-cron.ts`. AuditLog rows survive because they
+// already store actorId without a FK.
+
+enum UserStatus {
+  ACTIVE
+  PENDING_DELETION
 }
 
 // ---------------------------------------------------------------------------
@@ -70,6 +95,11 @@ model Organization {
   stripeCustomerId String?  @unique
   // RFC 0005 占位字段：per-org ICP 备案号；PR-1 仅加列，业务逻辑后续 RFC 实现
   icpNumber        String?
+  // RFC 0002 PR-4 — when true, every member of this org must have 2FA
+  // enabled. `assertOrg2faCompliance()` enforces this at every server
+  // action / RSC entrypoint that resolves an active org. Toggle via
+  // `toggleOrgRequire2faAction` (OWNER + caller has 2FA themselves).
+  require2fa       Boolean  @default(false)
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 

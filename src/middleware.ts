@@ -13,6 +13,10 @@ const ADMIN_ONLY = /^\/(?:[a-z]{2}\/)?admin(?:\/|$)/;
 // RFC 0002 PR-2 — the only page a tfa-pending user is allowed to reach.
 // Anything else under PROTECTED gets bounced to /login/2fa.
 const TFA_CHALLENGE = /^\/(?:[a-z]{2}\/)?login\/2fa(?:\/|$)/;
+// RFC 0002 PR-4 — pages a PENDING_DELETION user is allowed to reach.
+// Settings is the only sanctioned destination so they can cancel; anything
+// else under PROTECTED gets funnelled to /settings.
+const SETTINGS_BASE = /^\/(?:[a-z]{2}\/)?settings(?:\/|$)/;
 
 export default auth((req) => {
   const { pathname } = req.nextUrl;
@@ -38,6 +42,16 @@ export default auth((req) => {
     const url = new URL('/login/2fa', req.nextUrl);
     url.searchParams.set('callbackUrl', pathname);
     return NextResponse.redirect(url);
+  }
+
+  // RFC 0002 PR-4 — accounts in the deletion grace period only have one
+  // sanctioned destination: /settings (where the cancel banner lives).
+  // We deliberately don't 404 the rest — keeping the user able to sign in
+  // and pivot is the whole point of the grace period.
+  const userStatus = req.auth?.userStatus;
+  const isSettings = SETTINGS_BASE.test(pathname);
+  if (isLoggedIn && userStatus === 'PENDING_DELETION' && isProtected && !isSettings) {
+    return NextResponse.redirect(new URL('/settings', req.nextUrl));
   }
 
   if (isAdminOnly && user?.role !== 'ADMIN') {

@@ -4,6 +4,7 @@ import { getTranslations } from 'next-intl/server';
 
 import { OrgDangerZone } from '@/components/account/org-danger-zone';
 import { OrgDataExportCard } from '@/components/account/org-data-export-card';
+import { OrgRequire2faToggle } from '@/components/account/org-require-2fa-toggle';
 import { OrgSettingsForm } from '@/components/account/org-settings-form';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { OrgRole } from '@prisma/client';
@@ -27,7 +28,7 @@ export default async function OrganizationSettingsPage() {
 
   const org = await prisma.organization.findUniqueOrThrow({
     where: { id: me.orgId },
-    select: { name: true, slug: true },
+    select: { name: true, slug: true, require2fa: true },
   });
 
   const canDelete = can(me.role, 'org.delete');
@@ -64,6 +65,21 @@ export default async function OrganizationSettingsPage() {
           <OrgSettingsForm defaultName={org.name} defaultSlug={org.slug} />
         </CardContent>
       </Card>
+
+      {isOwner ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>Require 2FA</CardTitle>
+            <CardDescription>
+              When enabled, every member must have two-factor authentication on before they can
+              access this organization.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <OrgRequire2faToggle orgSlug={org.slug} enabled={org.require2fa} />
+          </CardContent>
+        </Card>
+      ) : null}
 
       {isOwner ? (
         <Card>

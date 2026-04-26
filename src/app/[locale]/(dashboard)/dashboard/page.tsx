@@ -9,6 +9,7 @@ import { Link } from '@/i18n/routing';
 import { auth } from '@/lib/auth';
 import { getCurrentBilling } from '@/lib/billing/current';
 import { prisma } from '@/lib/db';
+import { checkOrg2faCompliance } from '@/lib/orgs/two-factor-policy';
 
 export const metadata: Metadata = {
   title: 'Dashboard',
@@ -31,6 +32,13 @@ function formatDate(d: Date): string {
 export default async function DashboardPage({ searchParams }: PageProps) {
   const session = await auth();
   if (!session?.user?.id) redirect('/login');
+
+  // RFC 0002 PR-4 — gate on org-level 2FA enforcement. If the active org
+  // requires 2FA and the caller doesn't have it on, send them to the wall.
+  const violation = await checkOrg2faCompliance().catch(() => null);
+  if (violation?.violation === 'need-2fa') {
+    redirect('/onboarding/2fa-required');
+  }
 
   const [{ checkout }, t, user, billing] = await Promise.all([
     searchParams,
