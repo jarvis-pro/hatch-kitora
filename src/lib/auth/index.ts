@@ -2,12 +2,14 @@ import { PrismaAdapter } from '@auth/prisma-adapter';
 import bcrypt from 'bcryptjs';
 import NextAuth from 'next-auth';
 import Credentials from 'next-auth/providers/credentials';
+import { headers } from 'next/headers';
 import { z } from 'zod';
 
 import { prisma } from '@/lib/db';
 import { logger } from '@/lib/logger';
 
 import { authConfig } from './config';
+import { createDeviceSession, generateSid, hashSid, validateDeviceSession } from './device-session';
 
 const credentialsSchema = z.object({
   email: z.string().email(),
@@ -94,6 +96,31 @@ export const {
       });
       if (!base) return base;
 
+      // ── Initial sign-in: mint a fresh sid + DeviceSession row ─────────
+      if (user && base.id) {
+        const rawSid = generateSid();
+        try {
+          const h = await headers();
+          await createDeviceSession({
+            userId: base.id as string,
+            rawSid,
+            userAgent: h.get('user-agent'),
+            ip:
+              h.get('x-forwarded-for')?.split(',')[0]?.trim() ??
+              h.get('x-real-ip') ??
+              h.get('cf-connecting-ip') ??
+              null,
+          });
+          base.sid = rawSid;
+          base.sidHash = hashSid(rawSid);
+        } catch (err) {
+          // If the DeviceSession write fails the JWT is still issued — but
+          // without a sid claim, the validation branch below treats it as
+          // "legacy / pre-RFC-0002 token" and lets it through one time.
+          logger.error({ err, userId: base.id }, 'device-session-create-failed');
+        }
+      }
+
       // Re-validate every subsequent call against the DB so revoked tokens
       // (sessionVersion bump) get hard-killed. One indexed PK lookup; cheap.
       if (!user && base.id) {
@@ -111,6 +138,22 @@ export const {
         // Reflect current role in the token (e.g. an admin promotion takes
         // effect on the next request without forcing a re-login).
         base.role = fresh.role;
+
+        // ── Per-session sid validation ────────────────────────────────
+        //
+        // Tokens that pre-date PR-1 don't carry a sid; let them through
+        // until their natural rotation. New tokens must point at an
+        // unrevoked DeviceSession row, otherwise we hard-reject (= forced
+        // re-login on the next request).
+        if (typeof base.sid === 'string' && base.sid.length > 0) {
+          const result = await validateDeviceSession(base.sid);
+          if (!result.ok) {
+            return null;
+          }
+          // Keep sidHash in sync with the rolled jwt — the session callback
+          // (edge-safe) reads this to flag the "current" device in the UI.
+          base.sidHash = result.sidHash;
+        }
       }
 
       return base;

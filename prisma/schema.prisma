@@ -19,25 +19,26 @@ datasource db {
 // ---------------------------------------------------------------------------
 
 model User {
-  id            String    @id @default(cuid())
-  name          String?
-  email         String    @unique
-  emailVerified DateTime?
-  image         String?
-  passwordHash  String? // for credentials provider
-  role          UserRole  @default(USER)
-  locale        String    @default("en")
+  id             String    @id @default(cuid())
+  name           String?
+  email          String    @unique
+  emailVerified  DateTime?
+  image          String?
+  passwordHash   String? // for credentials provider
+  role           UserRole  @default(USER)
+  locale         String    @default("en")
   // Bumped whenever the user wants to invalidate every issued JWT (password
   // change, "sign out everywhere", account deletion). Compared inside the
   // jwt callback — mismatch forces the holder to sign in again.
-  sessionVersion Int      @default(0)
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  sessionVersion Int       @default(0)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
-  accounts    Account[]
-  sessions    Session[]
-  apiTokens   ApiToken[]
-  memberships Membership[]
+  accounts       Account[]
+  sessions       Session[]
+  apiTokens      ApiToken[]
+  memberships    Membership[]
+  deviceSessions DeviceSession[]
 
   @@index([email])
 }
@@ -155,6 +156,40 @@ model VerificationToken {
   expires    DateTime
 
   @@unique([identifier, token])
+}
+
+// ---------------------------------------------------------------------------
+// Device sessions — per-JWT revocable session record (RFC 0002 PR-1)
+// ---------------------------------------------------------------------------
+//
+// Each issued JWT carries a `sid` claim (random base64url, 32 bytes). The
+// hash lands here so we can revoke any single session without nuking the
+// global `User.sessionVersion`. The jwt() callback in `src/lib/auth/index.ts`
+// re-validates the row on every call — missing or `revokedAt != null` ⇒ the
+// JWT is rejected and the holder is forced to re-login.
+//
+// `lastSeenAt` is updated with a 60s throttle (see `touchDeviceSession`) so
+// this row never becomes a write hot-spot under heavy traffic.
+
+model DeviceSession {
+  id         String    @id @default(cuid())
+  userId     String
+  // sha256(sid) — the raw sid only ever lives inside the signed JWT.
+  sidHash    String    @unique
+  // Raw User-Agent string captured at sign-in. UI parses for display.
+  userAgent  String?
+  // Approximate IP at sign-in time; not updated afterwards (see RFC 0002 §6).
+  ip         String?
+  lastSeenAt DateTime  @default(now())
+  createdAt  DateTime  @default(now())
+  revokedAt  DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Hot path: list a user's active sessions. With (userId, revokedAt) the
+  // common `revokedAt IS NULL` filter is also covered.
+  @@index([userId, revokedAt])
+  @@index([lastSeenAt])
 }
 
 // ---------------------------------------------------------------------------

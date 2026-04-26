@@ -356,13 +356,25 @@
     },
     "sessions": {
       "title": "活跃会话",
-      "descriptionShort": "在所有设备上登出当前账号。",
+      "descriptionShort": "当前账号在所有设备上的活跃会话。看到陌生设备请立即撤销。",
       "description": "此操作会让所有已签发的 session token 失效，包括当前设备。之后需要重新登录。",
       "action": "登出所有设备",
       "working": "登出中…",
       "confirm": "此操作将在所有设备登出，确认继续？",
+      "currentBadge": "当前设备",
+      "unknownDevice": "未知设备",
+      "createdAt": "{date} 登录",
+      "lastSeen": "最近活跃 {date}",
+      "ipLabel": "IP {ip}",
+      "revoke": "撤销",
+      "revoking": "撤销中…",
+      "revokeConfirm": "确定登出该设备？",
+      "revoked": "已撤销该会话。",
+      "empty": "没有其它活跃会话。",
       "errors": {
-        "generic": "登出其它会话失败。"
+        "generic": "登出其它会话失败。",
+        "revoke": "撤销该会话失败。",
+        "cannotRevokeCurrent": "登出当前设备请使用「登出所有设备」。"
       }
     },
     "danger": {
@@ -492,7 +504,8 @@
         "member_joined": "成员加入",
         "member_removed": "移除成员",
         "member_role_changed": "成员角色变更",
-        "ownership_transferred": "所有权转让"
+        "ownership_transferred": "所有权转让",
+        "session_revoked": "会话被撤销"
       },
       "table": {
         "time": "时间 (UTC)",

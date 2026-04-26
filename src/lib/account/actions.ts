@@ -7,6 +7,7 @@ import { z } from 'zod';
 
 import { recordAudit } from '@/lib/audit';
 import { signOut } from '@/lib/auth';
+import { revokeAllDeviceSessions } from '@/lib/auth/device-session';
 import { requireActiveOrg, requireUser } from '@/lib/auth/session';
 import { prisma } from '@/lib/db';
 import { logger } from '@/lib/logger';
@@ -72,6 +73,9 @@ export async function changePasswordAction(input: z.infer<typeof passwordSchema>
       sessionVersion: { increment: 1 },
     },
   });
+  // Also flip every DeviceSession row to revoked so the active-sessions
+  // list reflects the truth (not just "JWT now invalid").
+  await revokeAllDeviceSessions(me.userId);
 
   logger.info({ userId: me.userId }, 'password-changed');
   await recordAudit({
@@ -92,6 +96,10 @@ export async function signOutEverywhereAction() {
     where: { id: me.userId },
     data: { sessionVersion: { increment: 1 } },
   });
+  // Same rationale as in `changePasswordAction`: revoke all DeviceSession
+  // rows so the UI sessions list goes empty in lockstep with the JWT
+  // invalidation. The two paths together give consistent semantics.
+  await revokeAllDeviceSessions(me.userId);
   logger.info({ userId: me.userId }, 'sign-out-everywhere');
   await recordAudit({
     actorId: me.userId,

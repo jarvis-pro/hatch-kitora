@@ -21,6 +21,17 @@ export async function requireUser() {
   return session.user;
 }
 
+/**
+ * Resolve the sha256(sid) of the caller's current device session, if any.
+ * Returns `null` for legacy (pre-RFC-0002) JWTs that don't carry a sid —
+ * such requests can still see the active sessions list, just without the
+ * "current" badge.
+ */
+export async function getCurrentSidHash(): Promise<string | null> {
+  const session = await auth();
+  return session?.sidHash ?? null;
+}
+
 export interface ActiveOrg {
   orgId: string;
   userId: string;

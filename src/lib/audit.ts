@@ -21,6 +21,8 @@ export const AUDIT_ACTIONS = [
   'member.removed',
   'member.role_changed',
   'ownership.transferred',
+  // RFC 0002 PR-1 — Active Sessions
+  'session.revoked',
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];

@@ -361,13 +361,25 @@
     },
     "sessions": {
       "title": "Active sessions",
-      "descriptionShort": "Sign out of every device that has an active session.",
+      "descriptionShort": "Devices with an active session on this account. Revoke any you don't recognize.",
       "description": "This invalidates every issued session token, including the one on this device. You'll need to sign in again afterwards.",
       "action": "Sign out everywhere",
       "working": "Signing out…",
       "confirm": "This will sign you out on every device. Continue?",
+      "currentBadge": "Current device",
+      "unknownDevice": "Unknown device",
+      "createdAt": "Signed in {date}",
+      "lastSeen": "Last active {date}",
+      "ipLabel": "IP {ip}",
+      "revoke": "Revoke",
+      "revoking": "Revoking…",
+      "revokeConfirm": "Sign out this device?",
+      "revoked": "Session revoked.",
+      "empty": "No other active sessions.",
       "errors": {
-        "generic": "Could not sign out other sessions."
+        "generic": "Could not sign out other sessions.",
+        "revoke": "Could not revoke that session.",
+        "cannotRevokeCurrent": "Use \"Sign out everywhere\" to end the current session."
       }
     },
     "danger": {
@@ -497,7 +509,8 @@
         "member_joined": "Member joined",
         "member_removed": "Member removed",
         "member_role_changed": "Member role changed",
-        "ownership_transferred": "Ownership transferred"
+        "ownership_transferred": "Ownership transferred",
+        "session_revoked": "Session revoked"
       },
       "table": {
         "time": "Time (UTC)",

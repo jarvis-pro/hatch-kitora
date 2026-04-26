@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 import { getTranslations } from 'next-intl/server';
 
+import { ActiveSessions } from '@/components/account/active-sessions';
 import { ApiTokens } from '@/components/account/api-tokens';
 import { ConnectedAccounts } from '@/components/account/connected-accounts';
 import { DangerZone } from '@/components/account/danger-zone';
@@ -10,7 +11,8 @@ import { ProfileForm } from '@/components/account/profile-form';
 import { SessionsCard } from '@/components/account/sessions-card';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { env } from '@/env';
-import { requireActiveOrg } from '@/lib/auth/session';
+import { listActiveDeviceSessions } from '@/lib/auth/device-session';
+import { getCurrentSidHash, requireActiveOrg } from '@/lib/auth/session';
 import { prisma } from '@/lib/db';
 
 export const metadata: Metadata = {
@@ -32,7 +34,10 @@ export default async function SettingsPage() {
   if (!me) redirect('/login');
 
   // tokens 按 orgId 查（PR-2：active org 范围）。user 仍按 userId 查（profile / accounts 是 user-scoped）。
-  const [t, user, tokens] = await Promise.all([
+  // device sessions 也是 user-scoped；getCurrentSidHash 让我们能在列表里标
+  // 出当前会话（仅展示，撤销路径在 server action 里二次校验）。
+  const currentSidHash = await getCurrentSidHash();
+  const [t, user, tokens, deviceSessions] = await Promise.all([
     getTranslations('account'),
     prisma.user.findUnique({
       where: { id: me.userId },
@@ -57,6 +62,7 @@ export default async function SettingsPage() {
         revokedAt: true,
       },
     }),
+    listActiveDeviceSessions(me.userId, currentSidHash),
   ]);
 
   if (!user) redirect('/login');
@@ -124,7 +130,8 @@ export default async function SettingsPage() {
           <CardTitle>{t('sessions.title')}</CardTitle>
           <CardDescription>{t('sessions.descriptionShort')}</CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-6">
+          <ActiveSessions sessions={deviceSessions} />
           <SessionsCard />
         </CardContent>
       </Card>

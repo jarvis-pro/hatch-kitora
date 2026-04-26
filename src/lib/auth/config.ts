@@ -69,6 +69,13 @@ export const authConfig = {
         session.user.id = (token.id as string) ?? session.user.id;
         session.user.role = (token.role as 'USER' | 'ADMIN' | undefined) ?? 'USER';
       }
+      // RFC 0002 PR-1 — propagate sidHash so server actions / RSC can flag
+      // the "current" device session in the active-sessions UI. Only the
+      // hash leaves the JWT; the raw sid is never exposed.
+      const sidHash = (token as { sidHash?: string }).sidHash;
+      if (typeof sidHash === 'string' && sidHash.length > 0) {
+        session.sidHash = sidHash;
+      }
       return session;
     },
   },
