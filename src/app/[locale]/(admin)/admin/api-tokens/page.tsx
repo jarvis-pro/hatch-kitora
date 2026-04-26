@@ -56,6 +56,7 @@ export default async function AdminApiTokensPage({ searchParams }: PageProps) {
       take: PAGE_SIZE,
       include: {
         user: { select: { id: true, email: true } },
+        organization: { select: { slug: true, name: true } },
       },
     }),
   ]);
@@ -103,6 +104,7 @@ export default async function AdminApiTokensPage({ searchParams }: PageProps) {
         <table className="w-full text-sm">
           <thead className="bg-muted/40 text-left text-xs uppercase tracking-wide text-muted-foreground">
             <tr>
+              <th className="px-4 py-3 font-medium">{t('table.organization')}</th>
               <th className="px-4 py-3 font-medium">{t('table.user')}</th>
               <th className="px-4 py-3 font-medium">{t('table.name')}</th>
               <th className="px-4 py-3 font-medium">{t('table.prefix')}</th>
@@ -115,7 +117,7 @@ export default async function AdminApiTokensPage({ searchParams }: PageProps) {
           <tbody>
             {items.length === 0 ? (
               <tr>
-                <td colSpan={7} className="px-4 py-10 text-center text-muted-foreground">
+                <td colSpan={8} className="px-4 py-10 text-center text-muted-foreground">
                   {t('empty')}
                 </td>
               </tr>
@@ -124,6 +126,12 @@ export default async function AdminApiTokensPage({ searchParams }: PageProps) {
                 const cls = classifyStatus(row);
                 return (
                   <tr key={row.id} className="border-t align-top">
+                    <td className="px-4 py-3">
+                      <div className="font-medium">{row.organization.name}</div>
+                      <div className="font-mono text-xs text-muted-foreground">
+                        {row.organization.slug}
+                      </div>
+                    </td>
                     <td className="px-4 py-3">{row.user.email}</td>
                     <td className="px-4 py-3">{row.name}</td>
                     <td className="px-4 py-3 font-mono text-xs text-muted-foreground">
