@@ -24,7 +24,8 @@
     },
     "footer": {
       "rights": "All rights reserved.",
-      "built": "Built with Next.js · Open source"
+      "built": "Built with Next.js · Open source",
+      "dataRights": "Data rights"
     },
     "icp": {
       "title": "Filings & Records",
@@ -32,6 +33,31 @@
       "icpLabel": "ICP filing number",
       "mpsLabel": "Public security record",
       "disclosure": "These records are issued by Chinese regulators. <link>Official ICP lookup</link>."
+    },
+    "dataRights": {
+      "title": "Exercise Your Data Rights",
+      "subtitle": "Under PIPL Article 44 you have four rights over the personal information we process. All four are surfaced through the Settings UI; handling timelines mirror those of the global region.",
+      "query": {
+        "title": "Access",
+        "desc": "Review the information we hold on you: account profile, org membership, subscriptions, audit log.",
+        "cta": "Go to Settings · Account"
+      },
+      "correct": {
+        "title": "Correct",
+        "desc": "Update your name, email, password, two-factor binding, and connected third-party accounts.",
+        "cta": "Go to Settings · Profile"
+      },
+      "delete": {
+        "title": "Delete",
+        "desc": "Submit an account deletion request. A 30-day grace period applies; once it elapses all personally identifiable data is cascade-deleted.",
+        "cta": "Go to Settings · Danger zone"
+      },
+      "export": {
+        "title": "Portability",
+        "desc": "Export all your data as a zip archive (PII + org metadata) — a download link is emailed to you.",
+        "cta": "Go to Settings · Data export"
+      },
+      "contact": "Questions about how we process your personal information? Email privacy@kitora.cn or read the Chinese privacy policy."
     },
     "home": {
       "eyebrow": "Production-ready SaaS starter",
