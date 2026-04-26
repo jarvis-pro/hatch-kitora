@@ -61,6 +61,32 @@ export const env = createEnv({
     ICP_NUMBER: z.string().optional(),
     PUBLIC_SECURITY_NUMBER: z.string().optional(),
 
+    // CN infrastructure credentials (RFC 0006 PR-2). All optional at the
+    // env layer so dev / GLOBAL stacks boot fine without setting them;
+    // the providers themselves throw a configuration error if a CN-region
+    // request lands and the matching credential block is missing.
+    //
+    // RAM AccessKey is shared by Aliyun OSS (object storage) and DirectMail
+    // (transactional email). Production uses a STS-backed RAM Role bound to
+    // the ACK Service Account so these env vars only need filling for local
+    // dev against a sandbox account.
+    ALIYUN_ACCESS_KEY_ID: z.string().optional(),
+    ALIYUN_ACCESS_KEY_SECRET: z.string().optional(),
+
+    // OSS — bucket + region (e.g. cn-shanghai). Endpoint is optional and
+    // only set when using a non-default endpoint (e.g. the VPC-internal
+    // `oss-cn-shanghai-internal.aliyuncs.com` for ACK→OSS traffic).
+    ALIYUN_OSS_BUCKET: z.string().optional(),
+    ALIYUN_OSS_REGION: z.string().optional(),
+    ALIYUN_OSS_ENDPOINT: z.string().url().optional(),
+
+    // DirectMail — verified sender address (`AccountName` in DirectMail
+    // parlance) and the regional endpoint (e.g.
+    // `dm.cn-hangzhou.aliyuncs.com`). DirectMail's region can differ from
+    // OSS / RDS region; cn-hangzhou is the canonical mainland endpoint.
+    ALIYUN_DM_ACCOUNT_NAME: z.string().optional(),
+    ALIYUN_DM_ENDPOINT: z.string().optional(),
+
     // CN-payment credentials (RFC 0006 PR-3). All optional at the env layer
     // so dev / GLOBAL stacks boot fine without setting them; the providers
     // themselves throw a configuration error if a CN-region request lands
@@ -156,6 +182,13 @@ export const env = createEnv({
     REGION: process.env.REGION,
     ICP_NUMBER: process.env.ICP_NUMBER,
     PUBLIC_SECURITY_NUMBER: process.env.PUBLIC_SECURITY_NUMBER,
+    ALIYUN_ACCESS_KEY_ID: process.env.ALIYUN_ACCESS_KEY_ID,
+    ALIYUN_ACCESS_KEY_SECRET: process.env.ALIYUN_ACCESS_KEY_SECRET,
+    ALIYUN_OSS_BUCKET: process.env.ALIYUN_OSS_BUCKET,
+    ALIYUN_OSS_REGION: process.env.ALIYUN_OSS_REGION,
+    ALIYUN_OSS_ENDPOINT: process.env.ALIYUN_OSS_ENDPOINT,
+    ALIYUN_DM_ACCOUNT_NAME: process.env.ALIYUN_DM_ACCOUNT_NAME,
+    ALIYUN_DM_ENDPOINT: process.env.ALIYUN_DM_ENDPOINT,
     ALIPAY_APP_ID: process.env.ALIPAY_APP_ID,
     ALIPAY_PRIVATE_KEY: process.env.ALIPAY_PRIVATE_KEY,
     ALIPAY_PUBLIC_KEY: process.env.ALIPAY_PUBLIC_KEY,
