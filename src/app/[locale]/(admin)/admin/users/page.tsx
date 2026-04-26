@@ -3,6 +3,7 @@ import { getTranslations } from 'next-intl/server';
 import type { Prisma } from '@prisma/client';
 
 import { DataPagination } from '@/components/admin/data-pagination';
+import { Reset2faButton } from '@/components/admin/reset-2fa-button';
 import { RoleSelect } from '@/components/admin/role-select';
 import { SearchForm } from '@/components/admin/search-form';
 import { auth } from '@/lib/auth';
@@ -55,6 +56,7 @@ export default async function AdminUsersPage({ searchParams }: PageProps) {
         name: true,
         role: true,
         emailVerified: true,
+        twoFactorEnabled: true,
         createdAt: true,
       },
     }),
@@ -86,12 +88,13 @@ export default async function AdminUsersPage({ searchParams }: PageProps) {
               <th className="px-4 py-3 font-medium">{t('table.verified')}</th>
               <th className="px-4 py-3 font-medium">{t('table.createdAt')}</th>
               <th className="px-4 py-3 font-medium">{t('table.role')}</th>
+              <th className="px-4 py-3 font-medium">{t('table.twoFactor')}</th>
             </tr>
           </thead>
           <tbody>
             {users.length === 0 ? (
               <tr>
-                <td colSpan={5} className="px-4 py-10 text-center text-muted-foreground">
+                <td colSpan={6} className="px-4 py-10 text-center text-muted-foreground">
                   {t('empty')}
                 </td>
               </tr>
@@ -112,6 +115,9 @@ export default async function AdminUsersPage({ searchParams }: PageProps) {
                       currentRole={user.role}
                       disabled={user.id === meId}
                     />
+                  </td>
+                  <td className="px-4 py-3">
+                    <Reset2faButton userId={user.id} enabled={user.twoFactorEnabled} />
                   </td>
                 </tr>
               ))

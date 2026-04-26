@@ -3,6 +3,8 @@ import 'server-only';
 import { env } from '@/env';
 import { prisma } from '@/lib/db';
 import ResetPasswordEmail from '@/emails/reset-password';
+import TwoFactorDisabledEmail from '@/emails/two-factor-disabled';
+import TwoFactorEnabledEmail from '@/emails/two-factor-enabled';
 import VerifyEmail from '@/emails/verify-email';
 import WelcomeEmail from '@/emails/welcome';
 import { sendEmail } from '@/lib/email/send';
@@ -63,6 +65,48 @@ export async function sendVerificationEmail(user: UserLike) {
   } catch (error) {
     logger.error({ err: error, userId: user.id }, 'verify-email-send-failed');
     throw error;
+  }
+}
+
+/**
+ * RFC 0002 PR-2 — fire-and-forget alert sent right after 2FA enrollment is
+ * confirmed. Acts as a tripwire if a hijacked session enables 2FA without
+ * the real owner knowing. Failures are logged, never thrown — auth flow
+ * must not block on mail provider hiccups.
+ */
+export async function sendTwoFactorEnabledEmail(user: UserLike) {
+  try {
+    await sendEmail({
+      to: user.email,
+      subject: 'Two-factor authentication enabled',
+      react: TwoFactorEnabledEmail({
+        name: user.name ?? undefined,
+        appUrl: env.NEXT_PUBLIC_APP_URL,
+      }),
+    });
+  } catch (error) {
+    logger.error({ err: error, userId: user.id }, 'two-factor-enabled-email-failed');
+  }
+}
+
+/**
+ * RFC 0002 PR-2 — fire-and-forget alert sent whenever 2FA is removed (by
+ * the user themselves or by an admin during recovery). Same swallow-on-fail
+ * stance as the enabled email.
+ */
+export async function sendTwoFactorDisabledEmail(user: UserLike, opts: { byAdmin?: boolean } = {}) {
+  try {
+    await sendEmail({
+      to: user.email,
+      subject: 'Two-factor authentication disabled',
+      react: TwoFactorDisabledEmail({
+        name: user.name ?? undefined,
+        appUrl: env.NEXT_PUBLIC_APP_URL,
+        byAdmin: opts.byAdmin,
+      }),
+    });
+  } catch (error) {
+    logger.error({ err: error, userId: user.id }, 'two-factor-disabled-email-failed');
   }
 }
 

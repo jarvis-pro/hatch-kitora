@@ -100,6 +100,21 @@
         "invalid": "邮箱或密码不正确。"
       }
     },
+    "twoFactorChallenge": {
+      "title": "双因子验证",
+      "subtitle": "请输入身份验证器中的 6 位验证码，或一组备用码。",
+      "fields": {
+        "code": "验证码"
+      },
+      "placeholder": "123456 或 XXXX-XXXX",
+      "submit": "验证",
+      "submitting": "验证中…",
+      "errors": {
+        "wrongCode": "验证码不匹配，请重试。",
+        "notEnabled": "该账号未启用 2FA。",
+        "generic": "操作失败，请稍后重试。"
+      }
+    },
     "forgotPassword": {
       "title": "忘记密码？",
       "subtitle": "输入邮箱，我们将向你发送重置链接。",
@@ -377,6 +392,38 @@
         "cannotRevokeCurrent": "登出当前设备请使用「登出所有设备」。"
       }
     },
+    "twoFactor": {
+      "title": "双因子验证",
+      "descriptionDisabled": "为登录加一道验证，防止密码泄露后被直接登录。",
+      "descriptionEnabled": "登录时需输入身份验证器的一次性验证码。",
+      "enable": "启用双因子验证",
+      "enrollIntro": "打开你的身份验证器 App，扫码（待支持）或手动输入下面的密钥。",
+      "secretLabel": "密钥",
+      "otpauthLabel": "otpauth URI",
+      "copy": "复制",
+      "copied": "已复制到剪贴板。",
+      "codeLabel": "6 位验证码",
+      "codePlaceholder": "123456",
+      "confirm": "确认",
+      "confirming": "确认中…",
+      "backupTitle": "备用码",
+      "backupIntro": "请妥善保存以下一次性备用码——身份验证器丢失时可凭此登录。每个备用码仅能使用一次。",
+      "backupAcknowledge": "我已保存备用码",
+      "regenerate": "重新生成备用码",
+      "regenerating": "生成中…",
+      "regenerated": "已重新生成备用码，旧码立即失效。",
+      "disable": "停用双因子验证",
+      "disabling": "停用中…",
+      "disableIntro": "输入当前的 6 位验证码或备用码以确认停用 2FA。",
+      "enabled": "双因子验证已开启，下次登录会要求输入验证码。",
+      "errors": {
+        "wrongCode": "验证码不匹配，请重试。",
+        "alreadyEnabled": "已开启 2FA。如需重新注册，请先停用。",
+        "notEnabled": "未启用 2FA。",
+        "noEmail": "账号没有邮箱地址——开启 2FA 前请先设置邮箱。",
+        "generic": "操作失败，请稍后重试。"
+      }
+    },
     "danger": {
       "title": "删除账号",
       "descriptionShort": "永久删除账号及全部相关数据。",
@@ -435,7 +482,16 @@
         "name": "姓名",
         "verified": "邮箱状态",
         "createdAt": "注册时间",
-        "role": "角色"
+        "role": "角色",
+        "twoFactor": "2FA"
+      },
+      "reset2fa": {
+        "action": "重置 2FA",
+        "off": "未开启",
+        "working": "重置中…",
+        "confirm": "确定为该用户重置 2FA？下次登录时需重新注册。",
+        "done": "已重置 2FA，并已邮件通知用户。",
+        "error": "重置 2FA 失败。"
       },
       "errors": {
         "selfDemote": "不能取消自己的管理员角色。",
@@ -505,7 +561,10 @@
         "member_removed": "移除成员",
         "member_role_changed": "成员角色变更",
         "ownership_transferred": "所有权转让",
-        "session_revoked": "会话被撤销"
+        "session_revoked": "会话被撤销",
+        "2fa_enabled": "启用 2FA",
+        "2fa_disabled": "停用 2FA",
+        "2fa_backup_regenerated": "重新生成 2FA 备用码"
       },
       "table": {
         "time": "时间 (UTC)",

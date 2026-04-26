@@ -9,6 +9,7 @@ import { DangerZone } from '@/components/account/danger-zone';
 import { PasswordForm } from '@/components/account/password-form';
 import { ProfileForm } from '@/components/account/profile-form';
 import { SessionsCard } from '@/components/account/sessions-card';
+import { TwoFactorCard } from '@/components/account/two-factor-card';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { env } from '@/env';
 import { listActiveDeviceSessions } from '@/lib/auth/device-session';
@@ -46,6 +47,7 @@ export default async function SettingsPage() {
         name: true,
         email: true,
         passwordHash: true,
+        twoFactorEnabled: true,
         accounts: { select: { provider: true } },
       },
     }),
@@ -98,6 +100,20 @@ export default async function SettingsPage() {
           </CardContent>
         </Card>
       ) : null}
+
+      <Card>
+        <CardHeader>
+          <CardTitle>{t('twoFactor.title')}</CardTitle>
+          <CardDescription>
+            {user.twoFactorEnabled
+              ? t('twoFactor.descriptionEnabled')
+              : t('twoFactor.descriptionDisabled')}
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <TwoFactorCard enabled={user.twoFactorEnabled} />
+        </CardContent>
+      </Card>
 
       {oauthProviders.length > 0 ? (
         <Card>

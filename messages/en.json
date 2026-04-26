@@ -105,6 +105,21 @@
         "invalid": "Invalid email or password."
       }
     },
+    "twoFactorChallenge": {
+      "title": "Two-factor authentication",
+      "subtitle": "Enter the 6-digit code from your authenticator app, or one of your backup codes.",
+      "fields": {
+        "code": "Code"
+      },
+      "placeholder": "123456 or XXXX-XXXX",
+      "submit": "Verify",
+      "submitting": "Verifying…",
+      "errors": {
+        "wrongCode": "That code didn't match. Try again.",
+        "notEnabled": "2FA isn't enabled on this account.",
+        "generic": "Something went wrong. Please try again."
+      }
+    },
     "forgotPassword": {
       "title": "Forgot your password?",
       "subtitle": "Enter your email and we'll send you a reset link.",
@@ -382,6 +397,38 @@
         "cannotRevokeCurrent": "Use \"Sign out everywhere\" to end the current session."
       }
     },
+    "twoFactor": {
+      "title": "Two-factor authentication",
+      "descriptionDisabled": "Add a second factor to your sign-in to protect against password leaks.",
+      "descriptionEnabled": "An authenticator app is required at sign-in.",
+      "enable": "Enable 2FA",
+      "enrollIntro": "Open your authenticator app and either scan the QR code (coming soon) or enter the secret manually.",
+      "secretLabel": "Setup key",
+      "otpauthLabel": "otpauth URI",
+      "copy": "Copy",
+      "copied": "Copied to clipboard.",
+      "codeLabel": "6-digit code",
+      "codePlaceholder": "123456",
+      "confirm": "Confirm",
+      "confirming": "Confirming…",
+      "backupTitle": "Backup codes",
+      "backupIntro": "Save these one-time codes somewhere safe — you can use them to sign in if you lose access to your authenticator. Each code works only once.",
+      "backupAcknowledge": "I've saved my backup codes",
+      "regenerate": "Regenerate backup codes",
+      "regenerating": "Regenerating…",
+      "regenerated": "Backup codes regenerated. The previous codes are no longer valid.",
+      "disable": "Disable 2FA",
+      "disabling": "Disabling…",
+      "disableIntro": "Confirm your current 6-digit code or a backup code to turn off 2FA.",
+      "enabled": "2FA enabled. From now on you'll be asked for a code at sign-in.",
+      "errors": {
+        "wrongCode": "That code didn't match. Try again.",
+        "alreadyEnabled": "2FA is already enabled. Disable it first if you want to re-enroll.",
+        "notEnabled": "2FA is not enabled.",
+        "noEmail": "Your account has no email address — set one before enabling 2FA.",
+        "generic": "Something went wrong. Please try again."
+      }
+    },
     "danger": {
       "title": "Delete account",
       "descriptionShort": "Permanently delete your account and all associated data.",
@@ -440,7 +487,16 @@
         "name": "Name",
         "verified": "Verified",
         "createdAt": "Joined",
-        "role": "Role"
+        "role": "Role",
+        "twoFactor": "2FA"
+      },
+      "reset2fa": {
+        "action": "Reset 2FA",
+        "off": "Off",
+        "working": "Resetting…",
+        "confirm": "Reset 2FA for this user? They'll need to re-enroll on their next sign-in.",
+        "done": "2FA reset. The user has been notified by email.",
+        "error": "Could not reset 2FA for this user."
       },
       "errors": {
         "selfDemote": "You can't remove your own admin role.",
@@ -510,7 +566,10 @@
         "member_removed": "Member removed",
         "member_role_changed": "Member role changed",
         "ownership_transferred": "Ownership transferred",
-        "session_revoked": "Session revoked"
+        "session_revoked": "Session revoked",
+        "2fa_enabled": "2FA enabled",
+        "2fa_disabled": "2FA disabled",
+        "2fa_backup_regenerated": "2FA backup codes regenerated"
       },
       "table": {
         "time": "Time (UTC)",

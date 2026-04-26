@@ -17,11 +17,18 @@ declare module 'next-auth' {
      * the "current" row in the active-sessions UI.
      */
     sidHash?: string;
+    /**
+     * RFC 0002 PR-2: true while the user has 2FA enabled but hasn't yet
+     * passed the TOTP challenge in the current session. Middleware /
+     * RSC redirect such users to /login/2fa.
+     */
+    tfaPending?: boolean;
   }
 
   interface User {
     role?: 'USER' | 'ADMIN';
     sessionVersion?: number;
+    twoFactorEnabled?: boolean;
   }
 }
 
@@ -34,5 +41,7 @@ declare module 'next-auth/jwt' {
     sid?: string;
     /** RFC 0002 PR-1: sha256(sid). Computed Node-side, copied into Session by the edge-safe session callback. */
     sidHash?: string;
+    /** RFC 0002 PR-2: true between sign-in and a successful TOTP challenge. */
+    tfa_pending?: boolean;
   }
 }

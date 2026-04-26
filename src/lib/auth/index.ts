@@ -76,6 +76,7 @@ export const {
           image: user.image,
           role: user.role,
           sessionVersion: user.sessionVersion,
+          twoFactorEnabled: user.twoFactorEnabled,
         };
       },
     }),
@@ -126,7 +127,7 @@ export const {
       if (!user && base.id) {
         const fresh = await prisma.user.findUnique({
           where: { id: base.id as string },
-          select: { sessionVersion: true, role: true },
+          select: { sessionVersion: true, role: true, twoFactorEnabled: true },
         });
         if (!fresh) {
           // User was deleted — invalidate the token entirely.
@@ -138,6 +139,28 @@ export const {
         // Reflect current role in the token (e.g. an admin promotion takes
         // effect on the next request without forcing a re-login).
         base.role = fresh.role;
+
+        // ── RFC 0002 PR-2: tfa_pending state machine ──────────────────
+        //
+        // Three transitions handled here:
+        //   (a) `update` trigger with `session.tfa === 'verified'` clears
+        //       the flag — that's the success path of /login/2fa.
+        //   (b) 2FA was just disabled (DB says false) → clear the flag so
+        //       the user isn't stuck on the challenge page.
+        //   (c) 2FA was just enabled mid-session → set the flag so the
+        //       user is bumped to the challenge before any further action.
+        if (trigger === 'update' && (session as { tfa?: string } | undefined)?.tfa === 'verified') {
+          base.tfa_pending = false;
+        } else if (!fresh.twoFactorEnabled) {
+          base.tfa_pending = false;
+        } else if (fresh.twoFactorEnabled && base.tfa_pending !== false) {
+          // Pre-existing tokens (predating PR-2) won't have tfa_pending set
+          // at all. Treat undefined as "needs challenge" the moment 2FA is
+          // on, so users who enabled 2FA can't bypass with old tokens.
+          if (base.tfa_pending === undefined) {
+            base.tfa_pending = true;
+          }
+        }
 
         // ── Per-session sid validation ────────────────────────────────
         //

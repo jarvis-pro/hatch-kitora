@@ -38,6 +38,11 @@ export const authConfig = {
   ],
   callbacks: {
     authorized({ auth, request }) {
+      // NOTE: this callback is bypassed in this codebase — `src/middleware.ts`
+      // calls `auth(callback)` with its own logic, which takes precedence
+      // over `authorized()`. The redirect / role / tfa_pending decisions
+      // therefore live there. We keep this stub for direct `auth()` calls
+      // (RSC boundary helpers) where the same rules still apply.
       const isLoggedIn = !!auth?.user;
       const { pathname } = request.nextUrl;
       const isProtected = /^\/[^/]+\/(dashboard|settings|admin)/.test(pathname);
@@ -58,6 +63,14 @@ export const authConfig = {
         token.role = role ?? 'USER';
         const sv = (user as { sessionVersion?: number }).sessionVersion;
         token.sessionVersion = typeof sv === 'number' ? sv : 0;
+        // RFC 0002 PR-2 — initial sign-in: if the user has 2FA on, mark the
+        // token as pending until they pass /login/2fa. The Node-side jwt
+        // callback also re-evaluates this on every call so a *just enabled*
+        // 2FA setting can't be sidestepped by an existing JWT.
+        const tfa = (user as { twoFactorEnabled?: boolean }).twoFactorEnabled;
+        if (tfa) {
+          token.tfa_pending = true;
+        }
       }
       // The full Node-side config in `src/lib/auth/index.ts` overrides this
       // callback to additionally validate `token.sessionVersion` against the
@@ -75,6 +88,11 @@ export const authConfig = {
       const sidHash = (token as { sidHash?: string }).sidHash;
       if (typeof sidHash === 'string' && sidHash.length > 0) {
         session.sidHash = sidHash;
+      }
+      // RFC 0002 PR-2 — surface tfa_pending so middleware / RSC can route
+      // unverified users to /login/2fa.
+      if (token.tfa_pending === true) {
+        session.tfaPending = true;
       }
       return session;
     },

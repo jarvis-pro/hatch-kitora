@@ -23,6 +23,10 @@ export const AUDIT_ACTIONS = [
   'ownership.transferred',
   // RFC 0002 PR-1 — Active Sessions
   'session.revoked',
+  // RFC 0002 PR-2 — 2FA
+  '2fa.enabled',
+  '2fa.disabled',
+  '2fa.backup_regenerated',
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];

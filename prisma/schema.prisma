@@ -31,14 +31,19 @@ model User {
   // change, "sign out everywhere", account deletion). Compared inside the
   // jwt callback — mismatch forces the holder to sign in again.
   sessionVersion Int       @default(0)
+  // RFC 0002 PR-2 — denormalized flag so jwt callback / wall checks don't
+  // join TwoFactorSecret on every request. Flipped in the same tx as the
+  // TwoFactorSecret.enabledAt write; truthy iff a confirmed TOTP secret exists.
+  twoFactorEnabled Boolean @default(false)
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 
-  accounts       Account[]
-  sessions       Session[]
-  apiTokens      ApiToken[]
-  memberships    Membership[]
-  deviceSessions DeviceSession[]
+  accounts        Account[]
+  sessions        Session[]
+  apiTokens       ApiToken[]
+  memberships     Membership[]
+  deviceSessions  DeviceSession[]
+  twoFactorSecret TwoFactorSecret?
 
   @@index([email])
 }
@@ -190,6 +195,36 @@ model DeviceSession {
   // common `revokedAt IS NULL` filter is also covered.
   @@index([userId, revokedAt])
   @@index([lastSeenAt])
+}
+
+// ---------------------------------------------------------------------------
+// Two-factor — TOTP secret + one-time backup codes (RFC 0002 PR-2)
+// ---------------------------------------------------------------------------
+//
+// `encSecret` holds the TOTP shared secret, encrypted with AES-256-GCM whose
+// key is HKDF-derived from `AUTH_SECRET` + `userId` (so a single-row leak
+// can't decrypt the rest of the table without the master secret). The IV +
+// auth tag are prepended to the ciphertext — the lib in `src/lib/auth/2fa-
+// crypto.ts` is the only thing that should touch this column.
+//
+// `backupHashes` are sha256 of single-use codes; we delete on use rather
+// than mark "used" so an attacker who reads the row can't tell how many
+// remain. Regenerating wipes the array and re-issues 10 fresh codes.
+//
+// `enabledAt = null` is the half-enrolled state — the user has scanned the
+// QR but hasn't yet confirmed a TOTP code. The `User.twoFactorEnabled`
+// boolean is the source of truth for "fully active".
+
+model TwoFactorSecret {
+  userId       String    @id
+  encSecret    Bytes
+  enabledAt    DateTime?
+  backupHashes String[]  @db.Text
+  lastUsedAt   DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 // ---------------------------------------------------------------------------
