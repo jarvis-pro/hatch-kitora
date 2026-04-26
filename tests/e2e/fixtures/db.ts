@@ -85,3 +85,54 @@ export async function issueEmailVerificationToken(userId: string): Promise<strin
   });
   return raw;
 }
+
+// ---------------------------------------------------------------------------
+// Org test helpers (RFC-0001)
+// ---------------------------------------------------------------------------
+
+export interface CreateOrgOptions {
+  slug?: string;
+  name?: string;
+  ownerId: string;
+}
+
+/** Create a non-personal org and OWNER membership for `ownerId`. */
+export async function createOrgWithOwner(opts: CreateOrgOptions) {
+  const slug = opts.slug ?? `acme-${randomBytes(4).toString('hex')}`;
+  const org = await prisma.organization.create({
+    data: { slug, name: opts.name ?? 'Acme Inc' },
+  });
+  await prisma.membership.create({
+    data: { orgId: org.id, userId: opts.ownerId, role: 'OWNER' },
+  });
+  return org;
+}
+
+export async function deleteOrg(id: string) {
+  try {
+    await prisma.organization.delete({ where: { id } });
+  } catch {
+    // Already gone — cleanup-safe.
+  }
+}
+
+/** Issue an org-invitation directly. Returns the raw token for the URL. */
+export async function issueOrgInvitationToken(opts: {
+  orgId: string;
+  email: string;
+  role: 'ADMIN' | 'MEMBER';
+  invitedBy: string;
+}): Promise<string> {
+  const raw = randomBytes(32).toString('base64url');
+  await prisma.invitation.create({
+    data: {
+      orgId: opts.orgId,
+      email: opts.email,
+      role: opts.role,
+      tokenHash: hashRawToken(raw),
+      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60_000),
+      invitedBy: opts.invitedBy,
+    },
+  });
+  return raw;
+}

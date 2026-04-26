@@ -196,7 +196,9 @@
     "nav": {
       "home": "Overview",
       "billing": "Billing",
-      "settings": "Settings"
+      "settings": "Settings",
+      "members": "Members",
+      "organization": "Organization"
     },
     "userMenu": {
       "account": "Account",
@@ -485,7 +487,15 @@
         "account_password_changed": "Password changed",
         "account_deleted": "Account deleted",
         "account_sign_out_everywhere": "Signed out everywhere",
-        "billing_subscription_changed": "Subscription changed"
+        "billing_subscription_changed": "Subscription changed",
+        "org_created": "Organization created",
+        "org_updated": "Organization updated",
+        "org_deleted": "Organization deleted",
+        "member_invited": "Member invited",
+        "member_joined": "Member joined",
+        "member_removed": "Member removed",
+        "member_role_changed": "Member role changed",
+        "ownership_transferred": "Ownership transferred"
       },
       "table": {
         "time": "Time (UTC)",
@@ -532,6 +542,146 @@
       "title": "Something went wrong",
       "description": "An unexpected error occurred. Please try again.",
       "cta": "Retry"
+    }
+  },
+  "orgs": {
+    "switcher": {
+      "label": "Workspace",
+      "errors": {
+        "switch": "Couldn't switch workspace."
+      }
+    },
+    "members": {
+      "title": "Members",
+      "subtitle": "Manage who has access to this workspace.",
+      "listTitle": "Active members",
+      "listCardTitle": "Members",
+      "listCardDescription": "{count} active",
+      "pendingTitle": "Pending invitations",
+      "youTag": "you",
+      "joined": "joined {date}",
+      "expires": "expires {date}",
+      "roleLabel": "Role",
+      "roleChanged": "Role updated.",
+      "transfer": "Make owner",
+      "transferred": "Ownership transferred.",
+      "remove": "Remove",
+      "removed": "Member removed.",
+      "revokeInvite": "Revoke",
+      "inviteRevoked": "Invitation revoked.",
+      "confirmRemove": "Remove this member?",
+      "confirmTransfer": "Transfer ownership? You'll lose owner permissions.",
+      "roles": {
+        "OWNER": "Owner",
+        "ADMIN": "Admin",
+        "MEMBER": "Member"
+      },
+      "errors": {
+        "generic": "Something went wrong.",
+        "forbidden": "You don't have permission.",
+        "cannot-remove-owner": "The owner can't be removed.",
+        "cannot-demote-owner": "The owner role is reserved — transfer first.",
+        "use-transfer": "Use transfer ownership instead.",
+        "self-transfer": "You can't transfer to yourself.",
+        "not-found": "Member not found."
+      },
+      "invite": {
+        "title": "Invite a teammate",
+        "description": "They'll receive an email with a link to accept.",
+        "emailLabel": "Email",
+        "emailPlaceholder": "name@company.com",
+        "roleLabel": "Role",
+        "submit": "Send invite",
+        "sending": "Sending…",
+        "sent": "Invitation sent.",
+        "roles": {
+          "MEMBER": "Member",
+          "ADMIN": "Admin"
+        },
+        "errors": {
+          "generic": "Couldn't send invitation.",
+          "forbidden": "You don't have permission.",
+          "invalid-input": "Please enter a valid email.",
+          "already-member": "This person is already a member.",
+          "cannot-invite-owner": "Owner is reserved — transfer instead."
+        }
+      }
+    },
+    "settings": {
+      "title": "Organization",
+      "subtitle": "Workspace name, URL slug and danger-zone actions.",
+      "fields": {
+        "name": "Name",
+        "slug": "Slug"
+      },
+      "slugHint": "Lowercase letters, numbers and dashes. 3–40 chars.",
+      "save": "Save changes",
+      "saving": "Saving…",
+      "saved": "Organization updated.",
+      "basics": {
+        "title": "Basics",
+        "description": "How this workspace appears across Kitora."
+      },
+      "danger": {
+        "title": "Danger zone",
+        "subtitle": "Irreversible actions."
+      },
+      "errors": {
+        "generic": "Couldn't save changes.",
+        "forbidden": "You don't have permission.",
+        "invalid-input": "Please check your input.",
+        "invalid-slug": "Slug must be 3–40 chars, lowercase / digits / dashes.",
+        "reserved-slug": "Slugs starting with 'personal-' are reserved.",
+        "slug-taken": "That slug is already taken."
+      }
+    },
+    "danger": {
+      "description": "Permanently delete this organization. All subscriptions, tokens and members are removed. This cannot be undone.",
+      "confirmLabel": "Type {slug} to confirm",
+      "delete": "Delete organization",
+      "deleting": "Deleting…",
+      "deleted": "Organization deleted.",
+      "finalConfirm": "This is permanent. Continue?",
+      "errors": {
+        "generic": "Couldn't delete organization.",
+        "forbidden": "You don't have permission.",
+        "slug-mismatch": "The slug you typed doesn't match.",
+        "personal-org": "Personal orgs are deleted via the account settings."
+      }
+    },
+    "invite": {
+      "header": "Join {org}",
+      "subheader": "You've been invited as a {role}. The invitation was sent to {email}.",
+      "mustSignIn": "Sign in (or sign up) using {email} to accept.",
+      "signInButton": "Sign in",
+      "signUpButton": "Create an account",
+      "switchAccount": "Sign in with a different account",
+      "accept": "Accept invitation",
+      "accepting": "Accepting…",
+      "accepted": "Welcome to the team!",
+      "roles": {
+        "OWNER": "owner",
+        "ADMIN": "admin",
+        "MEMBER": "member"
+      },
+      "invalid": {
+        "title": "Invalid invitation",
+        "body": "This invitation link is invalid or has been revoked."
+      },
+      "expired": {
+        "title": "Invitation expired",
+        "body": "Ask the organization admin to send a fresh invitation."
+      },
+      "alreadyAccepted": {
+        "title": "Already accepted",
+        "body": "This invitation has already been used."
+      },
+      "errors": {
+        "generic": "Couldn't accept invitation.",
+        "invalid": "Invitation link is no longer valid.",
+        "expired": "Invitation has expired.",
+        "wrong-email": "Sign in with {email} to accept this invitation."
+      }
     }
   }
 }
