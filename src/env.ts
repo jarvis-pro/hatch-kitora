@@ -87,6 +87,13 @@ export const env = createEnv({
     ALIYUN_DM_ACCOUNT_NAME: z.string().optional(),
     ALIYUN_DM_ENDPOINT: z.string().optional(),
 
+    // Aliyun Redis — TCP-protocol Redis URL used by `src/lib/rate-limit.ts`
+    // when `currentRegion()` is CN. Replaces Upstash REST in CN region
+    // (Upstash sits outside the GFW, RTT >200ms is unacceptable on hot
+    // paths). Format: `redis://:{password}@{host}:6379` or `rediss://...`
+    // for the TLS port (6380). Should resolve over the VPC, not public.
+    ALIYUN_REDIS_URL: z.string().optional(),
+
     // CN-payment credentials (RFC 0006 PR-3). All optional at the env layer
     // so dev / GLOBAL stacks boot fine without setting them; the providers
     // themselves throw a configuration error if a CN-region request lands
@@ -189,6 +196,7 @@ export const env = createEnv({
     ALIYUN_OSS_ENDPOINT: process.env.ALIYUN_OSS_ENDPOINT,
     ALIYUN_DM_ACCOUNT_NAME: process.env.ALIYUN_DM_ACCOUNT_NAME,
     ALIYUN_DM_ENDPOINT: process.env.ALIYUN_DM_ENDPOINT,
+    ALIYUN_REDIS_URL: process.env.ALIYUN_REDIS_URL,
     ALIPAY_APP_ID: process.env.ALIPAY_APP_ID,
     ALIPAY_PRIVATE_KEY: process.env.ALIPAY_PRIVATE_KEY,
     ALIPAY_PUBLIC_KEY: process.env.ALIPAY_PUBLIC_KEY,
