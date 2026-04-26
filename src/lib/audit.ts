@@ -41,6 +41,16 @@ export const AUDIT_ACTIONS = [
   'webhook.endpoint_deleted',
   'webhook.secret_rotated',
   'webhook.endpoint_auto_disabled',
+  // RFC 0004 PR-1 — SSO (SAML + OIDC + SCIM)
+  'sso.idp_created',
+  'sso.idp_updated',
+  'sso.idp_deleted',
+  'sso.scim_token_rotated',
+  'sso.login_succeeded',
+  'sso.login_failed',
+  'sso.jit_user_created',
+  'scim.user_provisioned',
+  'scim.user_deprovisioned',
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];

@@ -613,7 +613,16 @@
         "webhook_endpoint_updated": "更新 webhook 端点",
         "webhook_endpoint_deleted": "删除 webhook 端点",
         "webhook_secret_rotated": "重置 webhook secret",
-        "webhook_endpoint_auto_disabled": "webhook 端点自动停用"
+        "webhook_endpoint_auto_disabled": "webhook 端点自动停用",
+        "sso_idp_created": "新增 SSO 身份源",
+        "sso_idp_updated": "更新 SSO 身份源配置",
+        "sso_idp_deleted": "移除 SSO 身份源",
+        "sso_scim_token_rotated": "重置 SCIM token",
+        "sso_login_succeeded": "SSO 登录成功",
+        "sso_login_failed": "SSO 登录失败",
+        "sso_jit_user_created": "SSO 自动开通用户",
+        "scim_user_provisioned": "SCIM 自动开通用户",
+        "scim_user_deprovisioned": "SCIM 自动停用用户"
       },
       "table": {
         "time": "时间 (UTC)",
@@ -739,6 +748,79 @@
           "DEAD_LETTER": "已放弃",
           "CANCELED": "已取消"
         }
+      }
+    },
+    "sso": {
+      "title": "SSO 单点登录",
+      "subtitle": "把身份认证联邦到你的 IdP（Okta / Azure AD / Google Workspace 等），SAML 与 OIDC 都支持；SCIM 让 IT 团队自动开通 / 注销成员。",
+      "providers": {
+        "title": "身份源",
+        "subtitle": "每个组织最多 1 个 SAML + 1 个 OIDC。草稿配置不会出现在登录页，启用后才生效。"
+      },
+      "empty": "尚未配置身份源 —— 在下方添加 SAML 或 OIDC。",
+      "status": {
+        "draft": "草稿",
+        "enabled": "已启用",
+        "enforced": "强制"
+      },
+      "table": {
+        "role": "默认角色",
+        "noDomains": "未设置邮箱域名"
+      },
+      "scim": {
+        "label": "SCIM token",
+        "none": "尚未生成",
+        "revealed": {
+          "title": "立即复制 SCIM token",
+          "body": "这是唯一一次完整显示 token 的机会，请粘贴到 IdP 的 SCIM 连接配置中——我们仅保留哈希，丢失后无法恢复。",
+          "ack": "已保存",
+          "copy": "复制"
+        }
+      },
+      "actions": {
+        "enable": "启用",
+        "disable": "停用",
+        "enforce": "要求 SSO",
+        "unenforce": "取消强制",
+        "rotateScim": "重置 SCIM token",
+        "generateScim": "生成 SCIM token",
+        "rotateScimConfirm": "重置后旧 token 立即失效，IdP 在你粘贴新值前无法继续 provision。继续？",
+        "delete": "删除",
+        "deleteConfirm": "删除该身份源？已 JIT 开通的成员关系仍然保留。",
+        "created": "已新增身份源。",
+        "updated": "身份源已更新。",
+        "deleted": "已删除身份源。"
+      },
+      "fields": {
+        "name": "显示名",
+        "namePlaceholder": "Okta production",
+        "emailDomains": "邮箱域名",
+        "emailDomainsHint": "空格或逗号分隔。登录页根据邮箱域名路由到对应 IdP。",
+        "samlMetadata": "SAML metadata XML",
+        "oidcIssuer": "OIDC issuer 地址",
+        "oidcClientId": "OIDC client ID",
+        "oidcClientSecret": "OIDC client secret",
+        "enforce": "要求该组织所有成员通过此 IdP 登录（仅 OWNER 可设）"
+      },
+      "add": {
+        "title": "新增身份源",
+        "saml": "SAML",
+        "oidc": "OIDC",
+        "pickProtocol": "先选择协议再开始配置。",
+        "maxedOut": "已配置 SAML 和 OIDC 各一份 —— 直接编辑上方现有条目。",
+        "create": "创建",
+        "creating": "创建中…",
+        "cancel": "取消"
+      },
+      "errors": {
+        "enforceOwnerOnly": "只有 OWNER 可以开关 SSO 强制登录。",
+        "enforceStillOn": "请先关闭 SSO 强制登录再删除该身份源。",
+        "samlMetadataRequired": "必须填写 SAML metadata XML。",
+        "oidcFieldsRequired": "OIDC issuer / client ID / client secret 三项都必填。",
+        "invalidDomain": "其中一个邮箱域名格式不合法。",
+        "forbidden": "只有 OWNER 或 ADMIN 可以管理 SSO。",
+        "notFound": "该身份源已不存在。",
+        "generic": "操作失败，请稍后再试。"
       }
     },
     "require2fa": {

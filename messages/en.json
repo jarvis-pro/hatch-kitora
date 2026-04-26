@@ -618,7 +618,16 @@
         "webhook_endpoint_updated": "Webhook endpoint updated",
         "webhook_endpoint_deleted": "Webhook endpoint deleted",
         "webhook_secret_rotated": "Webhook secret rotated",
-        "webhook_endpoint_auto_disabled": "Webhook endpoint auto-disabled"
+        "webhook_endpoint_auto_disabled": "Webhook endpoint auto-disabled",
+        "sso_idp_created": "SSO identity provider added",
+        "sso_idp_updated": "SSO identity provider updated",
+        "sso_idp_deleted": "SSO identity provider removed",
+        "sso_scim_token_rotated": "SCIM token rotated",
+        "sso_login_succeeded": "SSO login succeeded",
+        "sso_login_failed": "SSO login failed",
+        "sso_jit_user_created": "User auto-provisioned via SSO",
+        "scim_user_provisioned": "User provisioned via SCIM",
+        "scim_user_deprovisioned": "User deprovisioned via SCIM"
       },
       "table": {
         "time": "Time (UTC)",
@@ -744,6 +753,79 @@
           "DEAD_LETTER": "Dead letter",
           "CANCELED": "Canceled"
         }
+      }
+    },
+    "sso": {
+      "title": "SSO",
+      "subtitle": "Federate authentication with your identity provider. SAML and OIDC are both supported; SCIM lets your IT team provision and deprovision members automatically.",
+      "providers": {
+        "title": "Identity providers",
+        "subtitle": "Up to one SAML and one OIDC provider per organization. Drafts won't appear on the login page until enabled."
+      },
+      "empty": "No identity providers yet — add SAML or OIDC below.",
+      "status": {
+        "draft": "Draft",
+        "enabled": "Enabled",
+        "enforced": "Required"
+      },
+      "table": {
+        "role": "Default role",
+        "noDomains": "No email domains"
+      },
+      "scim": {
+        "label": "SCIM token",
+        "none": "Not generated",
+        "revealed": {
+          "title": "Copy your SCIM token now",
+          "body": "This is the only time we'll show the token in full. Paste it into your IdP's SCIM connector now — we only keep a hash, so a lost token can't be recovered.",
+          "ack": "I've stored the token",
+          "copy": "Copy"
+        }
+      },
+      "actions": {
+        "enable": "Enable",
+        "disable": "Disable",
+        "enforce": "Require SSO",
+        "unenforce": "Stop requiring",
+        "rotateScim": "Rotate SCIM token",
+        "generateScim": "Generate SCIM token",
+        "rotateScimConfirm": "Rotate the SCIM token? Your IdP will stop being able to provision until you paste the new one in.",
+        "delete": "Delete",
+        "deleteConfirm": "Delete this identity provider? Existing JIT-provisioned memberships are kept.",
+        "created": "Identity provider added.",
+        "updated": "Identity provider updated.",
+        "deleted": "Identity provider deleted."
+      },
+      "fields": {
+        "name": "Display name",
+        "namePlaceholder": "Okta production",
+        "emailDomains": "Email domains",
+        "emailDomainsHint": "Space- or comma-separated. Used to route users from the login page to this IdP.",
+        "samlMetadata": "SAML metadata XML",
+        "oidcIssuer": "OIDC issuer URL",
+        "oidcClientId": "OIDC client ID",
+        "oidcClientSecret": "OIDC client secret",
+        "enforce": "Require all members of this org to sign in via this IdP (OWNER only)"
+      },
+      "add": {
+        "title": "Add a provider",
+        "saml": "SAML",
+        "oidc": "OIDC",
+        "pickProtocol": "Pick a protocol to start a configuration.",
+        "maxedOut": "You already have a SAML and an OIDC provider — edit the existing entries above.",
+        "create": "Create provider",
+        "creating": "Creating…",
+        "cancel": "Cancel"
+      },
+      "errors": {
+        "enforceOwnerOnly": "Only an owner can require SSO.",
+        "enforceStillOn": "Disable the SSO requirement before deleting this provider.",
+        "samlMetadataRequired": "SAML metadata XML is required.",
+        "oidcFieldsRequired": "OIDC issuer, client ID, and client secret are all required.",
+        "invalidDomain": "One of the email domains looks malformed.",
+        "forbidden": "Only owners or admins can manage SSO.",
+        "notFound": "This provider no longer exists.",
+        "generic": "Something went wrong."
       }
     },
     "require2fa": {
