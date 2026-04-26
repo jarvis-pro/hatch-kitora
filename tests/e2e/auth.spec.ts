@@ -15,8 +15,12 @@ test.describe('auth', () => {
     await page.waitForURL(/\/dashboard/);
     await expect(page.getByRole('heading', { level: 1 })).toContainText(/welcome/i);
 
-    // Cleanup
-    const user = await prisma.user.findUnique({ where: { email } });
+    // Cleanup. RFC 0005 — `email` alone is no longer unique; the test
+    // process always serves the GLOBAL region (default `KITORA_REGION`),
+    // so look up by the (email, region) composite key.
+    const user = await prisma.user.findUnique({
+      where: { email_region: { email, region: 'GLOBAL' } },
+    });
     if (user) await deleteUser(user.id);
   });
 
