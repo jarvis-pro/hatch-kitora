@@ -2,6 +2,76 @@
 
 本文档遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 与 [Semantic Versioning](https://semver.org/spec/v2.0.0.html)。每个 minor 版本对应一个 RFC 的落地，详细背景见 `docs/rfcs/`。
 
+## [0.9.0] — 2026-04-27
+
+### 主题
+
+**RFC 0008 — 通用 Background Jobs 抽象**：把分散自写的 webhook / export / deletion 三套 sweep tick 收归到统一的 `BackgroundJob` 表 + `defineJob` / `defineSchedule` / `enqueueJob` 三件套，落地 PostgreSQL `FOR UPDATE SKIP LOCKED` 抢锁的多 worker 安全 claim 算法、5 阶 / 8 阶 / fixed / custom 四档重试策略、DEAD_LETTER + admin 手动 retry / cancel 闭环、Sentry transaction + RFC 0006 metrics 双轨可观测性。三个旧 cron 脚本退化为 thin shim，外部 cron 配置可平滑迁移到新的 `pnpm tsx scripts/run-jobs.ts` CLI 单一入口或 Vercel `/api/jobs/tick` 路由。
+
+### Added
+
+- **PR-1 schema + 核心 lib + 单元测试**
+  - Migration `20260601200000_add_background_job/`：纯加 `BackgroundJob` 表（11 列 + `BackgroundJobStatus` 6 状态 enum）+ 4 个索引：`(type, runId)` unique（幂等键）/ `(status, queue, priority, nextAttemptAt)` claim 热路径（与 worker `WHERE` + `ORDER BY` 完全对齐，索引驱动 sort）/ `(deleteAt)` prune 单列范围 / `(type, status)` admin filter。
+  - `src/lib/jobs/registry.ts` —— `globalThis[Symbol.for('kitora.jobs.registry.v1')]` singleton（HMR / vitest forks / tsx 多次 import 同进程都安全），`registerJob<TPayload, TResult>(def)` + `getJob(type)` + `listJobTypes()` + Schedule 同款。
+  - `src/lib/jobs/retry.ts` —— `nextRetryDelayMs(attempt, maxAttempts, strategy)` 三策略：`exponential`（webhook 同款 `[0, 30s, 2m, 10m, 1h, 6h, 12h, 24h]`）/ `fixed`（60s）/ `{ strategy: 'custom', delays: [...] }`。
+  - `src/lib/jobs/define.ts` —— `defineJob(opts)` / `defineSchedule(opts)` 包装注册，defaults：maxAttempts=5、retentionDays=7、retry='exponential'、queue='default'、timeoutMs=8000（< Vercel Hobby 10s 安全档）。
+  - `src/lib/jobs/enqueue.ts` —— `enqueueJob(type, payload, opts?)` 通用入口（v1 通用签名 + zod runtime 校验 + 64KB 字节数 check）+ `cancelJob(id)` 仅翻 PENDING；P2002 swallow 让相同 `(type, runId)` 重复 enqueue 走 `{ deduplicated: true }` 复用既存行。
+  - `src/lib/jobs/runner.ts` —— `runWorkerTick(workerId, opts)` 三阶段（recover stuck → 循环 claim batch + run → 5s 尾保护），claim 用 `prisma.$queryRaw` 跑 `UPDATE … WHERE id IN (SELECT … FOR UPDATE SKIP LOCKED) RETURNING`、claim 时 `attempt = attempt + 1` 同步 bump 让 retry 决策一致；run 用 `Promise.race(handler, setTimeout)` 控制 def.timeoutMs；4 outcome：succeeded / retry / dead-letter / unknown-type。
+  - `src/lib/jobs/observability.ts` —— `JobMetricsHook` 接口（onSuccess / onFailure / onDeadLetter / onTickComplete）+ `setMetricsHook` 注入 + `withJobTransaction` v1 占位（PR-4 替换为真实 Sentry）。
+  - 5 个 vitest 单测共 562 行覆盖：retry 三策略 8 阶 / fixed / custom / 越界、registry 注册 + 重复抛错 + reset、define defaults 注入、observability metrics noop / 注入 / withJobTransaction 透传、enqueue mock prisma 覆盖 unknown / payload 校验失败 / 64KB / 成功 / P2002 swallow / cancel。
+  - `package.json` 加 `vitest@^2.1.8` devDep + `test:unit` / `test:unit:watch` 两个 npm script + `vitest.config.ts`（node env、`@/*` alias 对齐 tsconfig、forks pool 隔离 module-level singleton）。
+- **PR-2 defineSchedule + 单一 CLI + 三脚本迁移**
+  - `src/lib/jobs/cron.ts` —— minimal cron matcher 169 行无外部 dep，支持 `*` / `N` / `N-M` / `*\/N` / `N-M/K` / `A,B,C` 6 种语法，UTC 时区，标准 Vixie cron dom/dow OR 合；`parseCronExpression` 错误抛错让 `defineSchedule` 在启动时立刻冒错。
+  - `src/lib/jobs/schedules.ts` —— `fireSchedules(now?)` 投影主入口：遍历 ScheduleRegistry → matchesCron → `enqueueJob(jobType, payload, { runId: 'schedule:<name>:<unixMinute>' })`，runId 后缀加 `(type, runId)` unique 索引让同分钟重复触发自然走 P2002 swallow；某 schedule 抛错不阻塞其它（logger.error 后继续）。
+  - `src/lib/jobs/jobs/{webhook-tick,export-tick,deletion-tick}.ts` —— 三个 thin wrapper job，`maxAttempts: 1`（sweep 失败下一分钟自然再来）、`retry: 'fixed'`、`retentionDays: 1`，run handler 仅调既有 `runWebhookCronTick` / `runExportJobsTick` / `runDeletionCronTick` 不重写既有逻辑（RFC §2「借坡下驴」）。
+  - `src/lib/jobs/bootstrap.ts` import barrel + `scripts/run-jobs.ts` 57 行 CLI 单一入口（`import '@/lib/jobs/bootstrap'` → `fireSchedules` → `runWorkerTick`）。
+  - `refactor` 把 `scripts/run-export-jobs.ts` / `run-deletion-cron.ts` 主体逻辑分别抽到 `src/lib/data-export/cron.ts`（`runExportJobsTick()`）与 `src/lib/account/deletion-cron.ts`（`runDeletionCronTick()`），旧脚本退化为 thin shim（与既有 `run-webhook-cron.ts` 同结构 27 行）。
+  - `src/lib/jobs/{cron,schedules}.test.ts` 单测覆盖 cron 各模式 + 边界 + matchesCron 4 种生产 cron + dom/dow OR 合 + fireSchedules mock enqueue 的转调形状。
+- **PR-3 首批新 jobs**
+  - `src/lib/audit.ts` `AUDIT_ACTIONS` 加 `job.cancelled` / `job.retried` —— runner 自身**不**为 DEAD_LETTER 写 audit（避免噪音，由 metrics + Sentry 已覆盖），仅 admin `/admin/jobs` UI 上手动 cancel / retry 一行 DLQ 时写 audit（PR-4 接入）。
+  - `src/lib/jobs/jobs/token-cleanup.ts` —— cron `0 * * * *` 每小时，`Promise.all` 并发清三表：PasswordResetToken / EmailVerificationToken（`consumedAt 非空 OR expires < now()-7d`）+ Invitation（`accepted/revoked OR expiresAt < now()-30d`）；保留 7d / 30d 宽限给 forensic 追查。
+  - `src/lib/jobs/jobs/job-prune.ts` —— cron `0 4 * * *` 每天 UTC 04:00（错峰 deletion `0 3 * * *`）；defensive `status in 4 终态 AND deleteAt < now() AND deleteAt IS NOT NULL` filter。
+  - `src/lib/jobs/jobs/email-send.ts` —— `email.send` job 用 zod `discriminatedUnion('template')` 覆盖 `password-reset` / `org-invitation` / `data-export-ready` 三模板；`maxAttempts: 5` + `retry: 'exponential'` 5 阶（attempt 1-5 = [立即, 30s, 2m, 10m, 1h]）；`renderTemplate(payload)` switch 必穷尽（`noFallthroughCasesInSwitch` + discriminated union 漏写支强制冒错）。
+  - `enqueueEmail(payload, opts?)` typed helper 转调 `enqueueJob('email.send', ...)`，调用方 IDE 自动补全准确 props，发布前类型错误就被抓出来。
+  - 三对应 `*.test.ts` 单测覆盖注册参数 + run 行为 + zod 校验各模板 props 形状。
+  - `bootstrap.ts` 加 3 行 import 触发副作用注册。
+- **PR-4 admin / Sentry / Vercel Cron 路由 / 部署文档**
+  - `src/env.ts` 加 `CRON_SECRET: z.string().min(32).optional()`，注释说明生产 `openssl rand -base64 32` 生成、dev 留空 + route 503 短路、CLI 入口不受影响。
+  - `src/app/api/jobs/tick/route.ts` —— GET handler，`runtime='nodejs'` + `maxDuration=60`、`Cache-Control: no-store`，503（CRON_SECRET 未配）/ 401（鉴权失败）/ 200 / 500 四档；`import '@/lib/jobs/bootstrap'` 触发注册 → `fireSchedules + runWorkerTick`。
+  - `vercel.json` `crons: [{ path: '/api/jobs/tick', schedule: '* * * * *' }]` 1 个 schedule 覆盖整个 jobs infra。
+  - `src/app/[locale]/(admin)/admin/jobs/page.tsx` 481 行三 Tab：**overview**（24h `groupBy(type, status)` pivot 表 + 总行数 / DLQ / queueLag 三张 stat card，DLQ > 0 / lag > 120s 自动 warn 着色）、**recent**（最近 100 行明细 + type/status 双轴过滤 + distinct types 动态 chip）、**dlq**（仅 DEAD_LETTER + 行级 retry/cancel 按钮 + 排查告警文案）；`StatusPill` 6 状态色彩映射；lastError 截断 200 字。
+  - `src/components/admin/jobs/job-row-actions.tsx` 客户端按钮（`useTransition` + sonner toast + i18n + cancel 走 `confirm()`）。
+  - `src/components/admin/admin-nav.tsx` 加 `ListTodo` icon + `/admin/jobs` 入口。
+  - `src/lib/admin/actions.ts` 追加 `cancelJobAction({ jobId })` + `retryJobAction({ jobId })` 两个 server actions：`requireAdmin()` 防护 → 限定 status（cancel 接 DEAD_LETTER/PENDING、retry 仅 DEAD_LETTER）→ 写 `recordAudit({ action: 'job.cancelled' / 'job.retried' })` → `revalidatePath('/admin/jobs' + '/admin/audit')`。
+  - `src/lib/jobs/observability.ts` Sentry transaction 真实集成：`loadSentry()` lazy loader 缓存 SDK 模块；`Sentry.startSpan({ op: 'job', name: type, attributes: { 'job.id', 'job.attempt' } })` 包每个 job 执行;catch 调 `Sentry.captureException(err, { tags: { jobType }, extra: { jobId, attempt } })`；dynamic import + try/catch fallback 兼容 tsx CLI / vitest 环境（SDK 加载失败走 logger-only 透传）。
+  - `messages/{en,zh}.json` 加 `admin.nav.jobs` + 完整 `admin.jobs.*` 段（tabs / overview / status / recent.totalHint with placeholder / dlq / table / actions）。
+  - `docs/deploy/{global,cn,eu}.md` 各加 `## Background jobs cron` 部署段：global = Vercel Cron 三步 + Hobby 收紧示例、cn = Aliyun ACK CronJob YAML + concurrencyPolicy=Forbid + UTC 时区换算 BJ 时间提示、eu = 占位引用 global。
+- **PR-5 i18n + e2e + 文档收尾**
+  - `tests/e2e/jobs.spec.ts` —— 5 case Playwright e2e 走真 PG：SUCCEEDED 路径（result + deleteAt 设置）/ retry 路径（PENDING + nextAttemptAt 推后）/ DEAD_LETTER 路径（attempt >= maxAttempts）/ cancelJob（PENDING → CANCELED + 重复 cancel 已 CANCELED 行返回 false）/ runId 重复 enqueue P2002 swallow 返回同 id；每 test 用 unique `e2e.test-<rand>` jobType 避免 registry 冲突。
+  - `docs/rfcs/0008-background-jobs.md` §11 实施完成段回填（PR 文件清单 + 未交付项 + §9 决策回填 + 首日观测指标）。
+  - `package.json` 0.8.0 → 0.9.0；本 changelog 段。
+
+### Changed
+
+- `scripts/run-export-jobs.ts` 与 `scripts/run-deletion-cron.ts` 由「内含全部 sweep 逻辑」退化为 thin shim 调 lib 函数（参考既有 `run-webhook-cron.ts` 同结构）；老外部 cron 配置仍可继续跑，但下一个 minor（v0.10）会清理。
+- 新建 RFC 0001–0007 时未涉及的 `BackgroundJob` 表是平台级表，不挂 org（RFC §10），region-bound（CN region 单独的 PG 实例有自己的 BackgroundJob 行）。
+- 项目首次引入单元测试体系（vitest）。`pnpm test:unit` 跑 `src/**/*.test.ts`，与 `pnpm test:e2e` 的 Playwright 套并存。
+
+### Migration / Operations
+
+- **部署侧需要切换 cron 入口**：从分别配 3 个 `pnpm tsx scripts/run-{webhook-cron,export-jobs,deletion-cron}.ts` 切到单条 `pnpm tsx scripts/run-jobs.ts`（自托管 / Fly Machines / Aliyun ACK CronJob）或开启 Vercel `vercel.json` 的 `/api/jobs/tick` 路由。三个旧脚本作为 thin shim 保留一个 minor，外部 cron 可平滑迁移。
+- **生产环境必须配 `CRON_SECRET`**（≥32 字符强随机串，`openssl rand -base64 32` 生成）才能让 Vercel Cron 跑通；env 未配时路由 503 短路（cron 静默 noop，不会跑未鉴权 sweep）。
+- Prisma migration `20260601200000_add_background_job/` 是纯加性变更，零停机；回滚 = `DROP TABLE "BackgroundJob"` + `DROP TYPE "BackgroundJobStatus"`（无外键依赖）。
+- 旧 webhook / export / deletion 三套领域状态机**保留不动**（RFC §2「借坡下驴」）：`WebhookDelivery` / `DataExportJob` / `User.deletionScheduledAt` 三套退避 / claim / 自禁用全部领域逻辑保持原样，新 BackgroundJob 表只负责调度它们的 sweep tick。
+- Cron 表达式时区 = **UTC**（RFC §10）。`'0 3 * * *'` 是 UTC 03:00 = CN 11:00；如 ops 期望北京时间凌晨 3:00 跑 deletion，把 `defineSchedule` cron 改 `'0 19 * * *'`（前一天 UTC 19:00 = 北京 03:00）。
+
+### Notes
+
+- v0.9.0 是 Kitora 模板的第八个 RFC 落地版本。
+- `enqueueEmail()` typed helper（PR-3）覆盖 password-reset / org-invitation / data-export-ready 三模板；强一致场景（注册 verify-email、登录提示 2fa-enabled / -disabled、welcome）继续走 `sendEmail()` 同步直发，等不到 30s/2m 退避。
+- `/api/jobs/tick` **不**进 `openapi/v1.yaml`（内部端点 + Vercel Cron 专属路径）。
+- 单 tick batch 默认 5、单 job timeoutMs 默认 8s、tick 总预算 50s（Vercel Pro 60s function timeout 留 10s 兜底）；Hobby 部署需要在 route 层显式调 `runWorkerTick(workerId, { budgetMs: 8_000, batchSize: 1 })`，已在 `docs/deploy/global.md` 注明。
+
 ## [0.8.0] — 2026-04-26
 
 ### 主题
