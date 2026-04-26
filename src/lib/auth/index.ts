@@ -1,6 +1,7 @@
 import { PrismaAdapter } from '@auth/prisma-adapter';
+import { OrgRole } from '@prisma/client';
 import bcrypt from 'bcryptjs';
-import NextAuth from 'next-auth';
+import NextAuth, { CredentialsSignin } from 'next-auth';
 import Credentials from 'next-auth/providers/credentials';
 import { headers } from 'next/headers';
 import { z } from 'zod';
@@ -10,6 +11,13 @@ import { logger } from '@/lib/logger';
 
 import { authConfig } from './config';
 import { createDeviceSession, generateSid, hashSid, validateDeviceSession } from './device-session';
+
+// RFC 0004 PR-2 — surfaced through Auth.js's `CredentialsSignin.code` so the
+// `loginAction` server action can map it to a `sso-required` reason for the
+// UI's "your org requires SSO" rail.
+class SsoRequiredError extends CredentialsSignin {
+  code = 'sso_required';
+}
 
 const credentialsSchema = z.object({
   email: z.string().email(),
@@ -67,6 +75,34 @@ export const {
         if (!valid) {
           logger.warn({ email }, 'invalid-credentials');
           return null;
+        }
+
+        // RFC 0004 PR-2 — enforce SSO. If this user belongs to ANY org that's
+        // flipped `enforceForLogin = true` and that IdP is `enabledAt`-active,
+        // the password path is closed. OWNERs of such orgs are exempt — we
+        // don't want an IdP outage to lock the keeper-of-keys out (mirrors
+        // the SSO RFC §11 decision).
+        const enforcing = await prisma.identityProvider.findFirst({
+          where: {
+            enforceForLogin: true,
+            enabledAt: { not: null },
+            organization: {
+              memberships: {
+                some: {
+                  userId: user.id,
+                  role: { not: OrgRole.OWNER },
+                },
+              },
+            },
+          },
+          select: { id: true, organization: { select: { slug: true } } },
+        });
+        if (enforcing) {
+          logger.info(
+            { userId: user.id, providerId: enforcing.id },
+            'sso-enforced-credentials-blocked',
+          );
+          throw new SsoRequiredError();
         }
 
         return {

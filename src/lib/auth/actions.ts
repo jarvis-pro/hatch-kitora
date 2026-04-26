@@ -95,6 +95,14 @@ export async function loginAction(input: z.infer<typeof loginSchema>) {
     return { ok: true as const };
   } catch (error) {
     if (error instanceof AuthError) {
+      // RFC 0004 PR-2 — `SsoRequiredError` thrown from Credentials.authorize
+      // surfaces here as a CredentialsSignin with `code = 'sso_required'`.
+      // We surface a typed reason so the LoginForm can switch into the
+      // SSO-only rail without a hostile generic error toast.
+      const code = (error as { code?: string }).code;
+      if (code === 'sso_required') {
+        return { ok: false as const, error: 'sso-required', email: parsed.data.email };
+      }
       return { ok: false as const, error: error.type };
     }
     throw error;
