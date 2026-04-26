@@ -13,6 +13,14 @@ export const AUDIT_ACTIONS = [
   'account.deleted',
   'account.sign_out_everywhere',
   'billing.subscription_changed',
+  'org.created',
+  'org.updated',
+  'org.deleted',
+  'member.invited',
+  'member.joined',
+  'member.removed',
+  'member.role_changed',
+  'ownership.transferred',
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];

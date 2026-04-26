@@ -1,10 +1,13 @@
 import 'server-only';
 
 import { OrgRole } from '@prisma/client';
+import { cookies } from 'next/headers';
 
 import { prisma } from '@/lib/db';
 
 import { auth } from './index';
+
+export const ACTIVE_ORG_COOKIE = 'kitora_active_org';
 
 /**
  * Require an authenticated session — throws if missing. Server actions / RSC
@@ -28,18 +31,45 @@ export interface ActiveOrg {
 /**
  * Resolve the caller's active organization.
  *
- * PR-2 contract: returns the user's Personal Org (the OWNER membership whose
- * org slug starts with "personal-"). If for any reason no membership exists
- * (OAuth-created user that the backfill never saw), we lazily create one
- * here — idempotent via upsert by slug, safe under concurrent requests.
- *
- * PR-3 will extend this to read the `kitora_active_org` cookie first and
- * fall back to the personal org only when the cookie is missing / invalid.
+ * PR-3 contract:
+ *   1. Read the `kitora_active_org` cookie. If it points to an org the user
+ *      is a member of, return that.
+ *   2. Otherwise (no cookie / stale cookie / org deleted), fall back to the
+ *      user's Personal Org (the OWNER membership whose slug starts with
+ *      `personal-`).
+ *   3. If the user has no membership at all (e.g. an OAuth user the backfill
+ *      never saw), lazily create their personal org. Idempotent via upsert,
+ *      safe under concurrent requests.
  */
 export async function requireActiveOrg(): Promise<ActiveOrg> {
   const sessionUser = await requireUser();
 
-  const existing = await prisma.membership.findFirst({
+  const c = await cookies();
+  const cookieSlug = c.get(ACTIVE_ORG_COOKIE)?.value;
+
+  if (cookieSlug) {
+    const cookieMembership = await prisma.membership.findFirst({
+      where: { userId: sessionUser.id, organization: { slug: cookieSlug } },
+      select: {
+        role: true,
+        organization: { select: { id: true, slug: true } },
+      },
+    });
+    if (cookieMembership) {
+      return {
+        orgId: cookieMembership.organization.id,
+        userId: sessionUser.id,
+        role: cookieMembership.role,
+        slug: cookieMembership.organization.slug,
+      };
+    }
+    // Cookie pointed at an org we no longer belong to (deleted / removed).
+    // Drop it; we'll fall through to the personal-org branch below.
+  }
+
+  // Personal org is the canonical fallback — sorted by joinedAt to keep it
+  // stable across multiple memberships.
+  const personal = await prisma.membership.findFirst({
     where: { userId: sessionUser.id, role: OrgRole.OWNER },
     orderBy: { joinedAt: 'asc' },
     select: {
@@ -47,18 +77,18 @@ export async function requireActiveOrg(): Promise<ActiveOrg> {
       organization: { select: { id: true, slug: true } },
     },
   });
-  if (existing) {
+  if (personal) {
     return {
-      orgId: existing.organization.id,
+      orgId: personal.organization.id,
       userId: sessionUser.id,
-      role: existing.role,
-      slug: existing.organization.slug,
+      role: personal.role,
+      slug: personal.organization.slug,
     };
   }
 
-  // Lazy backfill — OAuth users created post-PR-1 may land here on first
-  // request. The same `personal-{shortId}` slug is what the migration script
-  // uses, keeping every code path on a single canonical naming scheme.
+  // OAuth-created user that the migration never saw — bootstrap their
+  // personal org now. Idempotent via upsert by slug; safe under concurrent
+  // requests (only one wins, the rest land on `update: {}`).
   return ensurePersonalOrg(sessionUser.id);
 }
 
@@ -69,8 +99,6 @@ async function ensurePersonalOrg(userId: string): Promise<ActiveOrg> {
   });
   const slug = `personal-${user.id.slice(-8)}`;
 
-  // upsert wins the race when two concurrent requests both arrive at this
-  // codepath for the same fresh user.
   const org = await prisma.organization.upsert({
     where: { slug },
     create: {
@@ -96,10 +124,7 @@ async function ensurePersonalOrg(userId: string): Promise<ActiveOrg> {
   };
 }
 
-/**
- * Resolve the personal org for a given user without going through `auth()`.
- * Used by webhooks / API token bearer auth where there is no session cookie.
- */
+/** Personal-org lookup with no cookie / session involvement. */
 export async function getPersonalOrgIdForUser(userId: string): Promise<string | null> {
   const m = await prisma.membership.findFirst({
     where: { userId, role: OrgRole.OWNER },
@@ -107,4 +132,18 @@ export async function getPersonalOrgIdForUser(userId: string): Promise<string | 
     select: { orgId: true },
   });
   return m?.orgId ?? null;
+}
+
+/** List every org the user belongs to — used by the org switcher / /api/v1/me. */
+export async function listMyOrgs(userId: string) {
+  return prisma.membership.findMany({
+    where: { userId },
+    orderBy: { joinedAt: 'asc' },
+    select: {
+      role: true,
+      organization: {
+        select: { id: true, slug: true, name: true, image: true },
+      },
+    },
+  });
 }
