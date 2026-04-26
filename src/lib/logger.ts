@@ -1,5 +1,8 @@
-import 'server-only';
-
+// NOTE: deliberately *not* `'server-only'` here — Playwright e2e tests and
+// tsx-driven cron scripts both need to import server-side modules that
+// transitively pull in `logger`. The transitive `@/env` import already
+// validates Node-only env vars at boot, so accidental client bundling
+// still fails loudly. Pino itself has a browser build that's benign.
 import pino from 'pino';
 
 import { env } from '@/env';
