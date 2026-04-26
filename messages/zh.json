@@ -99,6 +99,35 @@
       "forgotPasswordLink": "忘记密码？",
       "errors": {
         "invalid": "邮箱或密码不正确。"
+      },
+      "sso": {
+        "divider": "或",
+        "continueButton": "通过 SSO 登录",
+        "back": "改用密码登录",
+        "lockedNotice": "你所在的组织已要求通过 SSO 登录。请继续前往身份源。",
+        "errors": {
+          "generic": "SSO 登录失败。请重试，如果问题持续请联系管理员。",
+          "email_required": "请输入工作邮箱以继续。",
+          "bad_email": "这看起来不是一个合法的邮箱。",
+          "no_idp": "该域名尚未配置 SSO 身份源。",
+          "authorize_failed": "无法启动与身份源的握手，请稍后再试。",
+          "invalid_input": "请求格式有问题，请重试。",
+          "state_mismatch": "SSO 会话已过期或异常，请重新发起。",
+          "missing_code": "身份源未返回会话凭证，请重试。",
+          "idp_rejected": "身份源拒绝了本次登录，请联系 IT 团队。",
+          "token_exchange_failed": "SSO 握手未能完成，请重试。",
+          "token_missing": "SSO 响应格式异常，请重试。",
+          "userinfo_failed": "无法从身份源读取你的资料。",
+          "userinfo_incomplete": "身份源返回的信息不完整，请联系 IT 团队。",
+          "idp_not_found": "组织的 SSO 配置已失效。",
+          "jit_failed": "自动开通账号失败，请联系 IT 团队。",
+          "user_gone": "账号已不存在，请联系客服。",
+          "acs_bad_form": "身份源返回的 SSO 数据格式异常。",
+          "acs_no_response": "未收到 SSO 响应，请重试。",
+          "acs_validation_failed": "SSO 响应签名无效，请联系 IT 团队。",
+          "acs_no_redirect": "身份源返回了意外的响应。",
+          "invalid_domain": "邮箱域名格式不合法。"
+        }
       }
     },
     "twoFactorChallenge": {

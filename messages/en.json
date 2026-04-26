@@ -104,6 +104,35 @@
       "forgotPasswordLink": "Forgot your password?",
       "errors": {
         "invalid": "Invalid email or password."
+      },
+      "sso": {
+        "divider": "or",
+        "continueButton": "Continue with SSO",
+        "back": "Use password instead",
+        "lockedNotice": "Your organization requires SSO sign-in. Continue to your identity provider below.",
+        "errors": {
+          "generic": "SSO sign-in failed. Try again, or contact your admin if the problem persists.",
+          "email_required": "Enter your work email to continue.",
+          "bad_email": "That doesn't look like a valid email.",
+          "no_idp": "No SSO provider is configured for that email's domain.",
+          "authorize_failed": "Couldn't start SSO with your identity provider. Try again in a moment.",
+          "invalid_input": "Something looked off about that request — try again.",
+          "state_mismatch": "Your SSO session expired or was hijacked. Start over.",
+          "missing_code": "Your identity provider didn't return a session. Try again.",
+          "idp_rejected": "Your identity provider rejected the sign-in. Contact your IT team.",
+          "token_exchange_failed": "Couldn't finish the SSO handshake. Try again.",
+          "token_missing": "The SSO response was malformed. Try again.",
+          "userinfo_failed": "Couldn't read your profile from the identity provider.",
+          "userinfo_incomplete": "Your identity provider didn't return enough information. Contact your IT team.",
+          "idp_not_found": "Your organization's SSO configuration is no longer active.",
+          "jit_failed": "Couldn't provision your account. Contact your IT team.",
+          "user_gone": "Your account no longer exists. Contact support.",
+          "acs_bad_form": "The SSO response from your identity provider was malformed.",
+          "acs_no_response": "No SSO response received. Try again.",
+          "acs_validation_failed": "The SSO response signature was invalid. Contact your IT team.",
+          "acs_no_redirect": "Your identity provider returned an unexpected response.",
+          "invalid_domain": "That email domain looks invalid."
+        }
       }
     },
     "twoFactorChallenge": {
