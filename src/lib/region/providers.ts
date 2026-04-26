@@ -1,15 +1,21 @@
 // RFC 0005 §4.2 — Region-scoped provider factory.
 //
 // Single sanctioned spot for "given the deploy region, which third-party
-// service do we talk to?" Today the global region is the only one that
-// resolves to working providers; CN throws `not-implemented in v0.6.0`
-// per RFC 0005 §4.2 — that error is on purpose, it forces RFC 0006 to
-// wire all three CN providers (Aliyun OSS / Aliyun DirectMail /
-// Alipay-or-WeChat-Pay) before a CN stack can boot a paying flow.
+// service do we talk to?"
 //
-// EU is the same shape: the placeholder enum value resolves to the
-// global stack today (Stripe + Resend + S3) since EU residency is on the
-// "nice to have" track rather than the hard-blocker track.
+// RFC 0006 PR-2 — CN providers are now wired:
+//   * email   → Aliyun DirectMail (`sendEmail()` in src/lib/email/send.ts
+//               branches on `isCnRegion()` and dispatches to
+//               sendAliyunDirectMail()).
+//   * storage → `AliyunOssProvider` (the `storage` facade in
+//               src/lib/storage/index.ts picks Aliyun OSS when
+//               `isCnRegion()`, before honouring DATA_EXPORT_STORAGE).
+//   * billing → Alipay / WeChat Pay (RFC 0006 PR-3, hosted-checkout +
+//               async notify already live).
+//
+// EU stays a placeholder: it resolves to the global stack (Stripe +
+// Resend + S3) since EU residency is on the "nice to have" track rather
+// than the hard-blocker track. Light-up has its own follow-up RFC.
 
 import 'server-only';
 
@@ -29,18 +35,18 @@ export interface EmailProviderHandle {
 }
 
 const ResendHandle: EmailProviderHandle = { id: 'resend' };
+const AliyunDmHandle: EmailProviderHandle = { id: 'aliyun-direct-mail' };
 
 /**
- * Pick the email provider for the active region.
- *
- * The actual `sendEmail()` implementation in `src/lib/email/send.ts`
- * always uses Resend today. RFC 0006 will introduce
- * `aliyun-direct-mail.ts` and dispatch through this handle.
+ * Pick the email provider handle for the active region. The actual send
+ * dispatch lives in `src/lib/email/send.ts`; this function exists so
+ * dashboards / logs / metrics can read a stable provider id without
+ * pulling in the SDK.
  */
 export function getEmailProvider(): EmailProviderHandle {
   switch (currentRegion()) {
     case Region.CN:
-      throw new Error('cn-email-provider-not-implemented — RFC 0006 wires Aliyun DirectMail');
+      return AliyunDmHandle;
     case Region.EU:
     case Region.GLOBAL:
     default:
@@ -53,13 +59,14 @@ export function getEmailProvider(): EmailProviderHandle {
 /**
  * Pick the object-storage backend for the active region.
  *
- * Returns the existing RFC 0002 PR-3 storage facade for GLOBAL/EU; CN is
- * intentionally unimplemented until RFC 0006 plumbs Aliyun OSS.
+ * Returns the existing RFC 0002 PR-3 storage facade. The facade itself
+ * is region-aware (`isCnRegion()` short-circuits to AliyunOssProvider
+ * before checking DATA_EXPORT_STORAGE), so this re-export keeps the
+ * "providers all hang off one factory" promise from RFC 0005 §4.2.
  */
 export function getStorageProvider(): StorageProvider {
   switch (currentRegion()) {
     case Region.CN:
-      throw new Error('cn-storage-provider-not-implemented — RFC 0006 wires Aliyun OSS');
     case Region.EU:
     case Region.GLOBAL:
     default:
