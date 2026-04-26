@@ -79,19 +79,40 @@ The boot-time guard (`assertRegionMatchesDatabase`) panics if the
 configured DB carries any non-CN org row. This is the only thing
 preventing a misconfigured CN cluster from polluting GLOBAL data.
 
-## What's still left in code (RFC 0006 deliverables)
+## What's wired in code (RFC 0006)
 
-The provider factory in `src/lib/region/providers.ts` throws
-`*-not-implemented in v0.6.0` for the CN branches today (see RFC 0005
-§4.2 for the rationale). RFC 0006 wires:
+PR-2 / PR-3 / PR-4 / PR-5 land in v0.7.0; the provider factory in
+`src/lib/region/providers.ts` no longer throws on the CN branches:
 
-- `aliyunDirectMailProvider` (replaces Resend in `getEmailProvider`);
-- `aliyunOssProvider` (replaces S3 in `getStorageProvider`);
-- finalising `WechatPayProvider` / `AlipayProvider` so
-  `getBillingProvider` doesn't fall through to Stripe.
+- **`AliyunOssProvider`** (`src/lib/storage/aliyun-oss.ts`) implements
+  `StorageProvider` against `ali-oss`@6+ with v4 signing. The storage
+  facade in `src/lib/storage/index.ts` short-circuits to it whenever
+  `isCnRegion()` is true, ignoring `DATA_EXPORT_STORAGE`.
+- **`sendAliyunDirectMail()`** (`src/lib/email/aliyun-direct-mail.ts`)
+  wraps `@alicloud/dm20151123` for transactional email. `sendEmail()` in
+  `src/lib/email/send.ts` branches on `isCnRegion()`.
+- **`AlipayProvider` / `WechatPayProvider`** (`src/lib/billing/provider/`)
+  carry full hosted-checkout + async-notify + refund flows. Inbound
+  webhooks land at `src/app/api/billing/{alipay,wechat}/notify/route.ts`,
+  dedup'd via the `BillingEvent` table (RFC 0006 §6.2).
+- **`buildAliyunRedisLimiter()`** (`src/lib/rate-limit.ts`) replaces the
+  Upstash REST limiter with a hand-rolled ZSET sliding window over
+  `ioredis` whenever `isCnRegion()` is true.
+- **`/legal/data-rights`** route (CN-only, 404 elsewhere) surfaces the
+  PIPL §44 four-rights menu (query / correct / delete / port) by
+  routing to the existing settings flows.
+- **`scripts/audit-egress.ts`** scans `src/` + `scripts/` for
+  forbidden host references; CI runs it in strict mode for CN deploys.
+- **`.github/workflows/deploy-cn.yml`** builds with `KITORA_REGION=CN`
+  build-arg, pushes to ACR, rolls out on ACK, smoke-tests `/api/health`,
+  rolls back on failure.
 
-Same RFC also covers the rate-limit module rewrite (Upstash → Aliyun
-Redis SDK).
+What requires real procurement (this RFC's scope ends at code):
+
+- The 9 `ALIYUN_*` / `ALIPAY_*` / `WECHAT_PAY_*` env values must be
+  filled with real merchant credentials before the stack accepts
+  payments or sends email.
+- ICP / 公安部 备案 must be completed before DNS resolves.
 
 ## Sanity checks (once stack is live)
 
