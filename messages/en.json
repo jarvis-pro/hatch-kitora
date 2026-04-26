@@ -609,7 +609,8 @@
       "subscriptions": "Subscriptions",
       "apiTokens": "API tokens",
       "stripeEvents": "Stripe events",
-      "audit": "Audit log"
+      "audit": "Audit log",
+      "jobs": "Background jobs"
     },
     "overview": {
       "title": "Admin overview",
@@ -754,6 +755,46 @@
         "target": "Target",
         "metadata": "Metadata",
         "ip": "IP"
+      }
+    },
+    "jobs": {
+      "title": "Background jobs",
+      "subtitle": "Generic async-work container — sweep ticks, ad-hoc retries, scheduled jobs.",
+      "tabs": {
+        "overview": "Overview",
+        "recent": "Recent",
+        "dlq": "Dead letter"
+      },
+      "overview": {
+        "totalRows": "Total rows",
+        "dlqRows": "Dead letter rows",
+        "queueLag": "Oldest pending lag",
+        "type": "Type",
+        "empty": "No jobs in the last 24 hours.",
+        "windowHint": "Counts above cover the last 24 hours of newly-created rows."
+      },
+      "status": {
+        "PENDING": "Pending",
+        "RUNNING": "Running",
+        "SUCCEEDED": "Succeeded",
+        "FAILED": "Failed",
+        "DEAD_LETTER": "Dead letter",
+        "CANCELED": "Canceled"
+      },
+      "recent": {
+        "totalHint": "{total} matching rows total."
+      },
+      "dlq": {
+        "intro": "Jobs that exhausted their retry budget. Investigate root cause before retrying — the root cause may still be active."
+      },
+      "table": {
+        "createdAt": "Created (UTC)",
+        "type": "Type",
+        "status": "Status",
+        "attempt": "Attempt",
+        "runId": "Run ID",
+        "lastError": "Last error",
+        "empty": "No jobs match this filter."
       }
     },
     "subscriptions": {

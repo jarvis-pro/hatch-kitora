@@ -1,6 +1,14 @@
 'use client';
 
-import { CreditCard, KeyRound, LayoutDashboard, Receipt, ScrollText, Users } from 'lucide-react';
+import {
+  CreditCard,
+  KeyRound,
+  LayoutDashboard,
+  ListTodo,
+  Receipt,
+  ScrollText,
+  Users,
+} from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
 import { Link, usePathname } from '@/i18n/routing';
@@ -13,6 +21,7 @@ const items = [
   { href: '/admin/api-tokens', icon: KeyRound, key: 'apiTokens' },
   { href: '/admin/stripe-events', icon: Receipt, key: 'stripeEvents' },
   { href: '/admin/audit', icon: ScrollText, key: 'audit' },
+  { href: '/admin/jobs', icon: ListTodo, key: 'jobs' },
 ] as const;
 
 export function AdminNav() {

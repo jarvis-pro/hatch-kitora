@@ -604,7 +604,8 @@
       "subscriptions": "订阅",
       "apiTokens": "API 令牌",
       "stripeEvents": "Stripe 事件",
-      "audit": "审计日志"
+      "audit": "审计日志",
+      "jobs": "后台任务"
     },
     "overview": {
       "title": "管理员概览",
@@ -749,6 +750,46 @@
         "target": "目标",
         "metadata": "元数据",
         "ip": "IP"
+      }
+    },
+    "jobs": {
+      "title": "后台任务",
+      "subtitle": "通用异步活容器 —— sweep tick、ad-hoc 重试、定时任务。",
+      "tabs": {
+        "overview": "概览",
+        "recent": "最近",
+        "dlq": "死信"
+      },
+      "overview": {
+        "totalRows": "总行数",
+        "dlqRows": "死信行数",
+        "queueLag": "最老 pending 延迟",
+        "type": "类型",
+        "empty": "近 24 小时无任务。",
+        "windowHint": "上表统计窗口为近 24 小时新建的行。"
+      },
+      "status": {
+        "PENDING": "等待",
+        "RUNNING": "执行中",
+        "SUCCEEDED": "成功",
+        "FAILED": "失败",
+        "DEAD_LETTER": "死信",
+        "CANCELED": "已取消"
+      },
+      "recent": {
+        "totalHint": "共 {total} 行匹配。"
+      },
+      "dlq": {
+        "intro": "已用尽重试预算的任务。重新执行前请先排查根因 —— 根因可能仍在。"
+      },
+      "table": {
+        "createdAt": "创建时间 (UTC)",
+        "type": "类型",
+        "status": "状态",
+        "attempt": "尝试",
+        "runId": "Run ID",
+        "lastError": "上次错误",
+        "empty": "无匹配任务。"
       }
     },
     "subscriptions": {
