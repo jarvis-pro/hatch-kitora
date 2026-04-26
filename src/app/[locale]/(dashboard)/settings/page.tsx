@@ -10,7 +10,7 @@ import { ProfileForm } from '@/components/account/profile-form';
 import { SessionsCard } from '@/components/account/sessions-card';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { env } from '@/env';
-import { auth } from '@/lib/auth';
+import { requireActiveOrg } from '@/lib/auth/session';
 import { prisma } from '@/lib/db';
 
 export const metadata: Metadata = {
@@ -28,32 +28,33 @@ function availableOAuthProviders(): readonly { id: string; label: string }[] {
 }
 
 export default async function SettingsPage() {
-  const session = await auth();
-  if (!session?.user?.id) redirect('/login');
+  const me = await requireActiveOrg().catch(() => null);
+  if (!me) redirect('/login');
 
-  const [t, user] = await Promise.all([
+  // tokens 按 orgId 查（PR-2：active org 范围）。user 仍按 userId 查（profile / accounts 是 user-scoped）。
+  const [t, user, tokens] = await Promise.all([
     getTranslations('account'),
     prisma.user.findUnique({
-      where: { id: session.user.id },
+      where: { id: me.userId },
       select: {
         id: true,
         name: true,
         email: true,
         passwordHash: true,
         accounts: { select: { provider: true } },
-        apiTokens: {
-          where: { revokedAt: null },
-          orderBy: { createdAt: 'desc' },
-          select: {
-            id: true,
-            name: true,
-            prefix: true,
-            createdAt: true,
-            lastUsedAt: true,
-            expiresAt: true,
-            revokedAt: true,
-          },
-        },
+      },
+    }),
+    prisma.apiToken.findMany({
+      where: { orgId: me.orgId, revokedAt: null },
+      orderBy: { createdAt: 'desc' },
+      select: {
+        id: true,
+        name: true,
+        prefix: true,
+        createdAt: true,
+        lastUsedAt: true,
+        expiresAt: true,
+        revokedAt: true,
       },
     }),
   ]);
@@ -114,7 +115,7 @@ export default async function SettingsPage() {
           <CardDescription>{t('apiTokens.description')}</CardDescription>
         </CardHeader>
         <CardContent>
-          <ApiTokens tokens={user.apiTokens} />
+          <ApiTokens tokens={tokens} />
         </CardContent>
       </Card>
 

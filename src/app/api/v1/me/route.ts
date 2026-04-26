@@ -14,8 +14,9 @@ export const dynamic = 'force-dynamic';
  * Demonstrates the personal API token flow end-to-end:
  *   curl -H "Authorization: Bearer kitora_..." https://app.kitora.com/api/v1/me
  *
- * Returns the authenticated user's profile + current plan. 401 on missing /
- * invalid / revoked / expired token; 429 on rate-limit hit.
+ * Returns the authenticated user's profile + the active org's plan, and a
+ * list of every org the user belongs to (with their role in each). 401 on
+ * missing / invalid / revoked / expired token; 429 on rate-limit hit.
  */
 export async function GET(request: Request) {
   const principal = await authenticateBearer(request);
@@ -38,7 +39,7 @@ export async function GET(request: Request) {
     );
   }
 
-  const [user, billing] = await Promise.all([
+  const [user, billing, memberships] = await Promise.all([
     prisma.user.findUnique({
       where: { id: principal.userId },
       select: {
@@ -50,13 +51,23 @@ export async function GET(request: Request) {
         createdAt: true,
       },
     }),
-    getCurrentBilling(principal.userId),
+    getCurrentBilling(principal.orgId),
+    prisma.membership.findMany({
+      where: { userId: principal.userId },
+      orderBy: { joinedAt: 'asc' },
+      select: {
+        role: true,
+        organization: { select: { slug: true, name: true, id: true } },
+      },
+    }),
   ]);
 
   if (!user) {
     // The token outlived its owner — defensive 401 rather than 500.
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   }
+
+  const activeOrg = memberships.find((m) => m.organization.id === principal.orgId);
 
   return NextResponse.json(
     {
@@ -66,6 +77,18 @@ export async function GET(request: Request) {
       role: user.role.toLowerCase(),
       emailVerified: !!user.emailVerified,
       createdAt: user.createdAt.toISOString(),
+      activeOrg: activeOrg
+        ? {
+            slug: activeOrg.organization.slug,
+            name: activeOrg.organization.name,
+            role: activeOrg.role,
+          }
+        : null,
+      organizations: memberships.map((m) => ({
+        slug: m.organization.slug,
+        name: m.organization.name,
+        role: m.role,
+      })),
       plan: {
         id: billing.plan.id,
         name: billing.plan.name,
