@@ -1,5 +1,7 @@
-import 'server-only';
-
+// NOTE: deliberately *not* `'server-only'` here — Playwright e2e tests and
+// tsx CLI scripts transitively import this via `runWebhookCronTick` and
+// other server flows. The transitive `resend` SDK + `@/env` imports are
+// Node-only, so accidental client bundling still fails loudly.
 import { Resend } from 'resend';
 
 import { env } from '@/env';

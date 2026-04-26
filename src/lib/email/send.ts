@@ -1,5 +1,7 @@
-import 'server-only';
-
+// NOTE: deliberately *not* `'server-only'` here — Playwright e2e tests and
+// tsx CLI scripts both transitively import this via `runWebhookCronTick`
+// (and various account flows). The transitive `resend` SDK + `@/env` deps
+// are Node-only, so accidental client bundling still fails loudly.
 import { render } from '@react-email/components';
 
 import { env } from '@/env';
