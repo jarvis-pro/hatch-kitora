@@ -42,9 +42,19 @@ export const env = createEnv({
     UPSTASH_REDIS_REST_URL: z.string().url().optional(),
     UPSTASH_REDIS_REST_TOKEN: z.string().optional(),
 
-    // Region — toggles default payment provider, footer ICP block, etc.
-    // 'global' targets overseas (Stripe + USD); 'cn' targets mainland China.
-    REGION: z.enum(['global', 'cn']).default('global'),
+    // RFC 0005 — Multi-region. `KITORA_REGION` is the canonical name and
+    // its values are uppercase to align with the Prisma `Region` enum
+    // (GLOBAL / CN / EU). It is a process-wide constant: read it through
+    // `currentRegion()` in `src/lib/region.ts`, never via `process.env`
+    // directly.
+    //
+    // The lower-case `REGION` is honoured for one deprecation window
+    // (v0.6 + v0.7 accept it as an alias; v0.8 removes the read). When
+    // both are set, `KITORA_REGION` wins. A `logger.warn` fires the first
+    // time `currentRegion()` falls back to the legacy variable so
+    // operators see the prompt to migrate.
+    KITORA_REGION: z.enum(['GLOBAL', 'CN', 'EU']).optional(),
+    REGION: z.enum(['global', 'cn']).optional(),
 
     // Mainland-China only: shown in the footer to satisfy ICP / 公安部备案
     // requirements. Both leave empty in 'global' mode.
@@ -113,6 +123,7 @@ export const env = createEnv({
     UPSTASH_REDIS_REST_URL: process.env.UPSTASH_REDIS_REST_URL,
     UPSTASH_REDIS_REST_TOKEN: process.env.UPSTASH_REDIS_REST_TOKEN,
 
+    KITORA_REGION: process.env.KITORA_REGION,
     REGION: process.env.REGION,
     ICP_NUMBER: process.env.ICP_NUMBER,
     PUBLIC_SECURITY_NUMBER: process.env.PUBLIC_SECURITY_NUMBER,

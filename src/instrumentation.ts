@@ -10,6 +10,13 @@
 export async function register() {
   if (process.env.NEXT_RUNTIME === 'nodejs') {
     await import('../sentry.server.config');
+    // RFC 0005 — fail-fast region check. If the deploy region this
+    // process believes it's serving disagrees with what's already in the
+    // database, refuse to come up: a CN stack must never write GLOBAL
+    // rows or vice-versa. The check runs only on the Node runtime — Edge
+    // can't open a Prisma connection — and only as a soft assertion;
+    // first-boot databases (no orgs yet) sail through.
+    await import('@/lib/region-startup-check').then((m) => m.assertRegionMatchesDatabase());
   }
   if (process.env.NEXT_RUNTIME === 'edge') {
     await import('../sentry.edge.config');
