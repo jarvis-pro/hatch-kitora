@@ -6,13 +6,12 @@ import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 
 import { recordAudit } from '@/lib/audit';
-import { requireActiveOrg } from '@/lib/auth/session';
+import { ACTIVE_ORG_COOKIE, requireActiveOrg } from '@/lib/auth/session';
 import { prisma } from '@/lib/db';
 import { logger } from '@/lib/logger';
 
 import { can } from './permissions';
 
-export const ACTIVE_ORG_COOKIE = 'kitora_active_org';
 const ACTIVE_ORG_COOKIE_MAX_AGE = 60 * 60 * 24 * 365; // 1 year
 
 const switchSchema = z.object({ slug: z.string().min(1).max(60) });
@@ -61,7 +60,7 @@ export async function setActiveOrgAction(input: z.infer<typeof switchSchema>) {
     path: '/',
     maxAge: ACTIVE_ORG_COOKIE_MAX_AGE,
   });
-  revalidatePath('/');
+  revalidatePath('/', 'layout');
   return { ok: true as const };
 }
 
@@ -275,6 +274,6 @@ export async function deleteOrgAction(input: z.infer<typeof deleteOrgSchema>) {
   const c = await cookies();
   c.delete(ACTIVE_ORG_COOKIE);
 
-  revalidatePath('/');
+  revalidatePath('/', 'layout');
   return { ok: true as const };
 }
