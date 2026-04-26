@@ -122,3 +122,88 @@ export async function resetUserTwoFactorAction(input: z.infer<typeof resetTfaSch
   revalidatePath('/admin/audit');
   return { ok: true as const };
 }
+
+const jobIdSchema = z.object({ jobId: z.string().min(1) });
+
+/**
+ * RFC 0008 §4.8 / PR-4 — admin manual cancel：把一行（DEAD_LETTER 或 PENDING）
+ * 翻 CANCELED，写 audit `job.cancelled`。RUNNING 行不能 cancel —— 等当次结束。
+ */
+export async function cancelJobAction(input: z.infer<typeof jobIdSchema>) {
+  const me = await requireAdmin();
+  const parsed = jobIdSchema.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false as const, error: 'invalid-input' as const };
+  }
+
+  const result = await prisma.backgroundJob.updateMany({
+    where: { id: parsed.data.jobId, status: { in: ['DEAD_LETTER', 'PENDING'] } },
+    data: {
+      status: 'CANCELED',
+      completedAt: new Date(),
+      lockedBy: null,
+      lockedAt: null,
+    },
+  });
+
+  if (result.count === 0) {
+    return { ok: false as const, error: 'not-found-or-not-cancelable' as const };
+  }
+
+  logger.info({ actor: me.id, jobId: parsed.data.jobId }, 'admin-job-cancelled');
+  await recordAudit({
+    actorId: me.id,
+    orgId: null,
+    action: 'job.cancelled',
+    target: parsed.data.jobId,
+  });
+
+  revalidatePath('/admin/jobs');
+  revalidatePath('/admin/audit');
+  return { ok: true as const };
+}
+
+/**
+ * RFC 0008 §4.8 / PR-4 — admin manual retry：仅对 DEAD_LETTER 行有效；翻回 PENDING
+ * 重置 attempt / lockedBy / lastError / completedAt / deleteAt，下一 tick 即可被
+ * `FOR UPDATE SKIP LOCKED` 重新抢到。写 audit `job.retried`。
+ *
+ * 注意：admin 应在 retry 前修复根因；retry 仅是「再试一次」，不会自动绕过原失败原因。
+ */
+export async function retryJobAction(input: z.infer<typeof jobIdSchema>) {
+  const me = await requireAdmin();
+  const parsed = jobIdSchema.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false as const, error: 'invalid-input' as const };
+  }
+
+  const result = await prisma.backgroundJob.updateMany({
+    where: { id: parsed.data.jobId, status: 'DEAD_LETTER' },
+    data: {
+      status: 'PENDING',
+      attempt: 0,
+      lockedBy: null,
+      lockedAt: null,
+      lastError: null,
+      completedAt: null,
+      nextAttemptAt: new Date(),
+      deleteAt: null,
+    },
+  });
+
+  if (result.count === 0) {
+    return { ok: false as const, error: 'not-found-or-not-dlq' as const };
+  }
+
+  logger.info({ actor: me.id, jobId: parsed.data.jobId }, 'admin-job-retried');
+  await recordAudit({
+    actorId: me.id,
+    orgId: null,
+    action: 'job.retried',
+    target: parsed.data.jobId,
+  });
+
+  revalidatePath('/admin/jobs');
+  revalidatePath('/admin/audit');
+  return { ok: true as const };
+}

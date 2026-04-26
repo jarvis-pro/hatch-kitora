@@ -789,7 +789,17 @@
         "attempt": "尝试",
         "runId": "Run ID",
         "lastError": "上次错误",
+        "actionsHeader": "操作",
         "empty": "无匹配任务。"
+      },
+      "actions": {
+        "retry": "重试",
+        "cancel": "取消",
+        "retrySuccess": "任务已重新排队。",
+        "retryError": "无法重试 —— 可能已被处理。",
+        "cancelConfirm": "确定取消此任务？终态不可撤销。",
+        "cancelSuccess": "任务已取消。",
+        "cancelError": "无法取消任务。"
       }
     },
     "subscriptions": {

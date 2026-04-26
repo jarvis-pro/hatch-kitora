@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { getTranslations } from 'next-intl/server';
 
 import { DataPagination } from '@/components/admin/data-pagination';
+import { JobRowActions } from '@/components/admin/jobs/job-row-actions';
 import { prisma } from '@/lib/db';
 import { cn } from '@/lib/utils';
 
@@ -295,7 +296,7 @@ async function DlqTab({ page }: { page: number }) {
   return (
     <div className="space-y-4">
       <p className="text-sm text-muted-foreground">{t('dlq.intro')}</p>
-      <JobsTable items={items} t={await getTranslations('admin.jobs')} />
+      <JobsTable items={items} t={await getTranslations('admin.jobs')} withActions />
       <DataPagination
         baseHref="/admin/jobs?tab=dlq"
         page={page}
@@ -376,9 +377,12 @@ interface JobsTableProps {
   }>;
   // next-intl 的 getTranslations 返回 typed callable；这里仅用 .raw key。
   t: Awaited<ReturnType<typeof getTranslations<'admin.jobs'>>>;
+  /** DLQ Tab 传 true 渲染 retry / cancel 列；其它 Tab 不渲染避免误操作。 */
+  withActions?: boolean;
 }
 
-function JobsTable({ items, t }: JobsTableProps) {
+function JobsTable({ items, t, withActions = false }: JobsTableProps) {
+  const colSpan = withActions ? 7 : 6;
   return (
     <div className="overflow-x-auto rounded-lg border">
       <table className="w-full text-sm">
@@ -390,12 +394,15 @@ function JobsTable({ items, t }: JobsTableProps) {
             <th className="px-4 py-3 font-medium">{t('table.attempt')}</th>
             <th className="px-4 py-3 font-medium">{t('table.runId')}</th>
             <th className="px-4 py-3 font-medium">{t('table.lastError')}</th>
+            {withActions ? (
+              <th className="px-4 py-3 font-medium">{t('table.actionsHeader')}</th>
+            ) : null}
           </tr>
         </thead>
         <tbody>
           {items.length === 0 ? (
             <tr>
-              <td colSpan={6} className="px-4 py-10 text-center text-muted-foreground">
+              <td colSpan={colSpan} className="px-4 py-10 text-center text-muted-foreground">
                 {t('table.empty')}
               </td>
             </tr>
@@ -425,6 +432,11 @@ function JobsTable({ items, t }: JobsTableProps) {
                     '—'
                   )}
                 </td>
+                {withActions ? (
+                  <td className="px-4 py-3">
+                    <JobRowActions jobId={row.id} />
+                  </td>
+                ) : null}
               </tr>
             ))
           )}

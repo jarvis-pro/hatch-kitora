@@ -794,7 +794,17 @@
         "attempt": "Attempt",
         "runId": "Run ID",
         "lastError": "Last error",
+        "actionsHeader": "Actions",
         "empty": "No jobs match this filter."
+      },
+      "actions": {
+        "retry": "Retry",
+        "cancel": "Cancel",
+        "retrySuccess": "Job requeued for retry.",
+        "retryError": "Could not retry job — it may have been processed already.",
+        "cancelConfirm": "Cancel this job? Final terminal state, cannot be undone.",
+        "cancelSuccess": "Job cancelled.",
+        "cancelError": "Could not cancel job."
       }
     },
     "subscriptions": {
