@@ -18,6 +18,9 @@ export function SiteHeader() {
           <Link href="/pricing" className="transition-colors hover:text-foreground">
             {t('pricing')}
           </Link>
+          <Link href="/docs/api" className="transition-colors hover:text-foreground">
+            {t('apiDocs')}
+          </Link>
           <a
             href="https://github.com"
             className="transition-colors hover:text-foreground"

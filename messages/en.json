@@ -17,6 +17,7 @@
   "marketing": {
     "nav": {
       "pricing": "Pricing",
+      "apiDocs": "API",
       "github": "GitHub",
       "signin": "Sign in",
       "signup": "Get started"
