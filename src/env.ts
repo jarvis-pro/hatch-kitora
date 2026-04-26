@@ -61,11 +61,40 @@ export const env = createEnv({
     ICP_NUMBER: z.string().optional(),
     PUBLIC_SECURITY_NUMBER: z.string().optional(),
 
-    // Optional CN-payment credentials — placeholders only. Wire up the actual
-    // SDKs in src/lib/billing/provider/{alipay,wechat}.ts when going live.
+    // CN-payment credentials (RFC 0006 PR-3). All optional at the env layer
+    // so dev / GLOBAL stacks boot fine without setting them; the providers
+    // themselves throw a configuration error if a CN-region request lands
+    // and the matching credential block is missing.
+    //
+    // Alipay — 「电脑网站支付 + 周期扣款」 needs four pieces:
+    //   * APP_ID                — 应用 ID（开放平台拿到）
+    //   * APP_PRIVATE_KEY       — 应用私钥（PKCS8, PEM 一行去掉 BEGIN/END）
+    //   * ALIPAY_PUBLIC_KEY     — 支付宝公钥，用于回调验签
+    //   * GATEWAY               — 默认正式网关；sandbox 时换成 openapi-sandbox
     ALIPAY_APP_ID: z.string().optional(),
     ALIPAY_PRIVATE_KEY: z.string().optional(),
+    ALIPAY_PUBLIC_KEY: z.string().optional(),
+    ALIPAY_GATEWAY: z.string().url().default('https://openapi.alipay.com/gateway.do'),
+    // Webhook handlers want a stable hostname for `notify_url`; in CN region
+    // this is `https://api.kitora.cn` (RFC 0006 §3.5). Fallback uses
+    // NEXT_PUBLIC_APP_URL for dev / staging.
+    CN_PUBLIC_API_URL: z.string().url().optional(),
+
+    // WeChat Pay APIv3 — Native pay 二维码模式 + 周期扣款 (papay).
+    //   * MCH_ID                — 商户号
+    //   * APIV3_KEY             — APIv3 secret，用于回调 AES-GCM 解密
+    //   * MERCHANT_PRIVATE_KEY  — 商户证书私钥 (PEM)
+    //   * MERCHANT_SERIAL_NO    — 商户证书序列号
+    //   * APP_ID                — 公众号 / 服务号 ID（Native 支付仍需）
     WECHAT_PAY_MCH_ID: z.string().optional(),
+    WECHAT_PAY_APIV3_KEY: z.string().optional(),
+    WECHAT_PAY_MERCHANT_PRIVATE_KEY: z.string().optional(),
+    WECHAT_PAY_MERCHANT_SERIAL_NO: z.string().optional(),
+    WECHAT_PAY_APP_ID: z.string().optional(),
+    // Backwards compat — the old name `WECHAT_PAY_API_KEY` is the v2
+    // signing key.  v3 callers must migrate to `WECHAT_PAY_APIV3_KEY`.
+    // Keep accepting the legacy name for one deprecation window so existing
+    // .env files don't fail validation on upgrade.
     WECHAT_PAY_API_KEY: z.string().optional(),
 
     // Logging
@@ -129,7 +158,14 @@ export const env = createEnv({
     PUBLIC_SECURITY_NUMBER: process.env.PUBLIC_SECURITY_NUMBER,
     ALIPAY_APP_ID: process.env.ALIPAY_APP_ID,
     ALIPAY_PRIVATE_KEY: process.env.ALIPAY_PRIVATE_KEY,
+    ALIPAY_PUBLIC_KEY: process.env.ALIPAY_PUBLIC_KEY,
+    ALIPAY_GATEWAY: process.env.ALIPAY_GATEWAY,
+    CN_PUBLIC_API_URL: process.env.CN_PUBLIC_API_URL,
     WECHAT_PAY_MCH_ID: process.env.WECHAT_PAY_MCH_ID,
+    WECHAT_PAY_APIV3_KEY: process.env.WECHAT_PAY_APIV3_KEY,
+    WECHAT_PAY_MERCHANT_PRIVATE_KEY: process.env.WECHAT_PAY_MERCHANT_PRIVATE_KEY,
+    WECHAT_PAY_MERCHANT_SERIAL_NO: process.env.WECHAT_PAY_MERCHANT_SERIAL_NO,
+    WECHAT_PAY_APP_ID: process.env.WECHAT_PAY_APP_ID,
     WECHAT_PAY_API_KEY: process.env.WECHAT_PAY_API_KEY,
 
     LOG_LEVEL: process.env.LOG_LEVEL,
