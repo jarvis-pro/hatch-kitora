@@ -2,6 +2,7 @@
 
 import bcrypt from 'bcryptjs';
 import { AuthError } from 'next-auth';
+import { OrgRole } from '@prisma/client';
 import { z } from 'zod';
 
 import { signIn, signOut } from '@/lib/auth';
@@ -46,8 +47,18 @@ export async function signupAction(input: z.infer<typeof signupSchema>) {
   }
 
   const passwordHash = await bcrypt.hash(password, 12);
-  const user = await prisma.user.create({
-    data: { name, email, passwordHash },
+  // 同事务建 user + personal org + OWNER membership —— 第一个请求进 dashboard
+  // 时 requireActiveOrg() 即可命中已存在记录，无需 lazy creation。
+  const user = await prisma.$transaction(async (tx) => {
+    const created = await tx.user.create({ data: { name, email, passwordHash } });
+    const slug = `personal-${created.id.slice(-8)}`;
+    const org = await tx.organization.create({
+      data: { slug, name: name || 'Personal' },
+    });
+    await tx.membership.create({
+      data: { orgId: org.id, userId: created.id, role: OrgRole.OWNER },
+    });
+    return created;
   });
 
   // Fire the verification + welcome emails but don't block signup if either
