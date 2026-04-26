@@ -453,18 +453,16 @@ Day 8     ┃ PR-5：i18n + e2e + RFC 收尾
 
 ---
 
-## 9. 待评审决策（Draft 阶段）
+## 9. 评审决策（2026-04-26 已定稿）
 
-下列项在 PR-1 起手前需拍板。
-
-- [ ] **是否同时建 `Schedule` 表** —— v1 决策为「不建，纯代码注册」。如果 ops 强烈希望 admin 能临时禁用某个 schedule，建议**仍不建表**，改在 admin 页加「override 当前 process 的内存 schedule」（一次部署内有效；持久 override 留给 RFC 0010）。
-- [ ] **`runId` 命名约定** —— 调用方自由 vs 框架建议格式。建议**自由**：业务幂等键多种多样（`subscription:${id}:dunning`、`user:${id}:cleanup-orphans`），强约定反而碍事。文档给一段 best practice。
-- [ ] **失败时是否自动发邮件给 admin** —— 当 type=X 的 DLQ 24h 内 ≥ 5 条时。建议 **v1 不做**：admin 页有数字 + Sentry / metrics 已经覆盖；自动邮件容易扰民。RFC 0010 再视情况补告警通道。
-- [ ] **payload 序列化格式** —— Json (jsonb) vs MessagePack 二进制。建议 **Json**：可读、admin 页直接渲染、占用大小没有数量级差。
-- [ ] **多 queue 在 v1 是否暴露** —— `defineJob({ queue: 'high-priority' })`。建议 **暴露 API 但 worker 只跑 default**：v1 实际用不上多 queue，但留出接口避免 v2 改 API 破坏调用方。
-- [ ] **Vercel Cron 路径** —— `/api/jobs/tick` vs `/api/cron/tick` vs `/api/internal/jobs/tick`。建议 **`/api/jobs/tick`**：与 lib 命名一致；通过 `Authorization: Bearer ${CRON_SECRET}` 鉴权（仅 Vercel Cron 走，外部无法访问）。
-- [ ] **是否引入 `priority` 列的实际语义** —— 0 vs 100 的实际差。建议 **保留列、v1 全用默认 0**：高优场景太少，到了 RFC 0010 真有需求再启用。
-- [ ] **失败 job 的告警阈值** —— DEAD_LETTER 当 / 不当 RFC 0006 metrics 一等公民？建议 **当**：DLQ 增长是平台健康度核心指标，进 dashboards。
+- [x] **是否同时建 `Schedule` 表** — v1 **不建**，纯代码注册表。理由：schedule 是代码 invariant（部署什么版本就有什么 schedule），不是数据；建表反而会出现「DB 里有但代码里没」的孤儿行。如果 ops 临时需要禁用某个 schedule，走 admin 页「override 当前 process 内存 schedule」（一次部署内有效）；持久 override 留给 RFC 0010。
+- [x] **`runId` 命名约定** — 调用方**自由**，框架不强约束格式。理由：业务幂等键多种多样（`subscription:${id}:dunning`、`user:${id}:cleanup-orphans`、`schedule:tokenCleanup:<unixMinute>`），强约定反而碍事。`docs/rfcs/0008` 与 `src/lib/jobs/define.ts` JSDoc 各给一段 best practice（建议形如 `<domain>:<entityId>:<action>`，schedule 触发用 `schedule:<scheduleName>:<unixMinute>`）。
+- [x] **失败时是否自动发邮件给 admin** — v1 **不做**自动告警邮件。理由：admin `/admin/jobs` 页已有 DLQ 数字 + Sentry transaction + metrics counter `jobs.dlq.total{type=}` 进 RFC 0006 dashboards，覆盖度足够；自动邮件容易扰民、阈值难调。如真出现 DLQ 飙升，RFC 0010 再补统一告警通道（含 PagerDuty / IM webhook）。
+- [x] **payload 序列化格式** — **Json (jsonb)**，不上 MessagePack。理由：可读、admin 页可直接渲染、Prisma `Json` 列原生支持；与 MessagePack 在 64KB 上限内的占用差异没有数量级，可读性收益完胜。`defineJob` 强制单 payload zod 序列化后字节数 < 64KB（与 RFC 0002 数据导出 payload 大小限制对齐）。
+- [x] **多 queue 在 v1 是否暴露** — **暴露 `queue` 列与 `defineJob({ queue })` API**，但 worker v1 只 claim `queue = 'default'`。理由：留出接口避免 v2 改 API 破坏调用方；v1 实际不用多 queue（RFC 0009/0010 真有「dunning 高优 / audit 复制低优」分流需求时再启用）。
+- [x] **Vercel Cron 路径** — **`/api/jobs/tick`**，通过 `Authorization: Bearer ${CRON_SECRET}` 鉴权。理由：与 `src/lib/jobs/` lib 命名一致；CRON_SECRET env 仅 Vercel Cron 注入，外部访问统一返回 401（不泄露路径存在性，沿用 RFC 0003 webhook tick 同款模式）。CLI（Fly / Aliyun ACK）走 `pnpm tsx scripts/run-jobs.ts` 不经 HTTP。
+- [x] **是否引入 `priority` 列的实际语义** — **保留 `priority Int` 列、v1 全用默认 0**。理由：claim 索引 `(status, queue, priority, nextAttemptAt)` 已包含该列，无额外成本；v1 高优场景太少，等 RFC 0010 metered billing dunning / SCIM 实时同步等场景出现时再启用 100 / 200 / 500 等档位。
+- [x] **失败 job 的告警阈值** — DLQ 当 RFC 0006 metrics **一等公民**。理由：DLQ 增长是平台健康度核心指标（jobs 卡住 → 邮件不发 → token 不清 → 用户体感故障），与 webhook 失败率、export 卡顿、CN audit-egress 拦截属同级别。`jobs.dlq.total{type=}` counter + `jobs.queue.lag.seconds` gauge 直接进 dashboards。
 
 ---
 
