@@ -15,13 +15,39 @@ datasource db {
 }
 
 // ---------------------------------------------------------------------------
+// RFC 0005 — Multi-region (data residency)
+// ---------------------------------------------------------------------------
+//
+// Every tenant-scoped row carries a `region`, set at insert time from the
+// process-wide `KITORA_REGION` env var (resolved through `currentRegion()`
+// in `src/lib/region.ts`). Region is *not* a runtime variable: a Kitora
+// stack runs in exactly one region for its lifetime. The column exists so
+// (a) a single migration can carry historical rows forward (`GLOBAL`
+// backfill) without code branches, and (b) ad-hoc admin / forensic queries
+// run against the canonical column rather than guessing from the
+// connection URL.
+//
+//   GLOBAL   non-CN, non-EU stack — kitora.io (the only region v0.6 ships).
+//   CN       mainland China stack — kitora.cn (RFC 0006 lights this up).
+//   EU       EU residency stack — kitora.eu (placeholder, no timeline).
+//
+// Cross-region calls are HTTP-only (think outbound webhooks). There is no
+// shared database between regions; the column is metadata, not a sharding
+// hint.
+enum Region {
+  GLOBAL
+  CN
+  EU
+}
+
+// ---------------------------------------------------------------------------
 // Auth.js (NextAuth) — required tables
 // ---------------------------------------------------------------------------
 
 model User {
   id                      String     @id @default(cuid())
   name                    String?
-  email                   String     @unique
+  email                   String
   emailVerified           DateTime?
   image                   String?
   passwordHash            String? // for credentials provider
@@ -41,6 +67,11 @@ model User {
   status                  UserStatus @default(ACTIVE)
   deletionScheduledAt     DateTime?
   deletionRequestedFromIp String?
+  // RFC 0005 — Region the user account lives in. Stamped on insert from
+  // `currentRegion()`; immutable thereafter. Same email may exist in two
+  // regions (e.g. `alice@acme.com` in GLOBAL and again in CN) and they
+  // are independent accounts — see the `(email, region)` composite unique.
+  region                  Region     @default(GLOBAL)
   createdAt               DateTime   @default(now())
   updatedAt               DateTime   @updatedAt
 
@@ -51,9 +82,14 @@ model User {
   deviceSessions  DeviceSession[]
   twoFactorSecret TwoFactorSecret?
 
-  @@index([email])
+  // RFC 0005 — composite unique replaces the historical `email @unique`.
+  // Inside one stack the live region is fixed, so all lookups still hit
+  // by email; the `region` column is required to keep cross-region
+  // imports / disaster recovery dumps coherent.
+  @@unique([email, region])
   // RFC 0002 PR-4 — supports the daily deletion cron's hot path.
   @@index([status, deletionScheduledAt])
+  @@index([region])
 }
 
 enum UserRole {
@@ -95,6 +131,11 @@ model Organization {
   stripeCustomerId String?  @unique
   // RFC 0005 占位字段：per-org ICP 备案号；PR-1 仅加列，业务逻辑后续 RFC 实现
   icpNumber        String?
+  // RFC 0005 — region the org was created in. Immutable: enforced at the
+  // server-action layer (`updateOrgAction` rejects any change). Stamped
+  // from `currentRegion()` at create time; v0.6 backfill set every legacy
+  // row to GLOBAL.
+  region           Region   @default(GLOBAL)
   // RFC 0002 PR-4 — when true, every member of this org must have 2FA
   // enabled. `assertOrg2faCompliance()` enforces this at every server
   // action / RSC entrypoint that resolves an active org. Toggle via
@@ -111,6 +152,7 @@ model Organization {
   identityProviders IdentityProvider[]
 
   @@index([slug])
+  @@index([region])
 }
 
 model Membership {
@@ -605,10 +647,16 @@ model AuditLog {
   target    String?
   metadata  Json?
   ip        String?
+  // RFC 0005 — region the row was written from. Stamped automatically by
+  // `recordAudit()` from `currentRegion()`; never accepted as input. The
+  // `(region, createdAt)` composite below is the index compliance reports
+  // hit ("CN audit rows in window X") so it leads with region.
+  region    Region   @default(GLOBAL)
   createdAt DateTime @default(now())
 
   @@index([actorId])
   @@index([orgId])
   @@index([action])
   @@index([createdAt])
+  @@index([region, createdAt])
 }
