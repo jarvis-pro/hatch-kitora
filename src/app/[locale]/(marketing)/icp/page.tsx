@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation';
 import { getTranslations } from 'next-intl/server';
 
 import { env } from '@/env';
+import { isCnRegion } from '@/lib/region';
 
 export const metadata: Metadata = {
   title: 'ICP 备案 / Public Security Filing',
@@ -14,7 +15,7 @@ export const metadata: Metadata = {
  * `global` deployments don't leak an empty page.
  */
 export default async function IcpPage() {
-  if (env.REGION !== 'cn') notFound();
+  if (!isCnRegion()) notFound();
   const t = await getTranslations('marketing.icp');
 
   return (

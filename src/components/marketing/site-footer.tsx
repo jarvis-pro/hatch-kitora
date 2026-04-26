@@ -2,13 +2,14 @@ import { useTranslations } from 'next-intl';
 
 import { env } from '@/env';
 import { Link } from '@/i18n/routing';
+import { isCnRegion } from '@/lib/region';
 
 export function SiteFooter() {
   const t = useTranslations('marketing.footer');
   const year = new Date().getFullYear();
 
   // CN deployments must surface ICP / 公安部备案 numbers in the footer.
-  const showIcp = env.REGION === 'cn' && env.ICP_NUMBER;
+  const showIcp = isCnRegion() && env.ICP_NUMBER;
 
   return (
     <footer className="border-t">

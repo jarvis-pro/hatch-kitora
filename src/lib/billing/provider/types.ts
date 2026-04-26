@@ -4,7 +4,7 @@
  * One concrete implementation per payment rail: StripeProvider for global
  * markets (cards / Apple Pay / SEPA / etc.), AlipayProvider and
  * WechatPayProvider for mainland China. Pick one at boot via `getProvider()`
- * which reads `env.REGION`.
+ * which reads `currentRegion()` (RFC 0005).
  */
 export interface CheckoutInput {
   /** Active organization the subscription belongs to (RFC-0001 multi-tenant). */
