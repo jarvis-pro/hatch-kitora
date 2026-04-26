@@ -2,6 +2,7 @@ import 'server-only';
 
 import { env } from '@/env';
 import { prisma } from '@/lib/db';
+import DataExportReadyEmail from '@/emails/data-export-ready';
 import ResetPasswordEmail from '@/emails/reset-password';
 import TwoFactorDisabledEmail from '@/emails/two-factor-disabled';
 import TwoFactorEnabledEmail from '@/emails/two-factor-enabled';
@@ -141,5 +142,32 @@ export async function sendPasswordResetEmail(user: UserLike) {
   } catch (error) {
     logger.error({ err: error, userId: user.id }, 'reset-password-send-failed');
     throw error;
+  }
+}
+
+/**
+ * RFC 0002 PR-3 — fire-and-forget notification when the cron worker
+ * finishes a data export. The download link goes through the auth-gated
+ * route (`/api/exports/[jobId]/download`), so even if the email lands in
+ * the wrong inbox the recipient still has to sign in to grab the file.
+ */
+export async function sendDataExportReadyEmail(
+  user: UserLike,
+  opts: { jobId: string; scope: 'USER' | 'ORG' },
+) {
+  try {
+    const downloadUrl = `${env.NEXT_PUBLIC_APP_URL}/api/exports/${opts.jobId}/download`;
+    await sendEmail({
+      to: user.email,
+      subject: 'Your data export is ready',
+      react: DataExportReadyEmail({
+        name: user.name ?? undefined,
+        appUrl: env.NEXT_PUBLIC_APP_URL,
+        downloadUrl,
+        scope: opts.scope,
+      }),
+    });
+  } catch (error) {
+    logger.error({ err: error, userId: user.id }, 'data-export-ready-email-failed');
   }
 }

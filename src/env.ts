@@ -63,6 +63,17 @@ export const env = createEnv({
       .enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent'])
       .default('info'),
 
+    // Data export (RFC 0002 PR-3) — where the cron worker drops finished
+    // zip artefacts. `local` writes under DATA_EXPORT_LOCAL_DIR (defaults
+    // to ./tmp/exports — git-ignored). `s3` requires the bucket + region
+    // vars; signed URLs are minted at download time.
+    DATA_EXPORT_STORAGE: z.enum(['local', 's3']).default('local'),
+    DATA_EXPORT_LOCAL_DIR: z.string().default('./tmp/exports'),
+    DATA_EXPORT_S3_BUCKET: z.string().optional(),
+    DATA_EXPORT_S3_REGION: z.string().optional(),
+    DATA_EXPORT_S3_ACCESS_KEY_ID: z.string().optional(),
+    DATA_EXPORT_S3_SECRET_ACCESS_KEY: z.string().optional(),
+
     // Sentry — server-side build-time vars for source-map upload. Runtime DSN
     // is on the client side (NEXT_PUBLIC_SENTRY_DSN). All optional: missing
     // values just disable the relevant integration.
@@ -111,6 +122,13 @@ export const env = createEnv({
     WECHAT_PAY_API_KEY: process.env.WECHAT_PAY_API_KEY,
 
     LOG_LEVEL: process.env.LOG_LEVEL,
+
+    DATA_EXPORT_STORAGE: process.env.DATA_EXPORT_STORAGE,
+    DATA_EXPORT_LOCAL_DIR: process.env.DATA_EXPORT_LOCAL_DIR,
+    DATA_EXPORT_S3_BUCKET: process.env.DATA_EXPORT_S3_BUCKET,
+    DATA_EXPORT_S3_REGION: process.env.DATA_EXPORT_S3_REGION,
+    DATA_EXPORT_S3_ACCESS_KEY_ID: process.env.DATA_EXPORT_S3_ACCESS_KEY_ID,
+    DATA_EXPORT_S3_SECRET_ACCESS_KEY: process.env.DATA_EXPORT_S3_SECRET_ACCESS_KEY,
 
     SENTRY_AUTH_TOKEN: process.env.SENTRY_AUTH_TOKEN,
     SENTRY_ORG: process.env.SENTRY_ORG,

@@ -397,6 +397,35 @@
         "cannotRevokeCurrent": "Use \"Sign out everywhere\" to end the current session."
       }
     },
+    "dataExport": {
+      "title": "Export your data",
+      "description": "Download a zip with everything we hold for your account: profile, OAuth links, memberships, audit, sessions. The link is auth-gated and expires after 7 days.",
+      "request": "Request export",
+      "requesting": "Queuing export…",
+      "queued": "Export queued. We'll email you when it's ready (usually within a minute).",
+      "limit": "You can request a new export at most once every 24 hours.",
+      "history": "Recent exports",
+      "table": {
+        "createdAt": "Requested",
+        "status": "Status",
+        "size": "Size",
+        "expiresAt": "Expires",
+        "actions": "Actions"
+      },
+      "status": {
+        "PENDING": "Queued",
+        "RUNNING": "Building…",
+        "COMPLETED": "Ready",
+        "FAILED": "Failed",
+        "EXPIRED": "Expired"
+      },
+      "download": "Download",
+      "errors": {
+        "rateLimited": "Already queued. Try again after {at}.",
+        "generic": "Could not queue your export."
+      },
+      "empty": "No export requests yet."
+    },
     "twoFactor": {
       "title": "Two-factor authentication",
       "descriptionDisabled": "Add a second factor to your sign-in to protect against password leaks.",
@@ -569,7 +598,9 @@
         "session_revoked": "Session revoked",
         "2fa_enabled": "2FA enabled",
         "2fa_disabled": "2FA disabled",
-        "2fa_backup_regenerated": "2FA backup codes regenerated"
+        "2fa_backup_regenerated": "2FA backup codes regenerated",
+        "account_export_requested": "Data export requested",
+        "org_export_requested": "Organization export requested"
       },
       "table": {
         "time": "Time (UTC)",

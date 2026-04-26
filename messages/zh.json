@@ -392,6 +392,35 @@
         "cannotRevokeCurrent": "登出当前设备请使用「登出所有设备」。"
       }
     },
+    "dataExport": {
+      "title": "导出我的数据",
+      "description": "一键打包账户全部数据：个人资料、OAuth 绑定、组织成员、审计记录、设备会话。下载链接需要登录验证，7 天后过期。",
+      "request": "请求导出",
+      "requesting": "排队中…",
+      "queued": "已加入队列，准备好后会发邮件通知（通常 1 分钟内）。",
+      "limit": "每 24 小时最多请求一次新的导出。",
+      "history": "最近的导出",
+      "table": {
+        "createdAt": "请求时间",
+        "status": "状态",
+        "size": "大小",
+        "expiresAt": "过期时间",
+        "actions": "操作"
+      },
+      "status": {
+        "PENDING": "排队中",
+        "RUNNING": "生成中…",
+        "COMPLETED": "可下载",
+        "FAILED": "失败",
+        "EXPIRED": "已过期"
+      },
+      "download": "下载",
+      "errors": {
+        "rateLimited": "已有排队中的请求，请于 {at} 后再试。",
+        "generic": "请求导出失败。"
+      },
+      "empty": "暂无导出记录。"
+    },
     "twoFactor": {
       "title": "双因子验证",
       "descriptionDisabled": "为登录加一道验证，防止密码泄露后被直接登录。",
@@ -564,7 +593,9 @@
         "session_revoked": "会话被撤销",
         "2fa_enabled": "启用 2FA",
         "2fa_disabled": "停用 2FA",
-        "2fa_backup_regenerated": "重新生成 2FA 备用码"
+        "2fa_backup_regenerated": "重新生成 2FA 备用码",
+        "account_export_requested": "请求数据导出",
+        "org_export_requested": "请求组织数据导出"
       },
       "table": {
         "time": "时间 (UTC)",

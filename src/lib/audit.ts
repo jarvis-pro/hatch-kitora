@@ -27,6 +27,9 @@ export const AUDIT_ACTIONS = [
   '2fa.enabled',
   '2fa.disabled',
   '2fa.backup_regenerated',
+  // RFC 0002 PR-3 — Data export
+  'account.export_requested',
+  'org.export_requested',
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];

@@ -6,6 +6,7 @@ import { ActiveSessions } from '@/components/account/active-sessions';
 import { ApiTokens } from '@/components/account/api-tokens';
 import { ConnectedAccounts } from '@/components/account/connected-accounts';
 import { DangerZone } from '@/components/account/danger-zone';
+import { DataExportCard } from '@/components/account/data-export-card';
 import { PasswordForm } from '@/components/account/password-form';
 import { ProfileForm } from '@/components/account/profile-form';
 import { SessionsCard } from '@/components/account/sessions-card';
@@ -38,7 +39,7 @@ export default async function SettingsPage() {
   // device sessions 也是 user-scoped；getCurrentSidHash 让我们能在列表里标
   // 出当前会话（仅展示，撤销路径在 server action 里二次校验）。
   const currentSidHash = await getCurrentSidHash();
-  const [t, user, tokens, deviceSessions] = await Promise.all([
+  const [t, user, tokens, deviceSessions, dataExports] = await Promise.all([
     getTranslations('account'),
     prisma.user.findUnique({
       where: { id: me.userId },
@@ -65,6 +66,19 @@ export default async function SettingsPage() {
       },
     }),
     listActiveDeviceSessions(me.userId, currentSidHash),
+    // RFC 0002 PR-3 — most recent 10 USER-scoped jobs for this account.
+    prisma.dataExportJob.findMany({
+      where: { userId: me.userId, scope: 'USER' },
+      orderBy: { createdAt: 'desc' },
+      take: 10,
+      select: {
+        id: true,
+        status: true,
+        sizeBytes: true,
+        expiresAt: true,
+        createdAt: true,
+      },
+    }),
   ]);
 
   if (!user) redirect('/login');
@@ -138,6 +152,16 @@ export default async function SettingsPage() {
         </CardHeader>
         <CardContent>
           <ApiTokens tokens={tokens} />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>{t('dataExport.title')}</CardTitle>
+          <CardDescription>{t('dataExport.description')}</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <DataExportCard jobs={dataExports} />
         </CardContent>
       </Card>
 

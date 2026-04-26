@@ -228,6 +228,59 @@ model TwoFactorSecret {
 }
 
 // ---------------------------------------------------------------------------
+// GDPR data export jobs (RFC 0002 PR-3)
+// ---------------------------------------------------------------------------
+//
+// Async job table — a tiny worker (`scripts/run-export-jobs.ts`) claims a
+// PENDING row, builds the zip via `src/lib/data-export/builder.ts`, uploads
+// it via the storage abstraction (`src/lib/storage/`), and writes back the
+// completion fields. We deliberately don't introduce a job-queue system at
+// this stage — one cron + optimistic `updateMany` claim is enough for the
+// expected volume (1 export / user / 24h).
+//
+// `scope = USER` ⇒ `orgId` is null and the actor (`userId`) is the export's
+// owner. `scope = ORG` ⇒ `orgId` is set; ownership requires the actor to be
+// OWNER of that org at trigger time.
+//
+// Storage layout: `storagePath` is interpreted by the active provider:
+// LocalFsProvider treats it as a path under `DATA_EXPORT_STORAGE_DIR`,
+// S3Provider treats it as an S3 key. Either way `expiresAt` is the wall-
+// clock cutoff after which the file is purged + status flips to EXPIRED.
+
+model DataExportJob {
+  id           String           @id @default(cuid())
+  userId       String           // actor that triggered the job
+  orgId        String?          // null for USER scope, set for ORG scope
+  scope        DataExportScope
+  status       DataExportStatus @default(PENDING)
+  storagePath  String?
+  sizeBytes    Int?
+  expiresAt    DateTime?        // download URL valid until this point
+  errorMessage String?
+  createdAt    DateTime         @default(now())
+  startedAt    DateTime?
+  completedAt  DateTime?
+
+  @@index([userId])
+  @@index([orgId])
+  @@index([status])
+  @@index([expiresAt])
+}
+
+enum DataExportScope {
+  USER
+  ORG
+}
+
+enum DataExportStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+  EXPIRED
+}
+
+// ---------------------------------------------------------------------------
 // Self-managed tokens — email verification & password reset
 // ---------------------------------------------------------------------------
 //

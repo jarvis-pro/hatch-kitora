@@ -3,8 +3,10 @@ import { redirect } from 'next/navigation';
 import { getTranslations } from 'next-intl/server';
 
 import { OrgDangerZone } from '@/components/account/org-danger-zone';
+import { OrgDataExportCard } from '@/components/account/org-data-export-card';
 import { OrgSettingsForm } from '@/components/account/org-settings-form';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { OrgRole } from '@prisma/client';
 import { requireActiveOrg } from '@/lib/auth/session';
 import { prisma } from '@/lib/db';
 import { can } from '@/lib/orgs/permissions';
@@ -29,6 +31,22 @@ export default async function OrganizationSettingsPage() {
   });
 
   const canDelete = can(me.role, 'org.delete');
+  // RFC 0002 PR-3 — OWNER-only org data export.
+  const isOwner = me.role === OrgRole.OWNER;
+  const orgExports = isOwner
+    ? await prisma.dataExportJob.findMany({
+        where: { orgId: me.orgId, scope: 'ORG' },
+        orderBy: { createdAt: 'desc' },
+        take: 5,
+        select: {
+          id: true,
+          status: true,
+          sizeBytes: true,
+          expiresAt: true,
+          createdAt: true,
+        },
+      })
+    : [];
 
   return (
     <div className="space-y-6">
@@ -46,6 +64,21 @@ export default async function OrganizationSettingsPage() {
           <OrgSettingsForm defaultName={org.name} defaultSlug={org.slug} />
         </CardContent>
       </Card>
+
+      {isOwner ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>Export organization data</CardTitle>
+            <CardDescription>
+              Download a zip with the organization's members, invitations, audit, tokens and
+              subscriptions. The link is auth-gated and expires after 7 days.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <OrgDataExportCard orgSlug={org.slug} jobs={orgExports} />
+          </CardContent>
+        </Card>
+      ) : null}
 
       {canDelete ? (
         <Card className="border-destructive/40">
