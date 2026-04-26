@@ -1,18 +1,30 @@
 /**
- * RFC 0008 §4.8 / §5.4 — Background jobs 可观测性钩子。
+ * RFC 0008 §4.8 / §5.4 / PR-4 — Background jobs 可观测性钩子。
  *
- * v1 是「占位 + logger」的双轨：
+ * 三轨：
  *
- *   - logger 直接调（pino structured logs，已经在 RFC 0006 metrics 钩子里
- *     被吸进 SLS / CloudWatch）；
- *   - metrics hook 是 noop 默认实现，PR-4 接 RFC 0006 metrics 适配器后通过
- *     `setMetricsHook(...)` 注入真实 counter / histogram；
- *   - Sentry transaction wrap：v1 暂用 thin wrapper，PR-4 改为 `Sentry.startSpan`
- *     的真实 op=job 集成。这一步保留接口、不引爆改动。
+ *   1. **logger** —— pino structured logs，已经在 RFC 0006 metrics 钩子里被吸进
+ *      SLS / CloudWatch；本文件直接调。
  *
- * 注意：本模块**不**直接 import `@sentry/nextjs` — Sentry transitive 拉进
- * Next.js runtime 在 tsx CLI 入口（PR-2 的 scripts/run-jobs.ts）会触发
- * 「Cannot find module 'next/dist/...'」类错误。PR-4 接入时再走 dynamic import 解决。
+ *   2. **metrics hook** —— `JobMetricsHook` 接口 + `noop` 默认实现；生产由 PR-4
+ *      RFC 0006 metrics 适配器通过 `setMetricsHook(...)` 注入真实 counter /
+ *      histogram。计数器命名见 `JobMetricsHook` 注释。
+ *
+ *   3. **Sentry transaction** —— PR-4 起用真实 `Sentry.startSpan({ op: 'job', name,
+ *      attributes: { 'job.id', 'job.attempt' } })` 包每个 job 执行；失败时
+ *      `Sentry.captureException(err, { tags: { jobType }, extra: { jobId, attempt } })`。
+ *      未配 `NEXT_PUBLIC_SENTRY_DSN` 时 Sentry SDK 自动 noop（v8 设计），无需额外 guard。
+ *
+ * ## Sentry import 策略
+ *
+ * **不**在文件顶部静态 import `@sentry/nextjs` —— 该包 server entry 透传
+ * `next/dist/...` 内部模块，CLI 入口（`scripts/run-jobs.ts` 走 tsx）下没有 Next.js
+ * runtime 时会冒「Cannot find module」。改走 dynamic import + try/catch fallback：
+ *
+ *   - 首次调用 `getSentry()` 异步加载，结果（成功的 SDK 模块或 null）缓存进
+ *     `sentryPromise`，后续调用零开销复用；
+ *   - 加载失败时 fallback 到「仅 logger breadcrumbs」的透传路径，worker 行为完全
+ *     与 v1 一致 —— 这条路在 vitest unit test、tsx CLI、e2e 三个环境都是常态。
  */
 
 import { logger } from '@/lib/logger';
@@ -53,12 +65,29 @@ export function jobMetrics(): JobMetricsHook {
   return activeMetrics;
 }
 
+// ── Sentry dynamic import ────────────────────────────────────────────
+
+type SentryModule = typeof import('@sentry/nextjs');
+let sentryPromise: Promise<SentryModule | null> | null = null;
+
+function loadSentry(): Promise<SentryModule | null> {
+  if (sentryPromise === null) {
+    sentryPromise = import('@sentry/nextjs').catch((err) => {
+      // 一次性 warn，后续调用复用缓存的 null（Promise.resolve(null) 走 fast path）。
+      logger.warn({ err }, 'sentry-import-failed-fallback-noop');
+      return null;
+    });
+  }
+  return sentryPromise;
+}
+
 /**
- * 给单 job 执行加一层 Sentry transaction。v1 是 thin wrapper（仅 logger
- * breadcrumb + 透传 promise），PR-4 替换为 `Sentry.startSpan({ op: 'job',
- * name: type, attributes: { 'job.id': jobId } }, fn)`。
+ * 给单 job 执行加一层 Sentry span。任何错误透传给上层（runner.ts 决定 retry / DLQ）；
+ * 错误同时报给 Sentry 带上 `jobType` tag + `jobId` / `attempt` extra，方便 dashboard
+ * 按 type 切片。
  *
- * 任何错误透传给上层 — 本函数不吞错（让 runner.ts 决定 retry / DLQ）。
+ * 不需要 caller 关心 Sentry 是否可用 —— 加载失败 / SDK 未初始化时函数行为退化为
+ * 「logger debug + 透传」，业务路径不变。
  */
 export async function withJobTransaction<T>(
   type: string,
@@ -67,6 +96,46 @@ export async function withJobTransaction<T>(
   fn: () => Promise<T>,
 ): Promise<T> {
   logger.debug({ jobType: type, jobId, attempt }, 'job-transaction-start');
+
+  const Sentry = await loadSentry();
+  if (!Sentry) {
+    // SDK 不可用 —— 透传，仅靠 logger breadcrumbs。
+    return runWithLogger(type, jobId, attempt, fn);
+  }
+
+  return Sentry.startSpan(
+    {
+      op: 'job',
+      name: type,
+      attributes: {
+        'job.id': jobId,
+        'job.attempt': attempt,
+      },
+    },
+    async () => {
+      try {
+        const out = await fn();
+        logger.debug({ jobType: type, jobId, attempt }, 'job-transaction-success');
+        return out;
+      } catch (err) {
+        logger.debug({ jobType: type, jobId, attempt, err }, 'job-transaction-error');
+        // tags 用于在 Sentry dashboard 按 type 过滤；extra 出现在 issue detail 页。
+        Sentry.captureException(err, {
+          tags: { jobType: type },
+          extra: { jobId, attempt },
+        });
+        throw err;
+      }
+    },
+  );
+}
+
+async function runWithLogger<T>(
+  type: string,
+  jobId: string,
+  attempt: number,
+  fn: () => Promise<T>,
+): Promise<T> {
   try {
     const out = await fn();
     logger.debug({ jobType: type, jobId, attempt }, 'job-transaction-success');
@@ -82,4 +151,11 @@ export async function withJobTransaction<T>(
  */
 export function __resetMetrics(): void {
   activeMetrics = noopMetrics;
+}
+
+/**
+ * Test-only — 单测用以重置 Sentry 加载缓存（让下一次调用重新 import）。
+ */
+export function __resetSentryCache(): void {
+  sentryPromise = null;
 }
