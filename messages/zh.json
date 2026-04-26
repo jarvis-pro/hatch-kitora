@@ -166,6 +166,20 @@
     "twoFactorChallenge": {
       "title": "双因子验证",
       "subtitle": "请输入身份验证器中的 6 位验证码，或一组备用码。",
+      "tabs": {
+        "passkey": "Passkey",
+        "totp": "验证器"
+      },
+      "passkey": {
+        "description": "用 Touch ID / Face ID / 硬件密钥完成本次登录。",
+        "cta": "用 Passkey 验证",
+        "verifying": "验证中…",
+        "errors": {
+          "optionsFailed": "无法发起 Passkey 验证，请重试。",
+          "verifyFailed": "Passkey 验证失败，请重试或改用验证码。",
+          "generic": "出错了，请重试。"
+        }
+      },
       "fields": {
         "code": "验证码"
       },

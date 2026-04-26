@@ -171,6 +171,20 @@
     "twoFactorChallenge": {
       "title": "Two-factor authentication",
       "subtitle": "Enter the 6-digit code from your authenticator app, or one of your backup codes.",
+      "tabs": {
+        "passkey": "Passkey",
+        "totp": "Authenticator"
+      },
+      "passkey": {
+        "description": "Use Touch ID, Face ID, or a hardware key to complete sign-in.",
+        "cta": "Use a passkey",
+        "verifying": "Verifying…",
+        "errors": {
+          "optionsFailed": "Couldn't start the passkey challenge, please retry.",
+          "verifyFailed": "Passkey verification failed. Try again or switch to the authenticator code.",
+          "generic": "Something went wrong, please retry."
+        }
+      },
       "fields": {
         "code": "Code"
       },
