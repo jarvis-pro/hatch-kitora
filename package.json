@@ -30,6 +30,7 @@
     "test:e2e:install": "playwright install --with-deps chromium",
     "openapi:lint": "redocly lint openapi/v1.yaml",
     "openapi:check": "tsx scripts/check-openapi-coverage.ts",
+    "egress:check": "tsx scripts/audit-egress.ts",
     "prepare": "husky || true"
   },
   "dependencies": {
@@ -56,6 +57,7 @@
     "bcryptjs": "^2.4.3",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "ioredis": "^5.10.1",
     "js-yaml": "^4.1.0",
     "lucide-react": "^0.468.0",
     "next": "14.2.18",
