@@ -376,6 +376,7 @@
       "errors": {
         "emailMismatch": "邮箱不匹配。",
         "invalidInput": "请检查输入。",
+        "ownsOrgs": "你还是 {count} 个组织（{names}）的所有者，请先转让所有权或删除这些组织再注销账号。",
         "generic": "删除账号失败。"
       }
     }
@@ -445,7 +446,8 @@
         "expired": "已过期"
       },
       "table": {
-        "user": "用户",
+        "organization": "组织",
+        "user": "创建者",
         "name": "名称",
         "prefix": "前缀",
         "status": "状态",

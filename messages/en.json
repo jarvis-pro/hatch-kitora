@@ -381,6 +381,7 @@
       "errors": {
         "emailMismatch": "Email does not match.",
         "invalidInput": "Please check your input.",
+        "ownsOrgs": "You're still the owner of {count, plural, one {# organization} other {# organizations}} ({names}). Transfer ownership or delete those orgs before deleting your account.",
         "generic": "Could not delete account."
       }
     }
@@ -450,7 +451,8 @@
         "expired": "Expired"
       },
       "table": {
-        "user": "User",
+        "organization": "Organization",
+        "user": "Created by",
         "name": "Name",
         "prefix": "Prefix",
         "status": "Status",
