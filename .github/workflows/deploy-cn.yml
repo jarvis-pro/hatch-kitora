@@ -1,0 +1,131 @@
+name: Deploy CN
+
+# RFC 0006 §7.2 — CN region deploy pipeline.
+#
+# Trigger model:
+#   * Manual `workflow_dispatch` for ad-hoc rollouts (test / hotfix).
+#   * Tag push `cn-v*` for promoted releases. The git SHA the tag points
+#     at is the image tag inside Aliyun ACR.
+#
+# Auth model:
+#   * GitHub OIDC → Aliyun RAM Role (`aliyun-acr-push`) for ACR push +
+#     ACK kubectl. The role's trust policy lists this repo's OIDC issuer
+#     and only the `cn-deploy` job's identity is allowed to assume it.
+#   * No long-lived AccessKey IDs in repo secrets.
+#
+# Required repo secrets:
+#   ALIYUN_ACR_OIDC_ROLE_ARN  — `acs:ram::{uin}:role/aliyun-acr-push`
+#   ACK_CLUSTER_ID            — Aliyun ACK cluster id (cn-shanghai)
+#   ACK_NAMESPACE             — Kubernetes namespace, default `kitora`
+#
+# Required env injected via Aliyun KMS-backed secret + ACK secret-binding:
+#   - DATABASE_URL, AUTH_SECRET, KITORA_REGION=CN, ICP_NUMBER, etc.
+#   These never appear in this workflow file.
+#
+# This is a non-zero-touch deploy: smoke e2e in step 6 may fail, in which
+# case `kubectl rollout undo` rolls the deployment back to the previous
+# image. Failure does NOT auto-rollback the git tag — the tag stays, the
+# image just doesn't go live.
+
+on:
+  workflow_dispatch:
+    inputs:
+      sha:
+        description: 'Git SHA to deploy (defaults to current ref)'
+        required: false
+        default: ''
+  push:
+    tags:
+      - 'cn-v*'
+
+concurrency:
+  group: deploy-cn
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  id-token: write # Required for OIDC
+
+jobs:
+  cn-deploy:
+    name: Build · Push · Roll out
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    environment: production-cn
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.sha || github.ref }}
+
+      - name: Resolve SHA
+        id: meta
+        run: echo "sha=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+
+      # ── 1) Aliyun OIDC AssumeRole ─────────────────────────────────────
+      - name: Aliyun login (OIDC)
+        uses: aliyun/configure-aliyun-credentials-action@v1
+        with:
+          role-to-assume: ${{ secrets.ALIYUN_ACR_OIDC_ROLE_ARN }}
+          oidc-provider-arn: ${{ secrets.ALIYUN_OIDC_PROVIDER_ARN }}
+          region-id: cn-shanghai
+
+      # ── 2) Outbound traffic audit (RFC 0006 §8.1) ─────────────────────
+      # Strict mode: fails on any forbidden-host reference.
+      - name: Setup pnpm + Node
+        uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Audit egress (CN strict)
+        run: pnpm egress:check
+        env:
+          KITORA_REGION: CN
+
+      # ── 3) Build + push image to Aliyun ACR ───────────────────────────
+      - name: Build & push to ACR
+        env:
+          IMAGE: registry.cn-shanghai.aliyuncs.com/kitora/app:${{ steps.meta.outputs.sha }}
+        run: |
+          aliyun cr GetAuthorizationToken \
+            --RegionId cn-shanghai \
+            | jq -r '.Data | .TempUserName + ":" + .AuthorizationToken' \
+            | docker login --username-stdin --password-stdin registry.cn-shanghai.aliyuncs.com
+          docker buildx build \
+            --build-arg KITORA_REGION=CN \
+            --tag "$IMAGE" \
+            --push \
+            .
+
+      # ── 4) Apply image rollout to ACK ─────────────────────────────────
+      - name: Configure kubectl for ACK
+        uses: aliyun/setup-kubectl-aliyun-action@v1
+        with:
+          cluster-id: ${{ secrets.ACK_CLUSTER_ID }}
+          region-id: cn-shanghai
+
+      - name: Rollout deployment
+        env:
+          IMAGE: registry.cn-shanghai.aliyuncs.com/kitora/app:${{ steps.meta.outputs.sha }}
+          NAMESPACE: ${{ secrets.ACK_NAMESPACE || 'kitora' }}
+        run: |
+          kubectl --namespace "$NAMESPACE" set image deployment/kitora-cn-app app="$IMAGE"
+          kubectl --namespace "$NAMESPACE" rollout status deployment/kitora-cn-app --timeout=5m
+
+      # ── 5) Smoke check (CN-side) ──────────────────────────────────────
+      # Hits the public health endpoint from a runner; not a full Playwright
+      # suite (those need a logged-in fixture). The container's own
+      # `assertRegionMatchesDatabase()` boot-time guard catches data-region
+      # mismatches before this point.
+      - name: Smoke — /api/health
+        run: |
+          for i in 1 2 3 4 5; do
+            if curl -sSfL https://api.kitora.cn/api/health > /dev/null; then exit 0; fi
+            sleep 6
+          done
+          echo "::error::Smoke check failed — rolling back."
+          kubectl --namespace "${{ secrets.ACK_NAMESPACE || 'kitora' }}" \
+            rollout undo deployment/kitora-cn-app
+          exit 1
