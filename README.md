@@ -16,13 +16,15 @@ Kitora 是 **share-nothing 多区域**架构：每个区域（kitora.io / kitora
 KITORA_REGION=GLOBAL   # 或 CN / EU
 ```
 
-| Region   | 域名      | 状态                                | 部署文档                                         |
-| -------- | --------- | ----------------------------------- | ------------------------------------------------ |
-| `GLOBAL` | kitora.io | ✅ 当前默认（Stripe / Resend / S3） | [`docs/deploy/global.md`](docs/deploy/global.md) |
-| `CN`     | kitora.cn | ⏳ RFC 0006 落地（ICP + 阿里云）    | [`docs/deploy/cn.md`](docs/deploy/cn.md)         |
-| `EU`     | kitora.eu | ⏸ 占位（按需启用）                  | [`docs/deploy/eu.md`](docs/deploy/eu.md)         |
+| Region   | 域名      | 状态                                                                                      | 部署文档                                         |
+| -------- | --------- | ----------------------------------------------------------------------------------------- | ------------------------------------------------ |
+| `GLOBAL` | kitora.io | ✅ 当前默认（Stripe / Resend / S3）                                                       | [`docs/deploy/global.md`](docs/deploy/global.md) |
+| `CN`     | kitora.cn | ✅ 工程层完成（阿里云 OSS / DirectMail / Alipay+WeChat / ioredis）；备案 / 商户开户进行中 | [`docs/deploy/cn.md`](docs/deploy/cn.md)         |
+| `EU`     | kitora.eu | ⏸ 占位（按需启用）                                                                        | [`docs/deploy/eu.md`](docs/deploy/eu.md)         |
 
-代码里读 region 永远走 `currentRegion()`（`src/lib/region.ts`），第三方 provider 永远走 `src/lib/region/providers.ts` 的 factory。设计动机和实施细节见 [RFC 0005](docs/rfcs/0005-data-residency.md)。
+代码里读 region 永远走 `currentRegion()`（`src/lib/region.ts`），第三方 provider 永远走 `src/lib/region/providers.ts` 的 factory。设计动机和实施细节见 [RFC 0005](docs/rfcs/0005-data-residency.md)；CN 区落地工程详情见 [RFC 0006](docs/rfcs/0006-cn-region-deployment.md)。
+
+CN 部署 pipeline（`.github/workflows/deploy-cn.yml`）走 GitHub OIDC → Aliyun ACR → ACK rollout，启用前需要先完成 ICP 备案、Aliyun 实名、商户开户三件事；这部分非代码，预计 25 工作日，详见 RFC 0006 §3 与 `docs/deploy/cn.md`。
 
 ---
 
@@ -211,6 +213,7 @@ Kitora 设计上支持克隆后直接用于新项目，复用步骤如下：
 - [x] 中国区起步（region 切换 · 支付 provider 抽象 · ICP 备案页）
 - [x] 多租户 / 团队协作（Organization · OWNER/ADMIN/MEMBER · 邀请流 · per-org 计费 · cookie 切换）
 - [x] 安全合规进阶（Active Sessions · 2FA · GDPR 数据导出 · 30 天注销宽限 · Org 强制 2FA — RFC 0002）
+- [x] CN 区落地工程层（Aliyun OSS / DirectMail / Alipay+WeChat 完整支付 / ioredis 限流 / `pnpm egress:check` / `/legal/data-rights` / `deploy-cn.yml` — RFC 0006）
 
 ---
 
