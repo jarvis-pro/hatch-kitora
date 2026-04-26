@@ -607,7 +607,12 @@
         "org_export_requested": "请求组织数据导出",
         "account_deletion_scheduled": "计划注销账号",
         "account_deletion_cancelled": "撤销账号注销",
-        "org_2fa_required_changed": "组织 2FA 强制策略变更"
+        "org_2fa_required_changed": "组织 2FA 强制策略变更",
+        "webhook_endpoint_created": "创建 webhook 端点",
+        "webhook_endpoint_updated": "更新 webhook 端点",
+        "webhook_endpoint_deleted": "删除 webhook 端点",
+        "webhook_secret_rotated": "重置 webhook secret",
+        "webhook_endpoint_auto_disabled": "webhook 端点自动停用"
       },
       "table": {
         "time": "时间 (UTC)",
@@ -665,6 +670,54 @@
     }
   },
   "orgs": {
+    "webhooks": {
+      "title": "Webhooks",
+      "subtitle": "组织内发生事件时，主动 POST 到你提供的 URL。请求带签名头，用 secret 校验来源。",
+      "empty": "还没有 endpoint —— 创建一个开始接收事件。",
+      "create": "添加 endpoint",
+      "creating": "创建中…",
+      "fields": {
+        "url": "Endpoint URL",
+        "urlPlaceholder": "https://example.com/kitora-webhooks",
+        "description": "描述（可选）",
+        "events": "事件类型"
+      },
+      "table": {
+        "url": "URL",
+        "events": "事件",
+        "status": "状态",
+        "createdAt": "创建时间"
+      },
+      "status": {
+        "active": "活跃",
+        "disabled": "已停用"
+      },
+      "actions": {
+        "view": "查看",
+        "edit": "编辑",
+        "delete": "删除",
+        "rotate": "重置 secret",
+        "rotating": "重置中…",
+        "save": "保存修改",
+        "saving": "保存中…",
+        "deleteConfirm": "确认删除此 endpoint？尚未投递的事件将被取消。",
+        "rotateConfirm": "重置签名 secret？旧 secret 立即失效。"
+      },
+      "secretRevealed": {
+        "title": "立即复制签名 secret",
+        "body": "这是你唯一一次能看到完整的 secret。请妥善存入应用的 secret 管理工具。丢失后只能重置新的。",
+        "ack": "已保存 secret",
+        "copy": "复制"
+      },
+      "errors": {
+        "invalidUrl": "请填写合法 URL。",
+        "badProtocol": "URL 必须使用 https://",
+        "blockedHost": "URL 指向了私网 / 回环地址。",
+        "unknownEvent": "未知事件类型：{bad}",
+        "forbidden": "只有 owner 或 admin 可以管理 webhook。",
+        "generic": "操作失败。"
+      }
+    },
     "require2fa": {
       "descriptionDisabled": "成员可以不开 2FA 直接登录。启用后所有现有及新成员都必须开启 2FA。",
       "descriptionEnabled": "所有成员都必须开启 2FA。未开启的成员会被拦截到设置页。",

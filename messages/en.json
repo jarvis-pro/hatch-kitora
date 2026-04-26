@@ -612,7 +612,12 @@
         "org_export_requested": "Organization export requested",
         "account_deletion_scheduled": "Account deletion scheduled",
         "account_deletion_cancelled": "Account deletion cancelled",
-        "org_2fa_required_changed": "Organization 2FA requirement changed"
+        "org_2fa_required_changed": "Organization 2FA requirement changed",
+        "webhook_endpoint_created": "Webhook endpoint created",
+        "webhook_endpoint_updated": "Webhook endpoint updated",
+        "webhook_endpoint_deleted": "Webhook endpoint deleted",
+        "webhook_secret_rotated": "Webhook secret rotated",
+        "webhook_endpoint_auto_disabled": "Webhook endpoint auto-disabled"
       },
       "table": {
         "time": "Time (UTC)",
@@ -670,6 +675,54 @@
     }
   },
   "orgs": {
+    "webhooks": {
+      "title": "Webhooks",
+      "subtitle": "POST events to your own URL when things happen in this organization. The signing secret authenticates the call.",
+      "empty": "No endpoints yet — add one to start receiving events.",
+      "create": "Add endpoint",
+      "creating": "Creating…",
+      "fields": {
+        "url": "Endpoint URL",
+        "urlPlaceholder": "https://example.com/kitora-webhooks",
+        "description": "Description (optional)",
+        "events": "Events"
+      },
+      "table": {
+        "url": "URL",
+        "events": "Events",
+        "status": "Status",
+        "createdAt": "Created"
+      },
+      "status": {
+        "active": "Active",
+        "disabled": "Disabled"
+      },
+      "actions": {
+        "view": "View",
+        "edit": "Edit",
+        "delete": "Delete",
+        "rotate": "Rotate secret",
+        "rotating": "Rotating…",
+        "save": "Save changes",
+        "saving": "Saving…",
+        "deleteConfirm": "Delete this endpoint? Pending deliveries will be canceled.",
+        "rotateConfirm": "Rotate the signing secret? The current one will stop working immediately."
+      },
+      "secretRevealed": {
+        "title": "Copy your signing secret now",
+        "body": "This is the only time we'll show the secret in full. Store it in your application's secret manager. Lose it and you'll need to rotate to a new one.",
+        "ack": "I've stored the secret",
+        "copy": "Copy"
+      },
+      "errors": {
+        "invalidUrl": "Please enter a valid URL.",
+        "badProtocol": "URL must use https://",
+        "blockedHost": "URL points to a private / loopback address.",
+        "unknownEvent": "Unknown event type: {bad}",
+        "forbidden": "Only owners or admins can manage webhooks.",
+        "generic": "Something went wrong."
+      }
+    },
     "require2fa": {
       "descriptionDisabled": "Members can sign in without 2FA. Enable to require all current and future members to have 2FA on.",
       "descriptionEnabled": "All members must have 2FA on. Members without it are walled off until they enroll.",

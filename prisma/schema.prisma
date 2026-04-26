@@ -19,30 +19,30 @@ datasource db {
 // ---------------------------------------------------------------------------
 
 model User {
-  id             String    @id @default(cuid())
-  name           String?
-  email          String    @unique
-  emailVerified  DateTime?
-  image          String?
-  passwordHash   String? // for credentials provider
-  role           UserRole  @default(USER)
-  locale         String    @default("en")
+  id                      String     @id @default(cuid())
+  name                    String?
+  email                   String     @unique
+  emailVerified           DateTime?
+  image                   String?
+  passwordHash            String? // for credentials provider
+  role                    UserRole   @default(USER)
+  locale                  String     @default("en")
   // Bumped whenever the user wants to invalidate every issued JWT (password
   // change, "sign out everywhere", account deletion). Compared inside the
   // jwt callback — mismatch forces the holder to sign in again.
-  sessionVersion Int       @default(0)
+  sessionVersion          Int        @default(0)
   // RFC 0002 PR-2 — denormalized flag so jwt callback / wall checks don't
   // join TwoFactorSecret on every request. Flipped in the same tx as the
   // TwoFactorSecret.enabledAt write; truthy iff a confirmed TOTP secret exists.
-  twoFactorEnabled Boolean @default(false)
+  twoFactorEnabled        Boolean    @default(false)
   // RFC 0002 PR-4 — account deletion grace period. Users in PENDING_DELETION
   // can only access /settings/account/* (cancel path); cron runs daily,
   // hard-deletes anyone past `deletionScheduledAt`.
   status                  UserStatus @default(ACTIVE)
   deletionScheduledAt     DateTime?
   deletionRequestedFromIp String?
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
+  createdAt               DateTime   @default(now())
+  updatedAt               DateTime   @updatedAt
 
   accounts        Account[]
   sessions        Session[]
@@ -103,10 +103,11 @@ model Organization {
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
-  memberships   Membership[]
-  invitations   Invitation[]
-  subscriptions Subscription[]
-  apiTokens     ApiToken[]
+  memberships      Membership[]
+  invitations      Invitation[]
+  subscriptions    Subscription[]
+  apiTokens        ApiToken[]
+  webhookEndpoints WebhookEndpoint[]
 
   @@index([slug])
 }
@@ -245,6 +246,88 @@ model DeviceSession {
 // QR but hasn't yet confirmed a TOTP code. The `User.twoFactorEnabled`
 // boolean is the source of truth for "fully active".
 
+// ---------------------------------------------------------------------------
+// Outbound webhooks (RFC 0003)
+// ---------------------------------------------------------------------------
+//
+// Per-org `WebhookEndpoint` rows are the user-facing "subscriptions": URL,
+// list of event types they care about, and an HMAC secret they keep on
+// their side. Every fired event spawns N `WebhookDelivery` rows (one per
+// matching endpoint) — the cron in `scripts/run-webhook-cron.ts` (PR-2)
+// picks them up and POSTs.
+//
+// Secrets are never stored in the clear: only `secretHash = sha256(raw)`.
+// `secretPrefix` is a short user-facing fingerprint so endpoints can be
+// disambiguated in the UI without exposing the hash.
+
+model WebhookEndpoint {
+  id                  String    @id @default(cuid())
+  orgId               String
+  url                 String
+  description         String?
+  // Whitelist of event names this endpoint wants to receive. Empty array
+  // ⇒ no events fire (effectively a soft-pause). See `WEBHOOK_EVENTS` in
+  // src/lib/webhooks/enqueue.ts for the canonical list.
+  enabledEvents       String[]  @db.Text
+  secretHash          String
+  // base64url(8 bytes) — shown to the user, safe to leak.
+  secretPrefix        String
+  // Hard pause — `disabledAt = now()` halts deliveries entirely. Set by
+  // user action OR auto by PR-4 sweeper after `consecutiveFailures >= 8`.
+  disabledAt          DateTime?
+  // Counter only the cron mutates: incremented on RETRYING/DEAD_LETTER,
+  // reset on DELIVERED. Defends against UI showing stale state vs cron.
+  consecutiveFailures Int       @default(0)
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  organization Organization      @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  deliveries   WebhookDelivery[]
+
+  @@index([orgId])
+  @@index([disabledAt])
+}
+
+// One row per (event × endpoint) attempt-set. Retries flip `attempt` and
+// `nextAttemptAt` in place rather than spawning new rows — keeps history
+// linear and the index hot path lean. PR-4 sweeps DELIVERED / DEAD_LETTER
+// / CANCELED rows after 30 days.
+
+model WebhookDelivery {
+  id             String                @id @default(cuid())
+  endpointId     String
+  // Logical event id — the same value across every retry of this row, and
+  // mirrored to the receiver via the `X-Kitora-Event-Id` header so they
+  // can dedupe.
+  eventId        String
+  eventType      String
+  // Frozen full event payload — UI Resend just re-POSTs this body, no
+  // re-fetch from the source needed.
+  payload        Json
+  status         WebhookDeliveryStatus @default(PENDING)
+  attempt        Int                   @default(0)
+  nextAttemptAt  DateTime?
+  responseStatus Int?
+  responseBody   String?               @db.Text
+  errorMessage   String?
+  createdAt      DateTime              @default(now())
+  completedAt    DateTime?
+
+  endpoint WebhookEndpoint @relation(fields: [endpointId], references: [id], onDelete: Cascade)
+
+  @@index([endpointId, createdAt])
+  @@index([status, nextAttemptAt])
+  @@index([eventId])
+}
+
+enum WebhookDeliveryStatus {
+  PENDING
+  RETRYING
+  DELIVERED
+  DEAD_LETTER
+  CANCELED
+}
+
 model TwoFactorSecret {
   userId       String    @id
   encSecret    Bytes
@@ -279,13 +362,13 @@ model TwoFactorSecret {
 
 model DataExportJob {
   id           String           @id @default(cuid())
-  userId       String           // actor that triggered the job
-  orgId        String?          // null for USER scope, set for ORG scope
+  userId       String // actor that triggered the job
+  orgId        String? // null for USER scope, set for ORG scope
   scope        DataExportScope
   status       DataExportStatus @default(PENDING)
   storagePath  String?
   sizeBytes    Int?
-  expiresAt    DateTime?        // download URL valid until this point
+  expiresAt    DateTime? // download URL valid until this point
   errorMessage String?
   createdAt    DateTime         @default(now())
   startedAt    DateTime?

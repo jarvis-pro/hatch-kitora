@@ -34,6 +34,12 @@ export const AUDIT_ACTIONS = [
   'account.deletion_scheduled',
   'account.deletion_cancelled',
   'org.2fa_required_changed',
+  // RFC 0003 PR-1 — Outbound webhooks
+  'webhook.endpoint_created',
+  'webhook.endpoint_updated',
+  'webhook.endpoint_deleted',
+  'webhook.secret_rotated',
+  'webhook.endpoint_auto_disabled',
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
