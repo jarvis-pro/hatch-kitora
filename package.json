@@ -23,6 +23,7 @@
     "db:studio": "prisma studio",
     "db:reset": "prisma migrate reset",
     "db:seed": "tsx prisma/seed.ts",
+    "db:backfill-orgs": "tsx scripts/migrate-personal-orgs.ts",
     "email:dev": "email dev --dir src/emails --port 3001",
     "stripe:listen": "stripe listen --forward-to localhost:3000/api/stripe/webhook",
     "test:e2e": "playwright test",
