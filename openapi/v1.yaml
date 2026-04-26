@@ -103,6 +103,13 @@ tags:
       Per-endpoint history of POST attempts. Rows are created when business
       code calls `enqueueWebhook`; the cron worker drains them (see
       `scripts/run-webhook-cron.ts`).
+  - name: SSO
+    description: |
+      Per-org identity-provider configuration (SAML + OIDC) plus SCIM token
+      lifecycle. OWNER / ADMIN can manage entries; only OWNER can flip
+      `enforceForLogin`. Login flows themselves (the SAML AuthnRequest /
+      OIDC redirect endpoints) are unauthenticated and intentionally not
+      part of the public API surface — they live under `/api/auth/sso/*`.
 security:
   - bearerAuth: []
 paths:
@@ -386,6 +393,219 @@ paths:
         '404': { $ref: '#/components/responses/NotFound' }
         '429': { $ref: '#/components/responses/RateLimited' }
 
+  /api/v1/orgs/{slug}/identity-providers:
+    parameters:
+      - $ref: '#/components/parameters/OrgSlug'
+    get:
+      tags: [SSO]
+      summary: List identity providers
+      operationId: listIdentityProviders
+      description: |
+        Returns the org's configured IdPs (max 1 SAML + 1 OIDC). Secret
+        material (`oidcClientSecret`, `samlMetadata` cert blobs, `scimToken`)
+        is **not** included here — only labels, public config, and the
+        SCIM token's first 8 chars.
+      responses:
+        '200':
+          description: List of identity providers
+          headers:
+            X-RateLimit-Remaining: { $ref: '#/components/headers/XRateLimitRemaining' }
+            X-RateLimit-Reset: { $ref: '#/components/headers/XRateLimitReset' }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/IdentityProvider'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+    post:
+      tags: [SSO]
+      summary: Create an identity provider
+      operationId: createIdentityProvider
+      description: |
+        Registers a SAML or OIDC IdP. The unique `(orgId, protocol)` index
+        means a second SAML or OIDC create returns `409 protocol-already-exists`
+        — update the existing entry instead.
+
+        OIDC `client_secret` is encrypted at rest with an HKDF-derived key.
+        It can be rewritten later via PATCH but never read back.
+
+        Setting `enforceForLogin: true` requires the calling token's owner
+        to have OWNER role on the org (ADMIN is rejected with 403).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/IdentityProviderCreate'
+      responses:
+        '201':
+          description: Identity provider created
+          headers:
+            X-RateLimit-Remaining: { $ref: '#/components/headers/XRateLimitRemaining' }
+            X-RateLimit-Reset: { $ref: '#/components/headers/XRateLimitReset' }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data: { $ref: '#/components/schemas/IdentityProvider' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: Conflict — another provider of the same protocol already exists.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+              example: { error: protocol-already-exists }
+        '429': { $ref: '#/components/responses/RateLimited' }
+
+  /api/v1/orgs/{slug}/identity-providers/{id}:
+    parameters:
+      - $ref: '#/components/parameters/OrgSlug'
+      - $ref: '#/components/parameters/IdentityProviderId'
+    get:
+      tags: [SSO]
+      summary: Get a single identity provider
+      operationId: getIdentityProvider
+      description: |
+        Same shape as the list endpoint plus `samlMetadata` (the full XML).
+      responses:
+        '200':
+          description: Provider detail
+          headers:
+            X-RateLimit-Remaining: { $ref: '#/components/headers/XRateLimitRemaining' }
+            X-RateLimit-Reset: { $ref: '#/components/headers/XRateLimitReset' }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    allOf:
+                      - $ref: '#/components/schemas/IdentityProvider'
+                      - type: object
+                        properties:
+                          samlMetadata:
+                            type: [string, 'null']
+                            description: Full SAML metadata XML, only set on SAML rows.
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+    patch:
+      tags: [SSO]
+      summary: Update an identity provider
+      operationId: patchIdentityProvider
+      description: |
+        Partial update. Mutable fields:
+
+        - `name`, `emailDomains`, `defaultRole`, `scimEnabled`
+        - `enabledAt` (ISO timestamp to enable, `null` to flip back to draft)
+        - `enforceForLogin` — OWNER only
+        - `samlMetadata` (SAML rows only) / `oidcIssuer` / `oidcClientId`
+        - `oidcClientSecret` — write-only; pass to rotate the encrypted secret
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/IdentityProviderPatch' }
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ok]
+                properties:
+                  ok: { type: boolean, const: true }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+    delete:
+      tags: [SSO]
+      summary: Delete an identity provider
+      operationId: deleteIdentityProvider
+      description: |
+        Removes the IdP. Refused with `409 enforce-still-on` while
+        `enforceForLogin` is true — turn enforcement off first to avoid
+        accidentally locking the org out.
+      responses:
+        '200':
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ok]
+                properties:
+                  ok: { type: boolean, const: true }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: Conflict — `enforceForLogin` is still true.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+              example: { error: enforce-still-on }
+        '429': { $ref: '#/components/responses/RateLimited' }
+
+  /api/v1/orgs/{slug}/identity-providers/{id}/rotate-scim-token:
+    parameters:
+      - $ref: '#/components/parameters/OrgSlug'
+      - $ref: '#/components/parameters/IdentityProviderId'
+    post:
+      tags: [SSO]
+      summary: Rotate the SCIM token
+      operationId: rotateScimToken
+      description: |
+        Issues a fresh SCIM token. The previous token is invalidated the
+        moment this call returns — there's **no overlap window**. Plan to
+        atomically update your IdP-side SCIM connector right after.
+
+        First call also flips `scimEnabled = true`. Use the regular PATCH
+        endpoint with `scimEnabled: false` to disable SCIM without
+        regenerating.
+      responses:
+        '200':
+          description: Token rotated (plaintext returned once)
+          headers:
+            X-RateLimit-Remaining: { $ref: '#/components/headers/XRateLimitRemaining' }
+            X-RateLimit-Reset: { $ref: '#/components/headers/XRateLimitReset' }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [token, tokenPrefix]
+                properties:
+                  token:
+                    type: string
+                    description: Plaintext SCIM token (`scim_<base64url(32)>`).
+                    example: scim_NEW_TOKEN_HERE...
+                  tokenPrefix:
+                    type: string
+                    description: First 8 chars of the token body, for display.
+                    example: NEW_TOKE
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+
 components:
   securitySchemes:
     bearerAuth:
@@ -412,6 +632,13 @@ components:
       schema: { type: string }
       description: Webhook endpoint id (cuid).
       example: cmrz1k0b00001zz000001zzz
+    IdentityProviderId:
+      in: path
+      name: id
+      required: true
+      schema: { type: string }
+      description: Identity provider id (cuid).
+      example: cmrz1k1b00001zz000002zzz
 
   headers:
     XRateLimitRemaining:
@@ -687,3 +914,114 @@ components:
         - DELIVERED
         - DEAD_LETTER
         - CANCELED
+
+    SsoProtocol:
+      type: string
+      description: SAML 2.0 vs OIDC. One of each per org max.
+      enum: [SAML, OIDC]
+
+    IdentityProvider:
+      type: object
+      required:
+        - id
+        - name
+        - protocol
+        - emailDomains
+        - defaultRole
+        - enforceForLogin
+        - enabledAt
+        - scimEnabled
+        - scimTokenPrefix
+        - createdAt
+        - updatedAt
+      properties:
+        id: { type: string }
+        name: { type: string, maxLength: 120, example: 'Okta production' }
+        protocol: { $ref: '#/components/schemas/SsoProtocol' }
+        emailDomains:
+          type: array
+          items: { type: string, example: 'acme.com' }
+          description: Lowercase RFC 1123 hostnames. Used to route /login → this IdP.
+        defaultRole:
+          type: string
+          enum: [OWNER, ADMIN, MEMBER]
+          description: Role assigned to JIT-provisioned members.
+        enforceForLogin:
+          type: boolean
+          description: When true, the org's password / OAuth login paths are blocked.
+        enabledAt:
+          oneOf:
+            - { type: string, format: date-time }
+            - type: 'null'
+          description: Set to a timestamp to make this IdP available on `/login`. `null` = draft.
+        scimEnabled: { type: boolean }
+        scimTokenPrefix:
+          oneOf:
+            - { type: string, maxLength: 8 }
+            - type: 'null'
+          description: First 8 chars of the SCIM token body, safe to display.
+        oidcIssuer:
+          oneOf:
+            - { type: string, format: uri }
+            - type: 'null'
+          description: Set on OIDC rows.
+        oidcClientId:
+          oneOf:
+            - { type: string }
+            - type: 'null'
+          description: Set on OIDC rows. Client secret is write-only.
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+
+    IdentityProviderCreate:
+      type: object
+      required: [protocol, name]
+      properties:
+        protocol: { $ref: '#/components/schemas/SsoProtocol' }
+        name: { type: string, maxLength: 120 }
+        emailDomains:
+          type: array
+          items: { type: string }
+          default: []
+        defaultRole:
+          type: string
+          enum: [OWNER, ADMIN, MEMBER]
+          default: MEMBER
+        enforceForLogin:
+          type: boolean
+          default: false
+          description: OWNER-only. Calls from ADMIN tokens with this set to true return 403.
+        # SAML-only
+        samlMetadata:
+          type: string
+          description: Full IdP metadata XML. Required when `protocol = SAML`.
+        # OIDC-only
+        oidcIssuer: { type: string, format: uri }
+        oidcClientId: { type: string }
+        oidcClientSecret:
+          type: string
+          description: Plaintext OIDC client secret. Encrypted at rest with an HKDF-derived key. Required when `protocol = OIDC`.
+
+    IdentityProviderPatch:
+      type: object
+      description: All fields optional — pass any subset.
+      properties:
+        name: { type: string, maxLength: 120 }
+        emailDomains:
+          type: array
+          items: { type: string }
+        defaultRole:
+          type: string
+          enum: [OWNER, ADMIN, MEMBER]
+        enforceForLogin: { type: boolean, description: 'OWNER-only field.' }
+        enabledAt:
+          oneOf:
+            - { type: string, format: date-time }
+            - type: 'null'
+        scimEnabled: { type: boolean }
+        samlMetadata: { type: string }
+        oidcIssuer: { type: string, format: uri }
+        oidcClientId: { type: string }
+        oidcClientSecret:
+          type: string
+          description: Pass to rotate the encrypted secret. Write-only.
