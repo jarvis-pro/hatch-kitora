@@ -131,6 +131,11 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
       createdAt: true,
     },
   });
+  // Encrypted secret is keyed by row id, so we have to write it after insert.
+  await prisma.webhookEndpoint.update({
+    where: { id: endpoint.id },
+    data: { encSecret: secret.encryptForEndpoint(endpoint.id) },
+  });
 
   return NextResponse.json(
     {

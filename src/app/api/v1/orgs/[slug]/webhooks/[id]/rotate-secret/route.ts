@@ -39,13 +39,22 @@ export async function POST(
   }
 
   const fresh = generateWebhookSecret();
-  const result = await prisma.webhookEndpoint.updateMany({
+  // Existence check up front so we have the id for HKDF before mutating.
+  const existing = await prisma.webhookEndpoint.findFirst({
     where: { id, orgId: gate.orgId },
-    data: { secretHash: fresh.hash, secretPrefix: fresh.prefix },
+    select: { id: true },
   });
-  if (result.count === 0) {
+  if (!existing) {
     return NextResponse.json({ error: 'not-found' }, { status: 404 });
   }
+  await prisma.webhookEndpoint.update({
+    where: { id: existing.id },
+    data: {
+      secretHash: fresh.hash,
+      secretPrefix: fresh.prefix,
+      encSecret: fresh.encryptForEndpoint(existing.id),
+    },
+  });
 
   return NextResponse.json(
     { secret: fresh.plain, secretPrefix: fresh.prefix },

@@ -50,6 +50,11 @@ const idScopeSchema = orgScopeSchema.extend({
   id: z.string().min(1).max(64),
 });
 
+const resendSchema = orgScopeSchema.extend({
+  endpointId: z.string().min(1).max(64),
+  deliveryId: z.string().min(1).max(64),
+});
+
 /**
  * Verify the caller belongs to the named org with ADMIN or OWNER role.
  * Returns the resolved orgId on success, or null on auth failure.
@@ -95,6 +100,7 @@ export async function createWebhookEndpointAction(input: z.infer<typeof createSc
   }
 
   const secret = generateWebhookSecret();
+  // Two-step write because encSecret is HKDF-derived from the row id.
   const endpoint = await prisma.webhookEndpoint.create({
     data: {
       orgId,
@@ -105,6 +111,10 @@ export async function createWebhookEndpointAction(input: z.infer<typeof createSc
       secretPrefix: secret.prefix,
     },
     select: { id: true, url: true, secretPrefix: true },
+  });
+  await prisma.webhookEndpoint.update({
+    where: { id: endpoint.id },
+    data: { encSecret: secret.encryptForEndpoint(endpoint.id) },
   });
 
   logger.info({ actor: me.id, orgId, endpointId: endpoint.id }, 'webhook-endpoint-created');
@@ -220,11 +230,22 @@ export async function rotateWebhookSecretAction(input: z.infer<typeof idScopeSch
   if (!orgId) return { ok: false as const, error: 'forbidden' as const };
 
   const fresh = generateWebhookSecret();
-  const result = await prisma.webhookEndpoint.updateMany({
+  // updateMany returns count without ids; do a findFirst guard up front so
+  // we know the row exists before touching encSecret (whose key is derived
+  // from the id, so we need it).
+  const existing = await prisma.webhookEndpoint.findFirst({
     where: { id: parsed.data.id, orgId },
-    data: { secretHash: fresh.hash, secretPrefix: fresh.prefix },
+    select: { id: true },
   });
-  if (result.count === 0) return { ok: false as const, error: 'not-found' as const };
+  if (!existing) return { ok: false as const, error: 'not-found' as const };
+  await prisma.webhookEndpoint.update({
+    where: { id: existing.id },
+    data: {
+      secretHash: fresh.hash,
+      secretPrefix: fresh.prefix,
+      encSecret: fresh.encryptForEndpoint(existing.id),
+    },
+  });
 
   logger.info({ actor: me.id, orgId, endpointId: parsed.data.id }, 'webhook-secret-rotated');
   await recordAudit({
@@ -237,4 +258,50 @@ export async function rotateWebhookSecretAction(input: z.infer<typeof idScopeSch
 
   // Plaintext returned ONCE — same contract as create.
   return { ok: true as const, secret: fresh.plain, secretPrefix: fresh.prefix };
+}
+
+// ─── Resend a delivery ─────────────────────────────────────────────────────
+
+/**
+ * RFC 0003 PR-2 — manually requeue a single delivery row. Resets attempt
+ * + clears terminal-state fields + sets `nextAttemptAt = now()` so the
+ * next cron tick picks it up. Works on any non-PENDING/RETRYING row.
+ *
+ * Useful for DEAD_LETTER recovery: the user fixed their endpoint and
+ * wants to replay a stuck event without firing it from the source again.
+ */
+export async function resendWebhookDeliveryAction(input: z.infer<typeof resendSchema>) {
+  const me = await requireUser();
+  const parsed = resendSchema.safeParse(input);
+  if (!parsed.success) return { ok: false as const, error: 'invalid-input' as const };
+
+  const orgId = await requireWebhookManager(me.id, parsed.data.orgSlug);
+  if (!orgId) return { ok: false as const, error: 'forbidden' as const };
+
+  // Defensive double-check: delivery must belong to an endpoint owned by
+  // *this* org. updateMany with a constrained where catches the
+  // cross-org guess in a single query.
+  const result = await prisma.webhookDelivery.updateMany({
+    where: {
+      id: parsed.data.deliveryId,
+      endpoint: { id: parsed.data.endpointId, orgId },
+    },
+    data: {
+      status: 'PENDING',
+      attempt: 0,
+      nextAttemptAt: new Date(),
+      responseStatus: null,
+      responseBody: null,
+      errorMessage: null,
+      completedAt: null,
+    },
+  });
+  if (result.count === 0) return { ok: false as const, error: 'not-found' as const };
+
+  logger.info(
+    { actor: me.id, orgId, endpointId: parsed.data.endpointId, deliveryId: parsed.data.deliveryId },
+    'webhook-delivery-resent',
+  );
+  revalidatePath(`/settings/organization/webhooks/${parsed.data.endpointId}`);
+  return { ok: true as const };
 }
