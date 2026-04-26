@@ -61,6 +61,12 @@ export const AUDIT_ACTIONS = [
   'webauthn.credential_removed',
   'webauthn.login_succeeded',
   'webauthn.tfa_succeeded',
+  // RFC 0008 PR-3 — Background jobs（admin manual 操作）
+  // 注意：runner 自己**不**为每个 DEAD_LETTER 写 audit —— 那是噪音、由
+  // metrics + Sentry 已经覆盖；只在 admin /admin/jobs UI 上手动 cancel /
+  // retry 一行 DLQ 时写 audit（对应 PR-4）。
+  'job.cancelled',
+  'job.retried',
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
