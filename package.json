@@ -28,6 +28,8 @@
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "test:e2e:install": "playwright install --with-deps chromium",
+    "openapi:lint": "redocly lint openapi/v1.yaml",
+    "openapi:check": "tsx scripts/check-openapi-coverage.ts",
     "prepare": "husky || true"
   },
   "dependencies": {
@@ -41,6 +43,7 @@
     "@radix-ui/react-slot": "^1.1.1",
     "@radix-ui/react-toast": "^1.2.4",
     "@react-email/components": "^0.0.31",
+    "@scalar/api-reference-react": "^0.4.20",
     "@sentry/nextjs": "^8.47.0",
     "@t3-oss/env-nextjs": "^0.11.1",
     "@upstash/ratelimit": "^2.0.5",
@@ -48,6 +51,7 @@
     "bcryptjs": "^2.4.3",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "js-yaml": "^4.1.0",
     "lucide-react": "^0.468.0",
     "next": "14.2.18",
     "next-auth": "5.0.0-beta.25",
@@ -69,7 +73,9 @@
   },
   "devDependencies": {
     "@playwright/test": "^1.49.1",
+    "@redocly/cli": "^1.27.2",
     "@types/bcryptjs": "^2.4.6",
+    "@types/js-yaml": "^4.0.9",
     "@types/node": "^22.10.2",
     "@types/react": "^18.3.18",
     "@types/react-dom": "^18.3.5",
