@@ -347,6 +347,29 @@ Day 7     ┃ PR-5：i18n + e2e + RFC 收尾
 
 ---
 
-## 11. 实施完成（待 v0.8.0 上线后回填）
+## 11. 实施完成（v0.8.0 工程交付）
 
-> 本节占位。PR-1 → PR-5 全部落地后，按 RFC 0001–0006 §「实施完成」体例回填：每个 PR 的 commit 区间、关键文件清单、未交付项标注、生产首日观测指标（passkey 注册成功率 / 验证成功率 / 浏览器 / OS 分布）。
+> 全部 5 个 PR 已合入主干并随 v0.8.0 发版。Passkey 双轨能力（2FA 因子 + 密码快捷登录）在 production 默认 **关闭**，需要把 `WEBAUTHN_RP_ID` / `WEBAUTHN_ORIGIN` 两个 env 同时显式配置才会激活；保留 env-gate 是 §6.1 写死的回滚开关。
+
+工程交付清单（按 PR 排）：
+
+- **PR-1**（schema + 库依赖 + 核心 lib）—— `prisma/migrations/20260601100000_add_webauthn_credential/`、`prisma/schema.prisma`（`WebAuthnCredential` 表 + `User.webauthnChallenge` / `User.webauthnChallengeAt` 双列）、`src/lib/webauthn/{config,challenge,verify}.ts`、`src/env.ts`（3 个 env：`WEBAUTHN_RP_ID` / `WEBAUTHN_RP_NAME` / `WEBAUTHN_ORIGIN`）、`@simplewebauthn/server@^13.3.0` + `@simplewebauthn/browser@^13.3.0` 两个依赖。
+- **PR-2**（注册流 + settings 页 + two-factor-state 抽象）—— `src/app/api/auth/webauthn/register/{options,verify}/route.ts`、`src/app/api/auth/webauthn/credentials/[id]/route.ts`（PATCH/DELETE）、`src/app/[locale]/(dashboard)/settings/security/passkeys/page.tsx`、`src/components/account/{passkey-list,register-passkey-button}.tsx`、`src/lib/auth/two-factor-state.ts`（OR(TOTP, Passkey) 推导）、`src/lib/audit.ts`（5 个 `webauthn.*` action 落地）。
+- **PR-3**（2FA 挑战集成）—— `src/lib/account/passkeys.ts`（server actions：`getPasskeyChallengeAction` / `verifyPasskeyForCurrentSessionAction`）、`src/components/auth/{two-factor-passkey-form,two-factor-challenge-tabs}.tsx`、`src/app/[locale]/(auth)/login/2fa/page.tsx`（按 `(twoFactorSecret.enabledAt, count(WebAuthnCredential))` 决定 tab 渲染）。
+- **PR-4**（passwordless 登录入口）—— `src/lib/webauthn/anonymous-challenge.ts`（httpOnly cookie，5 min TTL，path 限定到 `/api/auth/webauthn/authenticate`）、`src/app/api/auth/webauthn/authenticate/{options,verify}/route.ts`（IP 限流、统一 401 generic 错误码以避免 credentialId 探测）、`src/components/auth/sign-in-with-passkey-button.tsx`（`browserSupportsWebAuthn()` 自门控 + `window.location.assign(redirectTo)` 硬跳转）、`src/app/[locale]/(auth)/login/page.tsx`（接 `?callbackUrl=` 透传）。
+- **PR-5**（i18n + e2e + RFC / CHANGELOG 收尾）—— `messages/{en,zh}.json` 中 `account.passkeys.*`、`auth.twoFactorChallenge.{tabs,passkey}.*`、`auth.login.passkey.*` 三组 key；`tests/e2e/webauthn-passkey.spec.ts`（Playwright + CDP `WebAuthn` 虚拟 authenticator，覆盖 register / list / remove / passwordless 4 个 case，2FA tab 的 case 借用同一个 CDP 通路）；本节回填；`CHANGELOG.md` `[0.8.0]` 段；`package.json` 0.7.0 → 0.8.0。
+- **未交付**（RFC §6 / §9 已声明的非目标 / v1 不做）：
+  - Conditional UI 自动激活（`autocomplete="username webauthn"` 在 email 输入框）—— §9 决策为 v1 不开。
+  - Authenticator extensions（`largeBlob` / `prf` / `credBlob`）—— v1 全不开，挂在 future RFC。
+  - 公开 `/api/auth/webauthn/*` 到 `openapi/v1.yaml` —— §9 决策为不写，第三方拿不到 passkey 路径意义不大。
+  - Passkey 相关 admin 后台视图（管理员代查 / 强制删除）—— follow-up RFC。
+- **决策回填**（§9 待评审项）：
+  - ✅ `@simplewebauthn` 锁 v13.x（PR-1 `package.json` 中 `^13.3.0`）。
+  - ✅ Default RP Name = `Kitora`（PR-1 `getRpName()` env fallback）。
+  - ✅ `userVerification: 'preferred'` 同时用于注册与认证（PR-2 / PR-3 / PR-4 三处 generate options 默认值）。
+  - ✅ Conditional UI **不开**（PR-4 显式按钮）。
+  - ✅ 注册 / 删除 credential **不 bump** `sessionVersion`（PR-2 路由不调 `bumpSessionVersion`）。
+  - ✅ Backup codes 仍可作为 passkey 的兜底恢复路径（RFC 0002 PR-2 路径未动）。
+  - ✅ 公开 OpenAPI **不收录** `/api/auth/webauthn/*`（PR-2 / PR-3 / PR-4 均未触 `openapi/v1.yaml`）。
+  - ✅ Synced passkey 行展示「Cloud-backed up」提示（PR-2 `passkey-list.tsx` 的 `t('backedUp')`）。
+- **首日观测指标**（生产开启 `WEBAUTHN_RP_ID` 后回填）：注册成功率（`webauthn.credential_added` / 总注册尝试）、2FA 挑战成功率（`webauthn.tfa_succeeded` vs TOTP 同期对比）、passwordless 登录成功率（`webauthn.login_succeeded` / `/login` PV）、浏览器 + OS 分布（来自 audit metadata 的 user-agent header）、credential `deviceType` 分布（`singleDevice` vs `multiDevice` 比例，反映用户在硬件 key vs iCloud / Google 同步 passkey 之间的偏好）。
