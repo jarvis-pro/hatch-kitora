@@ -1,0 +1,63 @@
+import type { Metadata } from 'next';
+import { redirect } from 'next/navigation';
+import { getTranslations } from 'next-intl/server';
+
+import { OrgDangerZone } from '@/components/account/org-danger-zone';
+import { OrgSettingsForm } from '@/components/account/org-settings-form';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { requireActiveOrg } from '@/lib/auth/session';
+import { prisma } from '@/lib/db';
+import { can } from '@/lib/orgs/permissions';
+
+export const metadata: Metadata = { title: 'Organization' };
+export const dynamic = 'force-dynamic';
+
+export default async function OrganizationSettingsPage() {
+  const me = await requireActiveOrg().catch(() => null);
+  if (!me) redirect('/login');
+
+  // Personal orgs are bound to the user account — no rename / delete UI here.
+  if (me.slug.startsWith('personal-')) redirect('/settings');
+
+  if (!can(me.role, 'org.update')) redirect('/settings');
+
+  const t = await getTranslations('orgs.settings');
+
+  const org = await prisma.organization.findUniqueOrThrow({
+    where: { id: me.orgId },
+    select: { name: true, slug: true },
+  });
+
+  const canDelete = can(me.role, 'org.delete');
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-2xl font-semibold tracking-tight">{t('title')}</h1>
+        <p className="text-sm text-muted-foreground">{t('subtitle')}</p>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>{t('basics.title')}</CardTitle>
+          <CardDescription>{t('basics.description')}</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <OrgSettingsForm defaultName={org.name} defaultSlug={org.slug} />
+        </CardContent>
+      </Card>
+
+      {canDelete ? (
+        <Card className="border-destructive/40">
+          <CardHeader>
+            <CardTitle className="text-destructive">{t('danger.title')}</CardTitle>
+            <CardDescription>{t('danger.subtitle')}</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <OrgDangerZone orgSlug={org.slug} />
+          </CardContent>
+        </Card>
+      ) : null}
+    </div>
+  );
+}
