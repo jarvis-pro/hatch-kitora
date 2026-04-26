@@ -55,6 +55,12 @@ export const AUDIT_ACTIONS = [
   'sso.jit_user_created',
   'scim.user_provisioned',
   'scim.user_deprovisioned',
+  // RFC 0007 PR-2 — WebAuthn / Passkey
+  'webauthn.credential_added',
+  'webauthn.credential_renamed',
+  'webauthn.credential_removed',
+  'webauthn.login_succeeded',
+  'webauthn.tfa_succeeded',
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
