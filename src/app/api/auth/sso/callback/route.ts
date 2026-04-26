@@ -5,7 +5,7 @@ import { recordAudit } from '@/lib/audit';
 import { prisma } from '@/lib/db';
 import { logger } from '@/lib/logger';
 import { attachSsoSessionCookie, issueSsoSession } from '@/lib/sso/issue-session';
-import { JACKSON_PRODUCT, getOauthController } from '@/lib/sso/jackson';
+import { getOauthController } from '@/lib/sso/jackson';
 import { provisionSsoUser } from '@/lib/sso/jit';
 
 export const runtime = 'nodejs';
