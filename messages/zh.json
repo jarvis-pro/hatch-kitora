@@ -133,6 +133,16 @@
       "errors": {
         "invalid": "邮箱或密码不正确。"
       },
+      "passkey": {
+        "divider": "或",
+        "cta": "用 Passkey 登录",
+        "verifying": "验证中…",
+        "errors": {
+          "optionsFailed": "无法发起 Passkey 登录，请重试。",
+          "verifyFailed": "Passkey 验证失败，请重试或改用密码登录。",
+          "generic": "出错了，请重试。"
+        }
+      },
       "sso": {
         "divider": "或",
         "continueButton": "通过 SSO 登录",

@@ -138,6 +138,16 @@
       "errors": {
         "invalid": "Invalid email or password."
       },
+      "passkey": {
+        "divider": "or",
+        "cta": "Sign in with a passkey",
+        "verifying": "Verifying…",
+        "errors": {
+          "optionsFailed": "Couldn't start the passkey sign-in, please retry.",
+          "verifyFailed": "Passkey verification failed. Try again or sign in with a password.",
+          "generic": "Something went wrong, please retry."
+        }
+      },
       "sso": {
         "divider": "or",
         "continueButton": "Continue with SSO",
