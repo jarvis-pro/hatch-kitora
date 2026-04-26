@@ -28,6 +28,13 @@ export function auditActionToI18nKey(action: string): string {
 
 interface RecordAuditInput {
   actorId: string | null;
+  /**
+   * Organization scope for this audit row. Pass the active org for tenant-
+   * scoped actions (billing changes, member updates, ...). Pass `null` for
+   * platform-level actions where the actor moves across orgs (platform
+   * admin role changes, system housekeeping).
+   */
+  orgId?: string | null;
   action: AuditAction;
   target?: string | null;
   metadata?: Prisma.InputJsonValue;
@@ -44,6 +51,7 @@ export async function recordAudit(input: RecordAuditInput): Promise<void> {
     await prisma.auditLog.create({
       data: {
         actorId: input.actorId,
+        orgId: input.orgId ?? null,
         action: input.action,
         target: input.target ?? null,
         metadata: input.metadata,

@@ -44,8 +44,11 @@ export async function setUserRoleAction(input: z.infer<typeof setRoleSchema>) {
     { actor: me.id, target: parsed.data.userId, role: parsed.data.role },
     'admin-set-user-role',
   );
+  // Platform-level action — actor moves across orgs. orgId stays null per
+  // RFC-0001 §4 ("global / platform admin actions allow orgId = null").
   await recordAudit({
     actorId: me.id,
+    orgId: null,
     action: 'role.set',
     target: parsed.data.userId,
     metadata: { role: parsed.data.role },
