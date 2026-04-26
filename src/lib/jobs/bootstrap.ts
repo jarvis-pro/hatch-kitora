@@ -22,3 +22,4 @@ import './jobs/export-tick';
 import './jobs/deletion-tick';
 import './jobs/token-cleanup';
 import './jobs/job-prune';
+import './jobs/email-send';
