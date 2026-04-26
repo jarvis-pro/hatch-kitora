@@ -39,9 +39,9 @@ export async function POST(request: Request) {
       automatic_tax: { enabled: true },
       client_reference_id: me.orgId,
       subscription_data: {
-        // Both ids ride along — webhook resolveOwnership() prefers orgId
-        // and falls back to userId for legacy events.
-        metadata: { orgId: me.orgId, userId: me.userId },
+        // orgId is the only source webhook resolveOwnership() consults now;
+        // userId is kept purely for human eyeballing in the Stripe dashboard.
+        metadata: { orgId: me.orgId, ownerUserId: me.userId },
       },
     });
 

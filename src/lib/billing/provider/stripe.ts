@@ -15,12 +15,13 @@ export const StripeProvider: BillingProvider = {
   id: 'stripe',
 
   async createCheckoutSession({
-    userId,
+    orgId,
+    ownerUserId,
     priceId,
     successUrl,
     cancelUrl,
   }: CheckoutInput): Promise<CheckoutResult> {
-    const customerId = await getOrCreateStripeCustomerId(userId);
+    const customerId = await getOrCreateStripeCustomerId(orgId);
     const checkout = await stripe.checkout.sessions.create({
       mode: 'subscription',
       customer: customerId,
@@ -29,15 +30,17 @@ export const StripeProvider: BillingProvider = {
       cancel_url: cancelUrl,
       allow_promotion_codes: true,
       automatic_tax: { enabled: true },
-      client_reference_id: userId,
-      subscription_data: { metadata: { userId } },
+      client_reference_id: orgId,
+      subscription_data: {
+        metadata: { orgId, ownerUserId: ownerUserId ?? '' },
+      },
     });
     if (!checkout.url) throw new Error('stripe-checkout-no-url');
     return { url: checkout.url };
   },
 
-  async createPortalSession({ userId, returnUrl }: PortalInput): Promise<PortalResult> {
-    const customerId = await getOrCreateStripeCustomerId(userId);
+  async createPortalSession({ orgId, returnUrl }: PortalInput): Promise<PortalResult> {
+    const customerId = await getOrCreateStripeCustomerId(orgId);
     const portal = await stripe.billingPortal.sessions.create({
       customer: customerId,
       return_url: returnUrl,

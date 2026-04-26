@@ -7,7 +7,10 @@
  * which reads `env.REGION`.
  */
 export interface CheckoutInput {
-  userId: string;
+  /** Active organization the subscription belongs to (RFC-0001 multi-tenant). */
+  orgId: string;
+  /** OWNER user — used only for Stripe customer cosmetics / portal contact. */
+  ownerUserId?: string;
   priceId: string;
   successUrl: string;
   cancelUrl: string;
@@ -19,7 +22,7 @@ export interface CheckoutResult {
 }
 
 export interface PortalInput {
-  userId: string;
+  orgId: string;
   returnUrl: string;
 }
 

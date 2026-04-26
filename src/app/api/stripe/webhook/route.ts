@@ -98,15 +98,18 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
 }
 
 async function upsertSubscription(sub: Stripe.Subscription, sourceType: string) {
-  // Resolve owner. Source order: explicit `metadata.orgId` (PR-2 checkout
-  // route always sets it) → metadata.userId → Organization.stripeCustomerId
-  // → User.stripeCustomerId fallback (legacy customers from before PR-2).
+  // Resolve owner. After PR-4 the only sources are:
+  //   1. `metadata.orgId` (always set by our checkout route)
+  //   2. Reverse lookup `Organization.stripeCustomerId`
+  // `metadata.userId` and `User.stripeCustomerId` fallbacks are gone with
+  // the schema cleanup; legacy events without orgId are dropped with a
+  // warning so they show up in monitoring.
   const resolved = await resolveOwnership(sub);
   if (!resolved) {
     logger.warn({ id: sub.id }, 'stripe-subscription-missing-owner');
     return;
   }
-  const { userId, orgId } = resolved;
+  const { ownerUserId, orgId } = resolved;
 
   const priceId = sub.items.data[0]?.price.id ?? '';
   const status = mapStatus(sub.status);
@@ -116,11 +119,9 @@ async function upsertSubscription(sub: Stripe.Subscription, sourceType: string) 
     select: { status: true, stripePriceId: true, cancelAtPeriodEnd: true },
   });
 
-  // 双写 userId + orgId — PR-4 删 userId 时移除上半段。
   await prisma.subscription.upsert({
     where: { stripeSubscriptionId: sub.id },
     create: {
-      userId,
       orgId,
       stripeSubscriptionId: sub.id,
       stripePriceId: priceId,
@@ -129,8 +130,6 @@ async function upsertSubscription(sub: Stripe.Subscription, sourceType: string) 
       cancelAtPeriodEnd: sub.cancel_at_period_end,
     },
     update: {
-      // Heal stale rows backfilled with null orgId — set if currently empty.
-      orgId,
       stripePriceId: priceId,
       status,
       currentPeriodEnd: new Date(sub.current_period_end * 1000),
@@ -150,7 +149,7 @@ async function upsertSubscription(sub: Stripe.Subscription, sourceType: string) 
       actorId: null, // Stripe is the actor
       orgId,
       action: 'billing.subscription_changed',
-      target: userId,
+      target: ownerUserId,
       metadata: {
         sourceType,
         stripeSubscriptionId: sub.id,
@@ -163,37 +162,26 @@ async function upsertSubscription(sub: Stripe.Subscription, sourceType: string) 
 }
 
 interface Ownership {
-  userId: string;
+  /** OWNER user — only used for audit metadata; not persisted on Subscription. */
+  ownerUserId: string | null;
   orgId: string;
 }
 
 /**
- * Resolve `(userId, orgId)` for a Stripe subscription event. Priority:
- *   1. `metadata.orgId` — set by our PR-2 checkout route, always present
- *      for new subscriptions.
- *   2. `metadata.userId` — legacy field, still emitted for backward
- *      compatibility.
- *   3. Reverse lookup `Organization.stripeCustomerId` (the canonical place
- *      after PR-2).
- *   4. Reverse lookup `User.stripeCustomerId` (rows that haven't been
- *      migrated yet).
+ * Resolve `(orgId, ownerUserId)` for a Stripe subscription event. Sources:
+ *   1. `metadata.orgId` — set by our checkout route on every new sub.
+ *   2. Reverse lookup `Organization.stripeCustomerId`.
  *
- * Returns null only when none of the four can resolve — that should never
- * happen in practice; we surface it as a webhook warning.
+ * Returns null when neither resolves — surfaced as a warning so monitoring
+ * picks it up.
  */
 async function resolveOwnership(sub: Stripe.Subscription): Promise<Ownership | null> {
   const metaOrgId = typeof sub.metadata?.orgId === 'string' ? sub.metadata.orgId : null;
-  const metaUserId = typeof sub.metadata?.userId === 'string' ? sub.metadata.userId : null;
   const customerId = typeof sub.customer === 'string' ? sub.customer : sub.customer.id;
 
   if (metaOrgId) {
     const owner = await ownerOfOrg(metaOrgId);
-    if (owner) return { orgId: metaOrgId, userId: owner };
-  }
-
-  if (metaUserId) {
-    const orgId = await personalOrgIdOfUser(metaUserId);
-    if (orgId) return { orgId, userId: metaUserId };
+    return { orgId: metaOrgId, ownerUserId: owner };
   }
 
   const orgByCustomer = await prisma.organization.findFirst({
@@ -208,17 +196,10 @@ async function resolveOwnership(sub: Stripe.Subscription): Promise<Ownership | n
     },
   });
   if (orgByCustomer) {
-    const userId = orgByCustomer.memberships[0]?.userId;
-    if (userId) return { orgId: orgByCustomer.id, userId };
-  }
-
-  const userByCustomer = await prisma.user.findFirst({
-    where: { stripeCustomerId: customerId },
-    select: { id: true },
-  });
-  if (userByCustomer) {
-    const orgId = await personalOrgIdOfUser(userByCustomer.id);
-    if (orgId) return { orgId, userId: userByCustomer.id };
+    return {
+      orgId: orgByCustomer.id,
+      ownerUserId: orgByCustomer.memberships[0]?.userId ?? null,
+    };
   }
 
   return null;
@@ -231,15 +212,6 @@ async function ownerOfOrg(orgId: string): Promise<string | null> {
     orderBy: { joinedAt: 'asc' },
   });
   return m?.userId ?? null;
-}
-
-async function personalOrgIdOfUser(userId: string): Promise<string | null> {
-  const m = await prisma.membership.findFirst({
-    where: { userId, role: OrgRole.OWNER },
-    select: { orgId: true },
-    orderBy: { joinedAt: 'asc' },
-  });
-  return m?.orgId ?? null;
 }
 
 function mapStatus(status: Stripe.Subscription.Status): SubscriptionStatus {

@@ -95,7 +95,7 @@ export async function requireActiveOrg(): Promise<ActiveOrg> {
 async function ensurePersonalOrg(userId: string): Promise<ActiveOrg> {
   const user = await prisma.user.findUniqueOrThrow({
     where: { id: userId },
-    select: { id: true, name: true, stripeCustomerId: true },
+    select: { id: true, name: true },
   });
   const slug = `personal-${user.id.slice(-8)}`;
 
@@ -104,7 +104,6 @@ async function ensurePersonalOrg(userId: string): Promise<ActiveOrg> {
     create: {
       slug,
       name: user.name ?? 'Personal',
-      stripeCustomerId: user.stripeCustomerId,
     },
     update: {},
     select: { id: true, slug: true },
