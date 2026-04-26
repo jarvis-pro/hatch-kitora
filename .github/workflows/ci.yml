@@ -44,6 +44,15 @@ jobs:
       - name: Type-check
         run: pnpm typecheck
 
+      # RFC 0003 PR-3 — keep `openapi/v1.yaml` in lockstep with `src/app/api/v1`.
+      # `openapi:lint` validates the spec against OpenAPI 3.1 + redocly defaults;
+      # `openapi:check` cross-checks every (method, path) on each side.
+      - name: Lint OpenAPI spec
+        run: pnpm openapi:lint
+
+      - name: OpenAPI ↔ route coverage
+        run: pnpm openapi:check
+
       - name: Build
         run: pnpm build
         env:
