@@ -146,6 +146,22 @@ export const env = createEnv({
     DATA_EXPORT_S3_ACCESS_KEY_ID: z.string().optional(),
     DATA_EXPORT_S3_SECRET_ACCESS_KEY: z.string().optional(),
 
+    // RFC 0007 — WebAuthn / Passkey config. All optional; the lib auto-
+    // derives sensible defaults from `NEXT_PUBLIC_APP_URL`. Override
+    // explicitly when running behind a reverse proxy where the public
+    // hostname differs from `NEXT_PUBLIC_APP_URL`.
+    //
+    //   * RP_ID    — eTLD+1 the credential binds to. Must match the
+    //                document hostname browser-side. Production usually
+    //                sets this to `kitora.io` / `kitora.cn` / `kitora.eu`.
+    //                Dev / e2e can leave unset → falls back to URL host.
+    //   * RP_NAME  — Human label in the consent prompt. Defaults `Kitora`.
+    //   * ORIGIN   — Full origin (scheme + host + port). Defaults to
+    //                `NEXT_PUBLIC_APP_URL`.
+    WEBAUTHN_RP_ID: z.string().optional(),
+    WEBAUTHN_RP_NAME: z.string().optional(),
+    WEBAUTHN_ORIGIN: z.string().url().optional(),
+
     // Sentry — server-side build-time vars for source-map upload. Runtime DSN
     // is on the client side (NEXT_PUBLIC_SENTRY_DSN). All optional: missing
     // values just disable the relevant integration.
@@ -217,6 +233,10 @@ export const env = createEnv({
     DATA_EXPORT_S3_REGION: process.env.DATA_EXPORT_S3_REGION,
     DATA_EXPORT_S3_ACCESS_KEY_ID: process.env.DATA_EXPORT_S3_ACCESS_KEY_ID,
     DATA_EXPORT_S3_SECRET_ACCESS_KEY: process.env.DATA_EXPORT_S3_SECRET_ACCESS_KEY,
+
+    WEBAUTHN_RP_ID: process.env.WEBAUTHN_RP_ID,
+    WEBAUTHN_RP_NAME: process.env.WEBAUTHN_RP_NAME,
+    WEBAUTHN_ORIGIN: process.env.WEBAUTHN_ORIGIN,
 
     SENTRY_AUTH_TOKEN: process.env.SENTRY_AUTH_TOKEN,
     SENTRY_ORG: process.env.SENTRY_ORG,
