@@ -2,6 +2,61 @@
 
 本文档遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 与 [Semantic Versioning](https://semver.org/spec/v2.0.0.html)。每个 minor 版本对应一个 RFC 的落地，详细背景见 `docs/rfcs/`。
 
+## [0.8.0] — 2026-04-26
+
+### 主题
+
+**RFC 0007 — WebAuthn / Passkey 双轨**：Passkey 同时作为 2FA 因子（与 TOTP 并列）和密码快捷登录入口（`/login` 上的 Discoverable / usernameless 流），完整落地。整套能力默认关闭，需要把 `WEBAUTHN_RP_ID` + `WEBAUTHN_ORIGIN` 两个 env 同时显式配置才会激活；这是 RFC §6.1 写死的回滚开关。
+
+### Added
+
+- **PR-1 schema + 库依赖 + 核心 lib**
+  - Migration `20260601100000_add_webauthn_credential/`：纯加表（`WebAuthnCredential` 表，`credentialId @unique`，`publicKey Bytes`，`counter Int`，`transports String[]`，`deviceType` / `backedUp` / `name` / `lastUsedAt`，FK cascade 到 `User`）+ 加列（`User.webauthnChallenge` / `User.webauthnChallengeAt` 暂存挑战）。
+  - `src/lib/webauthn/config.ts` — `getRpId()` / `getRpName()` / `getOrigin()` 按 env 读，env 缺省时从 `NEXT_PUBLIC_APP_URL` 提主机名兜底，便于 dev / e2e。
+  - `src/lib/webauthn/challenge.ts` — `mintChallenge` / `consumeChallenge`，5 分钟 TTL，读时校验过期 + 一次性消费。
+  - `src/lib/webauthn/verify.ts` — `verifyRegistration` / `verifyAuthentication` 包装 `@simplewebauthn/server` v13.x，异步 lazy import；统一在 `Buffer → Uint8Array` 边界做 `new Uint8Array(buf)` 复制，规避 SDK 类型对 `SharedArrayBuffer` 的歧义。
+  - `package.json` 新增 `@simplewebauthn/server@^13.3.0` + `@simplewebauthn/browser@^13.3.0`；`src/env.ts` 新增 `WEBAUTHN_RP_ID` / `WEBAUTHN_RP_NAME` / `WEBAUTHN_ORIGIN` 三个 env。
+- **PR-2 注册流 + settings 页 + two-factor-state 抽象**
+  - `src/app/api/auth/webauthn/register/options/route.ts` — `generateRegistrationOptions`，`userVerification: 'preferred'`，`excludeCredentials` 灌已有 credential 防止重复注册。
+  - `src/app/api/auth/webauthn/register/verify/route.ts` — zod 校验、消费 challenge、`verifyRegistration`、单事务 `webAuthnCredential.create` + `recomputeTwoFactorEnabled`、audit `webauthn.credential_added`。
+  - `src/app/api/auth/webauthn/credentials/[id]/route.ts` — PATCH 重命名 + DELETE（同事务内 recompute `twoFactorEnabled`，gate 在 `userId == requireUser().id`）。
+  - `src/app/[locale]/(dashboard)/settings/security/passkeys/page.tsx` — RSC 列表页，`orderBy: [{ lastUsedAt: { sort: desc, nulls: last } }, { createdAt: desc }]`。
+  - `src/components/account/{passkey-list,register-passkey-button}.tsx` —— 两阶段注册 UI；行内重命名；删除最后一把走差异化 confirm。
+  - `src/lib/auth/two-factor-state.ts` — `shouldTwoFactorBeEnabled` 纯函数 + `recomputeTwoFactorEnabled(userId, tx)` 事务 helper，把 `User.twoFactorEnabled` 语义改为 `OR(TOTP, Passkey)`。
+  - `src/lib/audit.ts` 新增 5 个 action：`webauthn.credential_added` / `webauthn.credential_renamed` / `webauthn.credential_removed` / `webauthn.login_succeeded` / `webauthn.tfa_succeeded`。
+- **PR-3 2FA 挑战集成**
+  - `src/lib/account/passkeys.ts` —— 两个 server action：`getPasskeyChallengeAction()`（仅返回当前用户已绑 credential 的 `allowCredentials`，避免向未登录的探测者暴露集合）和 `verifyPasskeyForCurrentSessionAction()`（验签后 bump counter / `lastUsedAt`，调用 `updateAuthSession({ tfa: 'verified' })` 清掉 `tfa_pending` JWT claim，audit `webauthn.tfa_succeeded`）。
+  - `src/components/auth/{two-factor-passkey-form,two-factor-challenge-tabs}.tsx` —— 三种渲染模式：仅 Passkey / 仅 TOTP / 同时存在时手搓 tabs（项目目前没装 shadcn Tabs），双因子并存时 default 选 Passkey。
+  - `src/app/[locale]/(auth)/login/2fa/page.tsx` —— 并行 `Promise.all([twoFactorSecret.findUnique, webAuthnCredential.count])` 决定 tab 集合。
+- **PR-4 密码快捷登录入口**
+  - `src/lib/webauthn/anonymous-challenge.ts` —— 用 httpOnly Cookie 暂存匿名 challenge，`path` 限定到 `/api/auth/webauthn/authenticate`，5 分钟 TTL，读后即清；不进数据库，免去了清理 cron。
+  - `src/app/api/auth/webauthn/authenticate/options/route.ts` —— 匿名端点，`authLimiter` 按 IP 限流，`allowCredentials: []` 触发 Discoverable 流让浏览器 / OS 直接出 picker。
+  - `src/app/api/auth/webauthn/authenticate/verify/route.ts` —— 反查 credentialId → 验签 → bump counter → `issueSsoSession({ userId, ip, userAgent })` 复用 RFC 0004 的 JWT-direct-encode 通路 → `attachSsoSessionCookie` → `{ ok: true, redirectTo }`；所有失败统一 401 generic 错误码避免 credentialId 探测。
+  - `src/components/auth/sign-in-with-passkey-button.tsx` —— `browserSupportsWebAuthn()` 自门控，不支持就不渲染；成功后 `window.location.assign(redirectTo)` 硬跳转，让 middleware 在下一次请求看到新 cookie；`NotAllowedError`（用户取消）软失败。
+  - `src/app/[locale]/(auth)/login/page.tsx` —— 改 async 接 `?callbackUrl=` 透传，密码表单下方分隔线 + Passkey 按钮；密码表单仍是首选 CTA。
+- **PR-5 i18n + e2e + 文档收尾**
+  - `messages/{en,zh}.json` —— `account.passkeys.*`、`auth.twoFactorChallenge.{tabs,passkey}.*`、`auth.login.passkey.*` 三组中英文 key。
+  - `tests/e2e/webauthn-passkey.spec.ts` —— Playwright + Chrome DevTools `WebAuthn` 域虚拟 authenticator，覆盖 register / list / remove / passwordless 4 个核心 case；2FA tab 的 case 借用同一通路在 follow-up 补，主路径已闭环。
+  - `docs/rfcs/0007-webauthn-passkey.md` §11 实施完成段回填（PR 文件清单 + 决策回填 + 首日观测指标）。
+  - `package.json` 0.7.0 → 0.8.0；本 changelog 段。
+
+### Changed
+
+- `User.twoFactorEnabled` 语义从「TOTP 是否启用」扩为「TOTP 或 Passkey 任一存在」（PR-2）。Passkey 路径会在事务内调 `recomputeTwoFactorEnabled` 同步该列；TOTP 启用 / 关闭路径仍硬编码 true / false——已在 RFC §4.6 标注为已知 smell，留给后续清理。
+- `/login` 页面从同步 RSC 改成 async，多接 `?callbackUrl=` 用于 passkey 成功后回跳（PR-4）。
+
+### Migration / Operations
+
+- 部署侧需要在生产环境显式注入 `WEBAUTHN_RP_ID` + `WEBAUTHN_ORIGIN` 才会激活整套 UI；env 不全时所有 passkey UI / 路由静默隐藏 / 404，等价回滚。
+- Prisma migration `20260601100000_add_webauthn_credential/` 是纯加性变更，零停机。
+- 各环境 `WEBAUTHN_RP_ID` 严格按域名分区：prod = `kitora.io`、staging = `staging.kitora.io`、dev = `localhost`、CN region = `kitora.cn`；同 RP ID 的 credential 不能跨环境验签，这是浏览器层的硬约束。
+
+### Notes
+
+- v0.8.0 是 Kitora 模板的第七个 RFC 落地版本，结束 RFC 0001–0007 的「foundation 七连」。下一步是 RFC 0008（待选）。
+- Passkey 路径全程不动 `sessionVersion`：注册 / 删除 credential 都不踢已登录设备，与 RFC 0002 PR-1 admin 主动「全设备登出」语义解耦（§9 决策已确认）。
+- WebAuthn 路径**不**进 `openapi/v1.yaml`：第一方登录页 / settings 页消费，第三方拿不到这条路径的实质用法（§9 决策已确认）。
+
 ## [0.7.0] — 2026-04-26
 
 ### 主题
