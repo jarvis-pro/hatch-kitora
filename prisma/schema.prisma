@@ -34,15 +34,10 @@ model User {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
-  accounts      Account[]
-  sessions      Session[]
-  subscriptions Subscription[]
-  apiTokens     ApiToken[]
-  memberships   Membership[]
-
-  // PR-1 过渡期保留：双写 User / Organization 上的 stripeCustomerId，
-  // PR-4 收尾时再删本字段（届时 customer 完全归属 Organization）。
-  stripeCustomerId String? @unique
+  accounts    Account[]
+  sessions    Session[]
+  apiTokens   ApiToken[]
+  memberships Membership[]
 
   @@index([email])
 }
@@ -65,7 +60,7 @@ model Organization {
   slug             String   @unique // URL-safe lowercase, e.g. "acme" / "personal-abcd1234"
   name             String
   image            String?
-  // Stripe customer 从 User 迁到 Org（PR-1 双写过渡，PR-4 删除 User.stripeCustomerId）
+  // Stripe customer 归属在 Org 上 —— PR-4 后这是唯一来源
   stripeCustomerId String?  @unique
   // RFC 0005 占位字段：per-org ICP 备案号；PR-1 仅加列，业务逻辑后续 RFC 实现
   icpNumber        String?
@@ -199,10 +194,8 @@ model PasswordResetToken {
 
 model Subscription {
   id                   String             @id @default(cuid())
-  userId               String
-  // PR-1 引入 nullable orgId；回填脚本跑完后 PR-2 切业务读写到 orgId，PR-4
-  // 改 NOT NULL 并删除 userId（PR-1 之后 userId / orgId 双写以便回滚）。
-  orgId                String?
+  // PR-4 起 orgId 是唯一所有者；userId 已删除（保留在 git 历史里）。
+  orgId                String
   stripeSubscriptionId String             @unique
   stripePriceId        String
   status               SubscriptionStatus
@@ -211,10 +204,8 @@ model Subscription {
   createdAt            DateTime           @default(now())
   updatedAt            DateTime           @updatedAt
 
-  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  organization Organization? @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
 
-  @@index([userId])
   @@index([orgId])
   @@index([status])
 }
@@ -252,11 +243,10 @@ model StripeEvent {
 
 model ApiToken {
   id         String    @id @default(cuid())
+  // userId 永久保留作为「token 归属人」（谁创建的）；orgId 决定 scope。
+  // 一对一绑定 org，跨 org 不允许（RFC-0001 §9 决策）。
   userId     String
-  // PR-1 引入 nullable orgId（token 在哪个 org 内有效）；回填后 PR-2 在
-  // bearer 鉴权挂 orgId scope；PR-4 改 NOT NULL。userId 永久保留作为「token
-  // 归属人」，与 orgId 一起表达「谁在哪个 org 创建的这个 token」。
-  orgId      String?
+  orgId      String
   name       String
   tokenHash  String    @unique
   prefix     String
@@ -265,8 +255,8 @@ model ApiToken {
   revokedAt  DateTime?
   createdAt  DateTime  @default(now())
 
-  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  organization Organization? @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([orgId])
