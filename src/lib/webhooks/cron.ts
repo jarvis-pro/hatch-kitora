@@ -11,10 +11,19 @@ import { logger } from '@/lib/logger';
 import { prisma } from '@/lib/db';
 
 import { deliverWebhook } from './deliver';
+import { sendWebhookAutoDisabledEmail } from './email-flows';
 import { decryptSecret } from './secret';
 
 const STUCK_MS = 5 * 60 * 1000;
 const BATCH = 50;
+// RFC 0003 PR-4 — auto-disable threshold. 8 consecutive failures × the
+// retry curve (~44h) lands at ≈ 2 days of pain before we pause the
+// endpoint. Tunable here without touching the state machine.
+const AUTO_DISABLE_THRESHOLD = 8;
+// Terminal-delivery retention. Past this we don't keep the row even if the
+// user might want to "Resend" it — practical experience says nobody chases
+// a webhook this old, and the table grows fast otherwise.
+const TERMINAL_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
 
 /**
  * RFC 0003 PR-2 — outbound webhook cron tick.
@@ -40,6 +49,7 @@ export async function runWebhookCronTick(): Promise<void> {
   await recoverStuck();
   await claimAndDeliver();
   await sweepOrphans();
+  await sweepTerminalDeliveries();
 }
 
 async function recoverStuck() {
@@ -193,43 +203,143 @@ async function applyOutcome(
     return;
   }
   if (result.kind === 'dead-letter') {
-    await prisma.$transaction([
-      prisma.webhookDelivery.update({
-        where: { id: deliveryId },
-        data: {
-          status: 'DEAD_LETTER',
-          attempt: newAttempt,
-          responseStatus: result.responseStatus,
-          responseBody: result.responseBody,
-          errorMessage: result.errorMessage?.slice(0, 500) ?? null,
-          completedAt: new Date(),
-        },
-      }),
-      prisma.webhookEndpoint.update({
-        where: { id: endpointId },
-        data: { consecutiveFailures: { increment: 1 } },
-      }),
-    ]);
-    return;
-  }
-  // retry
-  await prisma.$transaction([
-    prisma.webhookDelivery.update({
+    await prisma.webhookDelivery.update({
       where: { id: deliveryId },
       data: {
-        status: 'RETRYING',
+        status: 'DEAD_LETTER',
         attempt: newAttempt,
         responseStatus: result.responseStatus,
         responseBody: result.responseBody,
         errorMessage: result.errorMessage?.slice(0, 500) ?? null,
-        nextAttemptAt: new Date(Date.now() + result.delayMs),
+        completedAt: new Date(),
       },
+    });
+    await bumpFailuresAndMaybeDisable(endpointId);
+    return;
+  }
+  // retry
+  await prisma.webhookDelivery.update({
+    where: { id: deliveryId },
+    data: {
+      status: 'RETRYING',
+      attempt: newAttempt,
+      responseStatus: result.responseStatus,
+      responseBody: result.responseBody,
+      errorMessage: result.errorMessage?.slice(0, 500) ?? null,
+      nextAttemptAt: new Date(Date.now() + result.delayMs),
+    },
+  });
+  await bumpFailuresAndMaybeDisable(endpointId);
+}
+
+/**
+ * Increment `consecutiveFailures` and — if we just crossed the auto-disable
+ * threshold — flip `disabledAt`, write an actor=null audit row, and email
+ * OWNER + ADMIN of the org. Idempotent: the disabledAt guard means a second
+ * crossing for the same endpoint is a no-op.
+ *
+ * Split out of `applyOutcome` (and *not* in a $transaction) because we need
+ * the post-update value of `consecutiveFailures` to decide whether to
+ * disable. Prisma's interactive transactions could express this, but the
+ * worst case here is double-emailing on a worker race — not corrupting state
+ * — so we keep it simple.
+ */
+async function bumpFailuresAndMaybeDisable(endpointId: string): Promise<void> {
+  const updated = await prisma.webhookEndpoint.update({
+    where: { id: endpointId },
+    data: { consecutiveFailures: { increment: 1 } },
+    select: {
+      id: true,
+      orgId: true,
+      url: true,
+      consecutiveFailures: true,
+      disabledAt: true,
+    },
+  });
+  if (updated.disabledAt) return; // already paused — nothing to do
+  if (updated.consecutiveFailures < AUTO_DISABLE_THRESHOLD) return;
+
+  await autoDisableEndpoint(updated);
+}
+
+interface DisableTarget {
+  id: string;
+  orgId: string;
+  url: string;
+  consecutiveFailures: number;
+}
+
+async function autoDisableEndpoint(endpoint: DisableTarget): Promise<void> {
+  const now = new Date();
+  // The where-clause guards against a race with manual edits — we only flip
+  // disabledAt if it's still null. updateMany returns count 0 if someone
+  // else won (e.g., admin manually disabled or re-enabled in the same tick).
+  const flip = await prisma.webhookEndpoint.updateMany({
+    where: { id: endpoint.id, disabledAt: null },
+    data: { disabledAt: now },
+  });
+  if (flip.count === 0) {
+    return; // someone else already paused / re-enabled — they own the audit row
+  }
+
+  // Audit row. We deliberately do NOT call `recordAudit()` here because that
+  // would round-trip through `bridgeAuditToWebhook` and try to enqueue a
+  // delivery for `webhook.endpoint_auto_disabled` to the *very endpoint we
+  // just disabled* — exactly the death loop §8 of the RFC calls out. Direct
+  // insert sidesteps the bridge.
+  await prisma.auditLog.create({
+    data: {
+      actorId: null, // system action
+      orgId: endpoint.orgId,
+      action: 'webhook.endpoint_auto_disabled',
+      target: endpoint.id,
+      metadata: {
+        url: endpoint.url,
+        consecutiveFailures: endpoint.consecutiveFailures,
+      },
+    },
+  });
+
+  // Notify OWNER + ADMIN. Per-recipient try/catch already lives in
+  // `sendWebhookAutoDisabledEmail`, so a single broken inbox can't poison
+  // the rest of the fan-out.
+  const [org, recipients] = await Promise.all([
+    prisma.organization.findUnique({
+      where: { id: endpoint.orgId },
+      select: { slug: true },
     }),
-    prisma.webhookEndpoint.update({
-      where: { id: endpointId },
-      data: { consecutiveFailures: { increment: 1 } },
+    prisma.membership.findMany({
+      where: { orgId: endpoint.orgId, role: { in: ['OWNER', 'ADMIN'] } },
+      select: { user: { select: { email: true, name: true } } },
     }),
   ]);
+
+  if (!org) return; // orphaned endpoint — nobody to notify
+
+  await Promise.all(
+    recipients
+      .map((m) => m.user)
+      .filter((u): u is { email: string; name: string | null } => !!u?.email)
+      .map((u) =>
+        sendWebhookAutoDisabledEmail({
+          to: u.email,
+          name: u.name,
+          endpointUrl: endpoint.url,
+          endpointId: endpoint.id,
+          orgSlug: org.slug,
+          consecutiveFailures: endpoint.consecutiveFailures,
+        }),
+      ),
+  );
+
+  logger.warn(
+    {
+      endpointId: endpoint.id,
+      orgId: endpoint.orgId,
+      consecutiveFailures: endpoint.consecutiveFailures,
+    },
+    'webhook-endpoint-auto-disabled',
+  );
 }
 
 async function sweepOrphans() {
@@ -245,5 +355,32 @@ async function sweepOrphans() {
   });
   if (result.count > 0) {
     logger.info({ count: result.count }, 'webhook-cron-orphans-canceled');
+  }
+}
+
+/**
+ * RFC 0003 PR-4 — terminal-state retention sweep.
+ *
+ * DELIVERED / DEAD_LETTER / CANCELED rows older than TERMINAL_RETENTION_MS
+ * are deleted. We don't soft-delete because nothing in the product reads
+ * cancelled rows historically — the dashboard top-50 view shows recent
+ * deliveries only.
+ *
+ * Runs on every cron tick rather than as a separate job because the
+ * bookkeeping is cheap (single indexed deleteMany) and bundling it here
+ * keeps the operational footprint to a single cron entry.
+ */
+async function sweepTerminalDeliveries() {
+  const cutoff = new Date(Date.now() - TERMINAL_RETENTION_MS);
+  const result = await prisma.webhookDelivery.deleteMany({
+    where: {
+      status: { in: ['DELIVERED', 'DEAD_LETTER', 'CANCELED'] },
+      // `completedAt` is set when a row reaches terminal state; in the rare
+      // case it isn't (legacy data), fall back to createdAt via OR.
+      OR: [{ completedAt: { lt: cutoff } }, { completedAt: null, createdAt: { lt: cutoff } }],
+    },
+  });
+  if (result.count > 0) {
+    logger.info({ count: result.count }, 'webhook-cron-terminal-swept');
   }
 }
