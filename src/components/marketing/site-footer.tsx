@@ -8,8 +8,9 @@ export function SiteFooter() {
   const t = useTranslations('marketing.footer');
   const year = new Date().getFullYear();
 
+  const cn = isCnRegion();
   // CN deployments must surface ICP / 公安部备案 numbers in the footer.
-  const showIcp = isCnRegion() && env.ICP_NUMBER;
+  const showIcp = cn && env.ICP_NUMBER;
 
   return (
     <footer className="border-t">
@@ -34,6 +35,11 @@ export function SiteFooter() {
                 </a>
               ) : null}
             </>
+          ) : null}
+          {cn ? (
+            <Link href="/legal/data-rights" className="hover:text-foreground hover:underline">
+              {t('dataRights')}
+            </Link>
           ) : null}
           <span>{t('built')}</span>
         </p>
