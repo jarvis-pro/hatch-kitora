@@ -42,6 +42,8 @@ export function OrgSwitcher({ current, options }: Props) {
         toast.error(t('errors.switch'));
         return;
       }
+      // server action 已经 revalidatePath('/', 'layout')，但客户端 router cache
+      // 需要再 refresh 一次才会拿到带新 cookie 的 RSC payload。
       router.refresh();
     });
   };
@@ -69,10 +71,7 @@ export function OrgSwitcher({ current, options }: Props) {
             <DropdownMenuItem
               key={org.slug}
               disabled={pending}
-              onSelect={(e) => {
-                e.preventDefault();
-                onPick(org.slug);
-              }}
+              onSelect={() => onPick(org.slug)}
               className={cn('flex items-center justify-between gap-2', active && 'font-medium')}
             >
               <span className="truncate">{org.name}</span>
