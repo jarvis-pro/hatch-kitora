@@ -2,8 +2,9 @@ import type { Metadata } from 'next';
 import { notFound, redirect } from 'next/navigation';
 import { getTranslations } from 'next-intl/server';
 
+import { WebhookDeliveries } from '@/components/account/webhook-deliveries';
 import { WebhookDetail } from '@/components/account/webhook-detail';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { requireActiveOrg } from '@/lib/auth/session';
 import { prisma } from '@/lib/db';
 import { can } from '@/lib/orgs/permissions';
@@ -27,19 +28,39 @@ export default async function WebhookDetailPage({ params }: PageProps) {
   if (!can(me.role, 'org.update')) redirect('/settings');
 
   const { id } = await params;
-  const endpoint = await prisma.webhookEndpoint.findFirst({
-    where: { id, orgId: me.orgId },
-    select: {
-      id: true,
-      url: true,
-      description: true,
-      enabledEvents: true,
-      secretPrefix: true,
-      disabledAt: true,
-      consecutiveFailures: true,
-      createdAt: true,
-    },
-  });
+  const [endpoint, deliveries] = await Promise.all([
+    prisma.webhookEndpoint.findFirst({
+      where: { id, orgId: me.orgId },
+      select: {
+        id: true,
+        url: true,
+        description: true,
+        enabledEvents: true,
+        secretPrefix: true,
+        disabledAt: true,
+        consecutiveFailures: true,
+        createdAt: true,
+      },
+    }),
+    prisma.webhookDelivery.findMany({
+      where: { endpointId: id, endpoint: { orgId: me.orgId } },
+      orderBy: { createdAt: 'desc' },
+      take: 50,
+      select: {
+        id: true,
+        eventId: true,
+        eventType: true,
+        status: true,
+        attempt: true,
+        responseStatus: true,
+        responseBody: true,
+        errorMessage: true,
+        payload: true,
+        createdAt: true,
+        completedAt: true,
+      },
+    }),
+  ]);
   if (!endpoint) notFound();
 
   const t = await getTranslations('orgs.webhooks');
@@ -59,6 +80,32 @@ export default async function WebhookDetailPage({ params }: PageProps) {
         </CardHeader>
         <CardContent>
           <WebhookDetail orgSlug={me.slug} endpoint={endpoint} />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>{t('deliveries.title')}</CardTitle>
+          <CardDescription>{t('deliveries.subtitle')}</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <WebhookDeliveries
+            orgSlug={me.slug}
+            endpointId={endpoint.id}
+            deliveries={deliveries.map((d) => ({
+              id: d.id,
+              eventId: d.eventId,
+              eventType: d.eventType,
+              status: d.status,
+              attempt: d.attempt,
+              responseStatus: d.responseStatus,
+              responseBody: d.responseBody,
+              errorMessage: d.errorMessage,
+              payload: d.payload,
+              createdAt: d.createdAt,
+              completedAt: d.completedAt,
+            }))}
+          />
         </CardContent>
       </Card>
     </div>

@@ -716,6 +716,28 @@
         "unknownEvent": "未知事件类型：{bad}",
         "forbidden": "只有 owner 或 admin 可以管理 webhook。",
         "generic": "操作失败。"
+      },
+      "deliveries": {
+        "title": "最近投递",
+        "subtitle": "最近 50 条投递记录。点击任意行可展开 payload 与响应体。",
+        "empty": "暂无投递记录——本组织发生事件后会显示在这里。",
+        "event": "事件",
+        "status": "状态",
+        "attempt": "尝试",
+        "responseCode": "响应码",
+        "createdAt": "时间",
+        "payload": "载荷",
+        "responseBody": "响应体",
+        "resend": "重发",
+        "resending": "重发中…",
+        "resent": "已加入重发队列。",
+        "statusName": {
+          "PENDING": "待投递",
+          "RETRYING": "重试中",
+          "DELIVERED": "已投递",
+          "DEAD_LETTER": "已放弃",
+          "CANCELED": "已取消"
+        }
       }
     },
     "require2fa": {

@@ -721,6 +721,28 @@
         "unknownEvent": "Unknown event type: {bad}",
         "forbidden": "Only owners or admins can manage webhooks.",
         "generic": "Something went wrong."
+      },
+      "deliveries": {
+        "title": "Recent deliveries",
+        "subtitle": "The 50 most-recent attempts. Click any row to inspect payload + response.",
+        "empty": "No deliveries yet — fire an event from this organization and they'll show up here.",
+        "event": "Event",
+        "status": "Status",
+        "attempt": "Attempt",
+        "responseCode": "Response",
+        "createdAt": "When",
+        "payload": "Payload",
+        "responseBody": "Response body",
+        "resend": "Resend",
+        "resending": "Resending…",
+        "resent": "Queued for redelivery.",
+        "statusName": {
+          "PENDING": "Pending",
+          "RETRYING": "Retrying",
+          "DELIVERED": "Delivered",
+          "DEAD_LETTER": "Dead letter",
+          "CANCELED": "Canceled"
+        }
       }
     },
     "require2fa": {
