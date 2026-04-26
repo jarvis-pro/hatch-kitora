@@ -18,12 +18,16 @@ export interface CurrentBilling {
 const LIVE_STATUSES = ['ACTIVE', 'TRIALING', 'PAST_DUE'] as const;
 
 /**
- * Resolve the user's current plan + subscription. Picks the most recent
+ * Resolve the org's current plan + subscription. Picks the most recent
  * "live" subscription; if there is none, returns the Free plan.
+ *
+ * PR-2: switched to org-scoped lookup. Subscriptions are now created with
+ * orgId during the dual-write window; rows older than the backfill have
+ * orgId set as well (see scripts/migrate-personal-orgs.ts).
  */
-export async function getCurrentBilling(userId: string): Promise<CurrentBilling> {
+export async function getCurrentBilling(orgId: string): Promise<CurrentBilling> {
   const subscription = await prisma.subscription.findFirst({
-    where: { userId, status: { in: [...LIVE_STATUSES] } },
+    where: { orgId, status: { in: [...LIVE_STATUSES] } },
     orderBy: { createdAt: 'desc' },
     select: {
       id: true,

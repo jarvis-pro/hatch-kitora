@@ -7,7 +7,7 @@ import { SubscriptionStatusBadge } from '@/components/billing/status-badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Link } from '@/i18n/routing';
-import { auth } from '@/lib/auth';
+import { requireActiveOrg } from '@/lib/auth/session';
 import { getCurrentBilling } from '@/lib/billing/current';
 
 export const metadata: Metadata = {
@@ -25,11 +25,11 @@ function formatDate(d: Date): string {
 }
 
 export default async function BillingPage() {
-  const session = await auth();
-  if (!session?.user?.id) redirect('/login');
+  const me = await requireActiveOrg().catch(() => null);
+  if (!me) redirect('/login');
 
   const t = await getTranslations('billing');
-  const { plan, subscription } = await getCurrentBilling(session.user.id);
+  const { plan, subscription } = await getCurrentBilling(me.orgId);
 
   return (
     <div className="space-y-6">

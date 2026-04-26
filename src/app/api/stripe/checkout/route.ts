@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 
-import { auth } from '@/lib/auth';
 import { env } from '@/env';
+import { requireActiveOrg } from '@/lib/auth/session';
 import { logger } from '@/lib/logger';
 import { stripe } from '@/lib/stripe/client';
 import { getOrCreateStripeCustomerId } from '@/lib/stripe/customer';
@@ -14,8 +14,8 @@ const schema = z.object({
 });
 
 export async function POST(request: Request) {
-  const session = await auth();
-  if (!session?.user?.id) {
+  const me = await requireActiveOrg().catch(() => null);
+  if (!me) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   }
 
@@ -25,7 +25,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'invalid-input' }, { status: 400 });
   }
 
-  const customerId = await getOrCreateStripeCustomerId(session.user.id);
+  const customerId = await getOrCreateStripeCustomerId(me.orgId);
   const baseUrl = env.NEXT_PUBLIC_APP_URL;
 
   try {
@@ -37,9 +37,11 @@ export async function POST(request: Request) {
       cancel_url: parsed.data.cancelUrl ?? `${baseUrl}/pricing?checkout=canceled`,
       allow_promotion_codes: true,
       automatic_tax: { enabled: true },
-      client_reference_id: session.user.id,
+      client_reference_id: me.orgId,
       subscription_data: {
-        metadata: { userId: session.user.id },
+        // Both ids ride along — webhook resolveOwnership() prefers orgId
+        // and falls back to userId for legacy events.
+        metadata: { orgId: me.orgId, userId: me.userId },
       },
     });
 
