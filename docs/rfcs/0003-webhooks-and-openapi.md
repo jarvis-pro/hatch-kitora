@@ -1,11 +1,12 @@
 # RFC 0003 — 出站 Webhook & OpenAPI 文档站（开发者生态）
 
-| 状态     | **Draft**（2026-04-26）                                          |
-| -------- | ---------------------------------------------------------------- |
-| 作者     | Jarvis                                                           |
-| 创建于   | 2026-04-26                                                       |
-| 影响版本 | 0.3.0 → 0.4.0（非破坏性，新增表 + 新增公开端点）                 |
-| 关联     | RFC 0001 §10 占位 · RFC 0002 §11 占位 · README 路线图「dev-eco」 |
+| 状态         | **Implemented**（2026-04-26）                                                                                                                                                                                                                                                                                                                                                    |
+| ------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 作者         | Jarvis                                                                                                                                                                                                                                                                                                                                                                           |
+| 创建于       | 2026-04-26                                                                                                                                                                                                                                                                                                                                                                       |
+| 影响版本     | 0.3.0 → 0.4.0（非破坏性，新增表 + 新增公开端点）                                                                                                                                                                                                                                                                                                                                 |
+| 关联         | RFC 0001 §10 占位 · RFC 0002 §11 占位 · README 路线图「dev-eco」                                                                                                                                                                                                                                                                                                                 |
+| 实现 commits | PR-1 — `feat: RFC 0003 PR-1 实现 Webhook Endpoint CRUD（schema + server actions + UI + 公开 API）`<br>PR-2 — `feat: RFC 0003 PR-2 实现出站投递管道（HMAC 签名 + 重试退避 + cron worker + 业务接入）`<br>PR-3 — `feat: RFC 0003 PR-3 实现 OpenAPI 3.1 spec + Scalar 文档站 + 路由覆盖检查`<br>PR-4 — `feat: RFC 0003 PR-4 实现终态 sweep + 自动禁用 + Prometheus 指标 + 文档收尾` |
 
 ---
 
@@ -356,36 +357,37 @@ POST   /api/v1/orgs/{slug}/webhooks/{id}/deliveries/{deliveryId}/resend
 
 ## 5. 迁移计划（拆 4 个 PR，每个独立可回滚）
 
-### PR-1 Schema + Endpoint CRUD（无投递）
+### PR-1 Schema + Endpoint CRUD（无投递） ✓
 
-- 加表 + 枚举 + audit codes。
-- `enqueueWebhook()` helper 写好但无人调（dead code 也行，下个 PR 接入）。
-- Server action：create / update / delete / rotate-secret + Org 设置页 UI。
-- Public API：`/api/v1/orgs/{slug}/webhooks*` 带 OpenAPI lint 设入。
-- e2e：建 endpoint → list → rotate secret（明文一次性可见）→ delete。
+- [x] 加表 + 枚举 + audit codes。
+- [x] `enqueueWebhook()` helper 写好但无人调（dead code 也行，下个 PR 接入）。
+- [x] Server action：create / update / delete / rotate-secret + Org 设置页 UI。
+- [x] Public API：`/api/v1/orgs/{slug}/webhooks*` 带 OpenAPI lint 设入。
+- [x] e2e：建 endpoint → list → rotate secret（明文一次性可见）→ delete。
 
-### PR-2 投递流水线 + 重试
+### PR-2 投递流水线 + 重试 ✓
 
-- `scripts/run-webhook-cron.ts`，复用 cron-claim 模式。
-- HMAC 签名 + 时间戳头。
-- v1 事件接入：在 `recordAudit` / `stripe.webhook` / membership actions 里调 `enqueueWebhook(...)`。
-- Deliveries 列表 UI + payload preview。
-- e2e：mock receiver（local express）+ 触发 subscription.created 事件 → 验证签名 + payload。
+- [x] `scripts/run-webhook-cron.ts`，复用 cron-claim 模式。库形式在 `src/lib/webhooks/cron.ts`，CLI 是薄壳。
+- [x] HMAC 签名 + 时间戳头（`src/lib/webhooks/sign.ts`，`X-Kitora-Signature: t=...,v1=...`）。
+- [x] v1 事件接入：在 `recordAudit` / `stripe.webhook` 里调 `enqueueWebhook(...)`，membership actions 等审计走 `audit.recorded` 通道。
+- [x] Deliveries 列表 UI + payload preview（webhook 详情页表格 + 单行展开）。
+- [x] e2e：local http receiver + 签名校验 + 502 重试 + 400 dead-letter + 端到端 cron 跑通。
+- [x] schema 补丁：新增 `encSecret` BYTEA 列（HKDF-derived AES-256-GCM），cron 用它解密签名密钥。
 
-### PR-3 OpenAPI spec + Scalar 渲染
+### PR-3 OpenAPI spec + Scalar 渲染 ✓
 
-- 新增 `openapi/v1.yaml`，覆盖现有 + 本 RFC 所有端点。
-- `pnpm openapi:lint` 命令（用 `@redocly/cli`）。
-- `/docs/api` 渲染页（Scalar）。
-- CI script `scripts/check-openapi-coverage.ts`：扫描 `src/app/api/v1/**/route.ts` vs spec paths。
-- 文档示例：HMAC verify 三语言代码块（Node / Python / PHP）。
+- [x] 新增 `openapi/v1.yaml`（OpenAPI 3.1，covers `/api/v1/me` + 5 个 webhook 端点）。
+- [x] `pnpm openapi:lint` 命令（`@redocly/cli`）。
+- [x] `/docs/api` 渲染页（Scalar）+ `/api/openapi/v1.yaml` 公开 spec 端点。
+- [x] CI script `scripts/check-openapi-coverage.ts`：扫描 `src/app/api/v1/**/route.ts` vs spec paths（双向 diff）。
+- [x] 文档示例：HMAC verify 三语言代码块（Node / Python / PHP，运行时可执行）。
 
-### PR-4 收尾 — Sweep + 自动禁用 + observability
+### PR-4 收尾 — Sweep + 自动禁用 + observability ✓
 
-- Sweep cron 30d 删除终态 deliveries。
-- `consecutiveFailures ≥ 8` 自动 `disabledAt = now()` + 邮件通知 OWNER。
-- Prometheus metrics：`webhook_deliveries_total{status}` 等（见 §7）。
-- 文档站补全：rate limits / quotas / status page 链接。
+- [x] Sweep cron 30d 删除终态 deliveries（runWebhookCronTick 第 4 阶段）。
+- [x] `consecutiveFailures ≥ 8` 自动 `disabledAt = now()` + 邮件通知 OWNER/ADMIN（直写 auditLog 防 webhook → audit → webhook 死循环）。
+- [x] Prometheus metrics：`kitora_webhook_endpoints_total{disabled}`、`kitora_webhook_deliveries_total{status}`、`kitora_webhook_dead_letter_total`（见 §7）。延迟 / 重试次数 histogram 留 follow-up。
+- [x] 文档站补全：rate limits / auto-disable / status page / 自托管 metrics 指引。
 
 回滚：每个 PR 都是加法或非破坏改造。PR-2 把 `enqueueWebhook` 嵌入业务路径——回滚需要先 revert 这部分调用，否则 enqueue 没消费者。
 
