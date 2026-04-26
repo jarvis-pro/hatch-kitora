@@ -1,6 +1,7 @@
 'use server';
 
 import bcrypt from 'bcryptjs';
+import { OrgRole } from '@prisma/client';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 
@@ -148,9 +149,26 @@ export async function deleteAccountAction(input: z.infer<typeof deleteSchema>) {
     return { ok: false as const, error: 'email-mismatch' as const };
   }
 
-  // Record before delete — once the user row is gone we still keep the audit
-  // entry referencing the no-longer-existent actorId. orgId 写 audit 行的瞬
-  // 间还有效（Membership 还没删），audit 表不加 FK 所以 org 删后该行保留。
+  // 安全检查：如果用户还是某个**非 personal**组织的 OWNER，直接拒绝删账号 ——
+  // 否则会留下没有 OWNER 的组织（成员还在但没人能管理 / 计费）。让用户先
+  // 在那些 org 转让所有权或删除组织。
+  const ownedMemberships = await prisma.membership.findMany({
+    where: { userId: me.userId, role: OrgRole.OWNER },
+    select: { organization: { select: { id: true, slug: true, name: true } } },
+  });
+  const blockingOrgs = ownedMemberships
+    .map((m) => m.organization)
+    .filter((o) => !o.slug.startsWith('personal-'));
+  if (blockingOrgs.length > 0) {
+    return {
+      ok: false as const,
+      error: 'owns-orgs' as const,
+      orgs: blockingOrgs.map((o) => ({ slug: o.slug, name: o.name })),
+    };
+  }
+
+  // 记录审计。orgId 写 audit 行的瞬间还有效（Membership 还没删），audit 表
+  // 不加 FK，所以 org 删后该行保留。
   await recordAudit({
     actorId: me.userId,
     orgId: me.orgId,
@@ -158,11 +176,23 @@ export async function deleteAccountAction(input: z.infer<typeof deleteSchema>) {
     target: me.userId,
     metadata: { email: sessionUser.email ?? null },
   });
-  // Cascading FKs (Account / Session / Subscription / Membership) take care
-  // of the rest. The (now orphan) personal org survives — PR-3 will cascade
-  // delete personal orgs as part of the account-removal flow.
-  await prisma.user.delete({ where: { id: me.userId } });
-  logger.info({ userId: me.userId }, 'account-deleted');
+
+  // 同事务删 personal org（每个 user 至少一个，理论上只有一个）+ user。
+  // Cascade 会带走 Account / Session / Subscription / ApiToken / Membership /
+  // Invitation。
+  const personalOrgIds = ownedMemberships
+    .map((m) => m.organization)
+    .filter((o) => o.slug.startsWith('personal-'))
+    .map((o) => o.id);
+
+  await prisma.$transaction([
+    ...personalOrgIds.map((id) => prisma.organization.delete({ where: { id } })),
+    prisma.user.delete({ where: { id: me.userId } }),
+  ]);
+  logger.info(
+    { userId: me.userId, personalOrgIds, count: personalOrgIds.length },
+    'account-deleted',
+  );
 
   await signOut({ redirectTo: '/' });
   return { ok: true as const };

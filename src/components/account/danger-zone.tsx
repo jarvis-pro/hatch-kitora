@@ -29,6 +29,15 @@ export function DangerZone({ email }: Props) {
         // signOut + redirect handled in action.
         return;
       }
+      if (result.error === 'owns-orgs') {
+        toast.error(
+          t('errors.ownsOrgs', {
+            count: result.orgs.length,
+            names: result.orgs.map((o) => o.name).join(', '),
+          }),
+        );
+        return;
+      }
       const map: Record<string, string> = {
         'email-mismatch': t('errors.emailMismatch'),
         'invalid-input': t('errors.invalidInput'),
