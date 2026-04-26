@@ -75,12 +75,21 @@ model User {
   createdAt               DateTime   @default(now())
   updatedAt               DateTime   @updatedAt
 
-  accounts        Account[]
-  sessions        Session[]
-  apiTokens       ApiToken[]
-  memberships     Membership[]
-  deviceSessions  DeviceSession[]
-  twoFactorSecret TwoFactorSecret?
+  // RFC 0007 — WebAuthn ephemeral challenge.
+  // Set when register / authenticate ceremony starts; cleared on
+  // verify (success or fail) or after 5 minutes (lazy: read-time
+  // expiry check). NOT a long-lived secret — overwritten on every
+  // new ceremony.
+  webauthnChallenge   String?
+  webauthnChallengeAt DateTime?
+
+  accounts            Account[]
+  sessions            Session[]
+  apiTokens           ApiToken[]
+  memberships         Membership[]
+  deviceSessions      DeviceSession[]
+  twoFactorSecret     TwoFactorSecret?
+  webauthnCredentials WebAuthnCredential[]
 
   // RFC 0005 — composite unique replaces the historical `email @unique`.
   // Inside one stack the live region is fixed, so all lookups still hit
@@ -468,6 +477,47 @@ model TwoFactorSecret {
   updatedAt    DateTime  @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// ---------------------------------------------------------------------------
+// WebAuthn / Passkey credentials (RFC 0007)
+// ---------------------------------------------------------------------------
+//
+// Each row is one credential ("passkey") the user has registered. A user
+// can have many — laptop Touch ID + phone Face ID + YubiKey are all
+// equal peers; any one verifying counts as authentication. The user-
+// facing name (e.g. "Jane's MacBook") is plain free-text the user sets
+// at registration and may rename in the settings list.
+//
+// `credentialId` is the WebAuthn-protocol-level identifier (base64url
+// encoded) — we look it up directly when handling an authentication
+// response. `publicKey` is the COSE-encoded bytes the SimpleWebAuthn
+// verify helper consumes verbatim. `counter` tracks anti-replay and is
+// 0 forever for synced passkeys (iCloud Keychain / Google Password
+// Manager) — `verify.ts` skips the strict-monotonic check when
+// counter == 0 to match the SimpleWebAuthn default.
+//
+// `deviceType` and `backedUp` come from the AuthenticatorAttachment
+// hint and the `BE` (backup-eligible) flag respectively; both are UI-
+// only ("This device only" / "Synced across devices") and don't affect
+// validation.
+
+model WebAuthnCredential {
+  id           String    @id @default(cuid())
+  userId       String
+  credentialId String    @unique
+  publicKey    Bytes
+  counter      Int       @default(0)
+  transports   String[]  @db.Text
+  deviceType   String
+  backedUp     Boolean
+  name         String
+  lastUsedAt   DateTime?
+  createdAt    DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, lastUsedAt])
 }
 
 // ---------------------------------------------------------------------------
