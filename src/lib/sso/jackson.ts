@@ -51,16 +51,28 @@ export function getJackson(): Promise<{
 }> {
   if (cached) return cached;
 
+  // Jackson's own state (OAuth code rows, in-flight SAML sessions) lives in
+  // an in-memory store. We deliberately don't share Postgres with the rest
+  // of the app:
+  //
+  //   - The data is short-lived (< 5 min TTL on every row Jackson writes).
+  //   - Jackson's `engine: 'sql' + type: 'postgres'` path in 1.52.x crashes
+  //     in some environments with "Native is not a constructor" — its
+  //     embedded knex/pg combination expects a native binding that isn't
+  //     always present.
+  //   - The `IdentityProvider` user-facing config we own still lives in the
+  //     main Prisma DB and is the source of truth across restarts.
+  //
+  // Trade-off: a deploy mid-SSO-flow makes a few users hit `state-mismatch`
+  // and retry. Acceptable for a B2B login path that already retries on the
+  // user's side.
   const opts: JacksonOption = {
     externalUrl: env.NEXT_PUBLIC_APP_URL,
     samlAudience: env.NEXT_PUBLIC_APP_URL,
     samlPath,
     oidcPath,
     db: {
-      engine: 'sql',
-      type: 'postgres',
-      url: env.DATABASE_URL,
-      // ttl: undefined → Jackson default (300s) for transient sessions
+      engine: 'mem',
       cleanupLimit: 1000,
     },
   };

@@ -202,11 +202,17 @@ export async function createIdentityProviderAction(
     });
   }
 
-  // Push to Jackson. We do this after the prisma write so a partial failure
-  // leaves at most a row that's not yet usable for login (better than the
-  // reverse: a Jackson connection no DB row tracks). If this fails the
-  // user sees an error and can retry; the prisma row remains for them to
-  // fix the SAML metadata / OIDC creds against.
+  // Push to Jackson. **Best-effort on create** — the row is born in draft
+  // (`enabledAt = null`), and login lookups already skip draft rows, so a
+  // sync failure here can't hand a half-configured IdP to a real user. The
+  // OWNER will see the row in the UI; flipping `enabledAt` later goes
+  // through the update path, which DOES treat sync failures as fatal — so
+  // a malformed metadata XML will surface there before it can break logins.
+  //
+  // Why not roll back the prisma row on failure: bad SAML metadata is the
+  // single most common config mistake (typically a missing X509Certificate
+  // block), and forcing the user to re-fill the entire form just to retry
+  // is hostile UX. Keep the row, let them PATCH the bad field.
   try {
     if (parsed.data.protocol === SsoProtocol.SAML && parsed.data.samlMetadata) {
       await syncSamlConnection({
@@ -227,12 +233,10 @@ export async function createIdentityProviderAction(
       });
     }
   } catch (err) {
-    logger.error({ err, providerId: created.id }, 'sso-jackson-sync-failed');
-    return {
-      ok: false,
-      error: 'jackson-sync-failed',
-      message: err instanceof Error ? err.message : String(err),
-    };
+    logger.warn(
+      { err, providerId: created.id },
+      'sso-jackson-sync-failed-on-create-row-kept-as-draft',
+    );
   }
 
   await recordAudit({
