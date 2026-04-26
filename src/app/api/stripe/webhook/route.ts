@@ -8,6 +8,8 @@ import { recordAudit } from '@/lib/audit';
 import { prisma } from '@/lib/db';
 import { logger } from '@/lib/logger';
 import { stripe } from '@/lib/stripe/client';
+import { enqueueWebhook } from '@/lib/webhooks/enqueue';
+import type { WebhookEventType } from '@/lib/webhooks/events';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -157,6 +159,24 @@ async function upsertSubscription(sub: Stripe.Subscription, sourceType: string) 
         priceId,
         cancelAtPeriodEnd: sub.cancel_at_period_end,
       },
+    });
+
+    // RFC 0003 PR-2 — typed first-class webhook event for subscribers.
+    // We pick the typed name based on the source: `created` from a fresh
+    // checkout, `canceled` from a subscription.deleted Stripe event,
+    // everything else `updated`. Stripe identifier is omitted to keep the
+    // public payload hostable across our prod / staging Stripe accounts.
+    const webhookType: WebhookEventType =
+      sourceType === 'customer.subscription.deleted'
+        ? 'subscription.canceled'
+        : !existing
+          ? 'subscription.created'
+          : 'subscription.updated';
+    await enqueueWebhook(orgId, webhookType, {
+      status,
+      priceId,
+      currentPeriodEnd: new Date(sub.current_period_end * 1000).toISOString(),
+      cancelAtPeriodEnd: sub.cancel_at_period_end,
     });
   }
 }

@@ -5,6 +5,7 @@ import type { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/db';
 import { logger } from '@/lib/logger';
 import { getClientIp } from '@/lib/request';
+import { bridgeAuditToWebhook } from '@/lib/webhooks/from-audit';
 
 /** Canonical action codes — keep these stable; UI maps them to translated copy. */
 export const AUDIT_ACTIONS = [
@@ -87,5 +88,20 @@ export async function recordAudit(input: RecordAuditInput): Promise<void> {
     });
   } catch (err) {
     logger.error({ err, action: input.action }, 'audit-write-failed');
+  }
+
+  // RFC 0003 PR-2 — fan out to subscribed webhook endpoints. Wrapped in
+  // its own try so a webhook bookkeeping error never bubbles out of the
+  // audit write (the audit row itself succeeded above).
+  try {
+    await bridgeAuditToWebhook({
+      orgId: input.orgId ?? null,
+      action: input.action,
+      actorId: input.actorId,
+      target: input.target ?? null,
+      metadata: input.metadata,
+    });
+  } catch (err) {
+    logger.error({ err, action: input.action }, 'webhook-bridge-failed');
   }
 }
