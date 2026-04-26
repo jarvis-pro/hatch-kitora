@@ -493,6 +493,38 @@
         "error": "撤销注销失败，请稍后重试。"
       }
     },
+    "passkeys": {
+      "title": "Passkey",
+      "subtitle": "Passkey 是一种用指纹 / 面容 / 硬件密钥替代密码登录的方式，更安全也更省事。每个账号可绑定多个，任一通过即可登录。",
+      "addCta": "添加 Passkey",
+      "nameLabel": "名称",
+      "namePlaceholder": "我的 MacBook",
+      "confirmAdd": "确认添加",
+      "adding": "添加中...",
+      "cancel": "取消",
+      "save": "保存",
+      "rename": "重命名",
+      "remove": "移除",
+      "addSuccess": "Passkey 已添加",
+      "renameSuccess": "已重命名",
+      "removeSuccess": "Passkey 已移除",
+      "removeConfirm": "确定要移除这把 Passkey？",
+      "removeConfirmLast": "这是你最后一把 Passkey，移除后将不能再用 Passkey 登录。确定继续？",
+      "empty": "还没有添加 Passkey。",
+      "syncedDevices": "已在设备间同步",
+      "singleDevice": "仅本设备",
+      "backedUp": "云端已备份",
+      "lastUsed": "上次使用 {when}",
+      "neverUsed": "从未使用",
+      "errors": {
+        "nameRequired": "请输入名称",
+        "optionsFailed": "无法发起注册，请重试",
+        "verifyFailed": "Passkey 验证失败，请重试",
+        "renameFailed": "重命名失败",
+        "removeFailed": "移除失败",
+        "unknown": "出错了，请重试"
+      }
+    },
     "twoFactor": {
       "title": "双因子验证",
       "descriptionDisabled": "为登录加一道验证，防止密码泄露后被直接登录。",

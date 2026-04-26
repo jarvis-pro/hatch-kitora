@@ -498,6 +498,38 @@
         "error": "Could not cancel deletion. Please try again."
       }
     },
+    "passkeys": {
+      "title": "Passkeys",
+      "subtitle": "Sign in with your fingerprint, face, or a hardware key instead of typing a password. You can add multiple — any one works to sign in.",
+      "addCta": "Add a passkey",
+      "nameLabel": "Name",
+      "namePlaceholder": "My MacBook",
+      "confirmAdd": "Confirm",
+      "adding": "Adding…",
+      "cancel": "Cancel",
+      "save": "Save",
+      "rename": "Rename",
+      "remove": "Remove",
+      "addSuccess": "Passkey added",
+      "renameSuccess": "Renamed",
+      "removeSuccess": "Passkey removed",
+      "removeConfirm": "Remove this passkey?",
+      "removeConfirmLast": "This is your last passkey — once removed you can no longer sign in with a passkey. Continue?",
+      "empty": "No passkeys added yet.",
+      "syncedDevices": "Synced across devices",
+      "singleDevice": "This device only",
+      "backedUp": "Cloud-backed up",
+      "lastUsed": "Last used {when}",
+      "neverUsed": "Never used",
+      "errors": {
+        "nameRequired": "Please enter a name",
+        "optionsFailed": "Failed to start registration, please retry",
+        "verifyFailed": "Passkey verification failed, please retry",
+        "renameFailed": "Rename failed",
+        "removeFailed": "Remove failed",
+        "unknown": "Something went wrong, please retry"
+      }
+    },
     "twoFactor": {
       "title": "Two-factor authentication",
       "descriptionDisabled": "Add a second factor to your sign-in to protect against password leaks.",
