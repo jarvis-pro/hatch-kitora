@@ -21,6 +21,13 @@ endpoints), same code paths.
 - `docker-compose.eu.yml` boots a vanilla Postgres + Redis pair under
   independent volumes for local development.
 
+## Background jobs cron (RFC 0008)
+
+When EU goes live, copy the `## Background jobs cron` recipe from
+`docs/deploy/global.md` (Vercel + `CRON_SECRET` + `/api/jobs/tick`) — the
+EU stack uses the same Vercel + Resend topology as GLOBAL, so Vercel Cron
+is the right entry. No EU-specific cron infrastructure is anticipated.
+
 ## When this becomes real
 
 - Register `kitora.eu` (any ICANN registrar; no special filing

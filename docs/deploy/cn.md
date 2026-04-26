@@ -114,6 +114,62 @@ What requires real procurement (this RFC's scope ends at code):
   payments or sends email.
 - ICP / 公安部 备案 must be completed before DNS resolves.
 
+## Background jobs cron (RFC 0008)
+
+The `BackgroundJob` table runs through a Kubernetes CronJob in ACK
+(Aliyun managed K8s). Vercel Cron is **not** an option here — the stack
+lives entirely in CN.
+
+```yaml
+# infra/aliyun/cronjob.yaml (apply with kubectl apply -f, namespace = kitora-cn)
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: jobs-tick
+  namespace: kitora-cn
+spec:
+  schedule: '* * * * *' # every minute (UTC)
+  concurrencyPolicy: Forbid # tick N+1 won't start if N is still running
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 5
+  jobTemplate:
+    spec:
+      backoffLimit: 0 # don't auto-retry; the lib owns retry logic
+      template:
+        spec:
+          serviceAccountName: kitora-jobs
+          restartPolicy: Never
+          containers:
+            - name: jobs
+              image: <ACR_REGISTRY>/kitora:<VERSION>
+              command: ['pnpm', 'tsx', 'scripts/run-jobs.ts']
+              envFrom:
+                - secretRef:
+                    name: kitora-env-cn
+              resources:
+                requests: { cpu: '100m', memory: '256Mi' }
+                limits: { cpu: '500m', memory: '512Mi' }
+```
+
+Notes:
+
+- `concurrencyPolicy: Forbid` is the safe default. Even though
+  `FOR UPDATE SKIP LOCKED` makes parallel ticks safe at the DB level,
+  serialising at the K8s layer keeps observability cleaner (one
+  `jobs-tick-complete` log line per minute, not five).
+- `backoffLimit: 0`: the per-job retry / DLQ logic lives in
+  `src/lib/jobs/runner.ts`. Letting K8s retry the whole CronJob pod would
+  double-fire schedule投影 + 误增 attempt 计数。
+- `CRON_SECRET` is **not needed** here — the CLI doesn't go through
+  `/api/jobs/tick`. Leave it unset on the CN stack.
+- Cron schedules in `defineSchedule(...)` are interpreted as **UTC**
+  (RFC 0008 §4.3). The `'0 3 * * *'` deletion sweep fires at UTC 03:00
+  = Beijing 11:00; if ops want it at Beijing 03:00, change the
+  `defineSchedule` cron to `'0 19 * * *'` (UTC 19:00 = previous-day
+  Beijing 03:00) and redeploy.
+- Logs go to SLS (Aliyun Log Service) via the same pino → SLS bridge the
+  rest of the app uses (RFC 0006 §4).
+
 ## Sanity checks (once stack is live)
 
 - `https://kitora.cn/api/health` returns 200 from a Chinese ISP.

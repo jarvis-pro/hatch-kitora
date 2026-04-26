@@ -115,6 +115,48 @@ region)` composite unique fires when retrying the same email).
   factory in `src/lib/region/providers.ts` resolves to Resend / S3 /
   Stripe).
 
+## Background jobs cron (RFC 0008)
+
+The `BackgroundJob` table runs through a single cron entry per stack.
+
+**Vercel** (recommended for GLOBAL):
+
+1. `vercel.json` already declares
+   `{ "crons": [{ "path": "/api/jobs/tick", "schedule": "* * * * *" }] }`.
+   Vercel auto-discovers it on deploy.
+2. Set `CRON_SECRET` in the Vercel project env (Settings → Environment
+   Variables) to a 32+ char random string:
+
+   ```sh
+   openssl rand -base64 32
+   ```
+
+   Vercel injects this into the `Authorization: Bearer …` header for every
+   cron call; the route returns 401 to anything else (probes, external
+   traffic). Without `CRON_SECRET` set, the route short-circuits to 503
+   `cron-not-configured` so the cron silently no-ops instead of running an
+   unauth'd sweep — also the dev / preview default.
+
+3. **Plan note**: `/api/jobs/tick` declares `maxDuration = 60`. Hobby caps
+   at 10 s — production should run on Pro for headroom. If you must run
+   on Hobby (demo / preview), pass a tighter budget at the route layer:
+
+   ```ts
+   // src/app/api/jobs/tick/route.ts — override only when on Hobby
+   await runWorkerTick(workerId, { budgetMs: 8_000, batchSize: 1 });
+   ```
+
+**Self-hosted alternative**: `pnpm tsx scripts/run-jobs.ts` is a CLI entry
+that does the same thing — point any external cron (cron, systemd timer,
+GitHub Actions schedule, …) at it. The legacy `run-webhook-cron.ts` /
+`run-export-jobs.ts` / `run-deletion-cron.ts` shims are still around for
+one minor and call into the same lib, so existing deploys can migrate at
+their own pace.
+
+The `BackgroundJob` table holds schedule and ad-hoc job rows. The admin
+view at `/admin/jobs` shows per-type stats, recent rows, and a
+DEAD_LETTER tab with manual retry / cancel buttons.
+
 ## Rollback
 
 The RFC 0005 schema migration is additive. To roll back:
