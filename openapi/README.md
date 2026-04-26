@@ -141,3 +141,38 @@ per-token rate limiter as the rest of the API. Inspect the
 
 There is **no** separate rate limit on incoming deliveries to your endpoint —
 that's between you and your reverse proxy.
+
+## Auto-disable behavior
+
+After 8 consecutive failed deliveries to a single endpoint (~44 hours under
+the default retry curve), Kitora pauses the endpoint by setting
+`disabledAt` and cancels its pending queue on the next cron tick. We send an
+email to OWNER + ADMIN and append an audit row with action
+`webhook.endpoint_auto_disabled`.
+
+When you re-enable the endpoint (`PATCH /webhooks/{id}` with `disabledAt:
+null`), pending deliveries do **not** automatically resume — they were
+cancelled, not paused. Trigger fresh events from your side to rebuild state.
+
+The pause threshold and the retry curve aren't yet user-configurable; if you
+need them tuned, file an issue.
+
+## Service status
+
+Production status, planned maintenance windows, and cron-tick announcements
+are published at https://status.kitora.example.com. Subscribe there to get
+pinged before changes that might affect API or webhook behavior.
+
+## Observability hooks for self-hosters
+
+If you're running Kitora yourself, the `/api/metrics` endpoint exposes
+Prometheus-format counters / gauges including:
+
+- `kitora_webhook_endpoints_total{disabled="false|true"}` — live vs paused.
+- `kitora_webhook_deliveries_total{status="..."}` — current row state machine distribution.
+- `kitora_webhook_dead_letter_total` — alert baseline; a non-zero rate-of-change
+  is the wake-the-on-call signal.
+
+The endpoint requires a Bearer ApiToken whose owner has the platform `ADMIN`
+role. Configure your scraper to authenticate identically to a normal API
+client.

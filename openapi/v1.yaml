@@ -8,6 +8,46 @@ info:
     request is rate-limited per token; expect `X-RateLimit-Remaining` and
     `X-RateLimit-Reset` (epoch seconds) on every response.
 
+    ### Rate limits
+
+    The default per-token bucket is **100 requests / 60 seconds** for all
+    `/api/v1/*` routes, sliding-window. The bucket key is the token id, so
+    horizontally-scaled callers should not race each other.
+
+    On a 429 response, `X-RateLimit-Reset` is the epoch second at which the
+    bucket refills — sleep until then and retry. Don't fan out new tokens to
+    bypass the cap; tokens issued from the same org share a soft fair-use
+    aggregate cap that triggers a temporary throttle.
+
+    The `/api/openapi/v1.yaml` and `/docs/api` paths are public and not
+    rate-limited (they're served from CDN with `Cache-Control: max-age=3600`).
+
+    ### Webhook auto-disable
+
+    Outbound webhook endpoints are **automatically paused** after 8
+    consecutive failed deliveries (~44 hours of attempts under the default
+    retry curve). When this happens:
+
+    1. The endpoint's `disabledAt` is set to the time of the failure that
+       crossed the threshold.
+    2. Pending / retrying deliveries to that endpoint are mass-cancelled on
+       the next cron tick.
+    3. OWNER + ADMIN of the org receive an email.
+    4. An audit row is appended with action `webhook.endpoint_auto_disabled`.
+
+    The endpoint stays paused until a human re-enables it — either via the
+    dashboard at `/settings/organization/webhooks/{id}` or via
+    `PATCH /api/v1/orgs/{slug}/webhooks/{id}` with `disabledAt: null`. When
+    re-enabled, queued deliveries do **not** automatically resume — generate
+    fresh events to rebuild state. (We err on the side of "fix forward" over
+    replaying potentially stale events.)
+
+    ### Service status
+
+    Operational status (production incidents, planned maintenance, scheduled
+    cron windows) lives at https://status.kitora.example.com. Subscribe via
+    that page to get pinged before changes that might affect API behavior.
+
     ### Authentication
 
     Issue a Personal API token from `/settings/api-tokens` and send it in the
