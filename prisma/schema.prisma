@@ -38,7 +38,10 @@ model User {
   sessions      Session[]
   subscriptions Subscription[]
   apiTokens     ApiToken[]
+  memberships   Membership[]
 
+  // PR-1 过渡期保留：双写 User / Organization 上的 stripeCustomerId，
+  // PR-4 收尾时再删本字段（届时 customer 完全归属 Organization）。
   stripeCustomerId String? @unique
 
   @@index([email])
@@ -47,6 +50,78 @@ model User {
 enum UserRole {
   USER
   ADMIN
+}
+
+// ---------------------------------------------------------------------------
+// Organizations — 多租户主体（参见 docs/rfcs/0001-organizations.md）
+// ---------------------------------------------------------------------------
+//
+// 每个用户注册自动创建一个 Personal Org（slug = personal-{shortId}），用户
+// 为 OWNER。所有 org-scoped 资源（Subscription / ApiToken / AuditLog）以
+// orgId 归属。PR-1 仅引入新表与 nullable orgId 列，旧字段保留以便回滚。
+
+model Organization {
+  id               String   @id @default(cuid())
+  slug             String   @unique // URL-safe lowercase, e.g. "acme" / "personal-abcd1234"
+  name             String
+  image            String?
+  // Stripe customer 从 User 迁到 Org（PR-1 双写过渡，PR-4 删除 User.stripeCustomerId）
+  stripeCustomerId String?  @unique
+  // RFC 0005 占位字段：per-org ICP 备案号；PR-1 仅加列，业务逻辑后续 RFC 实现
+  icpNumber        String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  memberships   Membership[]
+  invitations   Invitation[]
+  subscriptions Subscription[]
+  apiTokens     ApiToken[]
+
+  @@index([slug])
+}
+
+model Membership {
+  id       String   @id @default(cuid())
+  orgId    String
+  userId   String
+  role     OrgRole  @default(MEMBER)
+  joinedAt DateTime @default(now())
+
+  organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([orgId, userId])
+  @@index([userId])
+}
+
+enum OrgRole {
+  OWNER
+  ADMIN
+  MEMBER
+}
+
+// 邀请：raw token 随邮件发出，库内只存 sha256(token)。同一 org + email
+// 仅允许一条 pending 记录（接受 / 撤销后该约束不再阻止重新邀请，因为
+// acceptedAt / revokedAt 标记会与 unique 上的过滤一起在应用层处理）。
+
+model Invitation {
+  id         String    @id @default(cuid())
+  orgId      String
+  email      String
+  role       OrgRole
+  tokenHash  String    @unique
+  expiresAt  DateTime
+  // 邀请人 userId — no FK，邀请人删号也保留这条记录用于审计
+  invitedBy  String
+  acceptedAt DateTime?
+  revokedAt  DateTime?
+  createdAt  DateTime  @default(now())
+
+  organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@unique([orgId, email])
+  @@index([email])
+  @@index([expiresAt])
 }
 
 model Account {
@@ -125,6 +200,9 @@ model PasswordResetToken {
 model Subscription {
   id                   String             @id @default(cuid())
   userId               String
+  // PR-1 引入 nullable orgId；回填脚本跑完后 PR-2 切业务读写到 orgId，PR-4
+  // 改 NOT NULL 并删除 userId（PR-1 之后 userId / orgId 双写以便回滚）。
+  orgId                String?
   stripeSubscriptionId String             @unique
   stripePriceId        String
   status               SubscriptionStatus
@@ -133,9 +211,11 @@ model Subscription {
   createdAt            DateTime           @default(now())
   updatedAt            DateTime           @updatedAt
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization Organization? @relation(fields: [orgId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+  @@index([orgId])
   @@index([status])
 }
 
@@ -173,6 +253,10 @@ model StripeEvent {
 model ApiToken {
   id         String    @id @default(cuid())
   userId     String
+  // PR-1 引入 nullable orgId（token 在哪个 org 内有效）；回填后 PR-2 在
+  // bearer 鉴权挂 orgId scope；PR-4 改 NOT NULL。userId 永久保留作为「token
+  // 归属人」，与 orgId 一起表达「谁在哪个 org 创建的这个 token」。
+  orgId      String?
   name       String
   tokenHash  String    @unique
   prefix     String
@@ -181,9 +265,11 @@ model ApiToken {
   revokedAt  DateTime?
   createdAt  DateTime  @default(now())
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization Organization? @relation(fields: [orgId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+  @@index([orgId])
 }
 
 // ---------------------------------------------------------------------------
@@ -198,6 +284,9 @@ model ApiToken {
 model AuditLog {
   id        String   @id @default(cuid())
   actorId   String?
+  // 与 actorId 同样不加外键 —— org 删除后审计行需要保留（append-only）。
+  // 全局动作（平台 admin 改其它用户角色等）允许 orgId 为 null。
+  orgId     String?
   action    String
   target    String?
   metadata  Json?
@@ -205,6 +294,7 @@ model AuditLog {
   createdAt DateTime @default(now())
 
   @@index([actorId])
+  @@index([orgId])
   @@index([action])
   @@index([createdAt])
 }
