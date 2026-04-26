@@ -272,6 +272,11 @@ model WebhookEndpoint {
   secretHash          String
   // base64url(8 bytes) — shown to the user, safe to leak.
   secretPrefix        String
+  // RFC 0003 PR-2 — AES-256-GCM-encrypted plaintext secret. Key is HKDF-
+  // derived from `AUTH_SECRET` + endpoint id (same recipe as 2FA secrets).
+  // Nullable for backwards-compat with rows created in PR-1; PR-2's create
+  // and rotate paths always fill it. The cron decrypts before signing.
+  encSecret           Bytes?
   // Hard pause — `disabledAt = now()` halts deliveries entirely. Set by
   // user action OR auto by PR-4 sweeper after `consecutiveFailures >= 8`.
   disabledAt          DateTime?
