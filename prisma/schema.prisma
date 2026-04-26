@@ -770,3 +770,93 @@ model AuditLog {
   @@index([createdAt])
   @@index([region, createdAt])
 }
+
+// ---------------------------------------------------------------------------
+// RFC 0008 — Generic Background Jobs
+// ---------------------------------------------------------------------------
+//
+// 通用 background jobs 容器：一次性 ad-hoc 异步活（如「3 秒后给某用户发提醒邮件」、
+// token 清理、过期 BackgroundJob 行 prune）+ 定时 sweep tick 的统一着陆点。每种 job
+// 在代码里通过 `defineJob(...)` 注册一次（payloadSchema / run handler / 重试策略 /
+// retentionDays），调用方仅 `enqueueJob('email.send', { ... })`。
+//
+// 显式不动的领域表：`WebhookDelivery` / `DataExportJob` / `User.deletionScheduledAt`
+// 三套状态机保留不动（RFC 0008 §3.2）—— 它们是业务一阶事实，新 BackgroundJob 表只
+// 负责调度它们的 sweep tick + 承接全新的 ad-hoc 活。
+//
+// claim 算法走 PostgreSQL `FOR UPDATE SKIP LOCKED`（RFC 0008 §4.4），
+// `(status, queue, priority, nextAttemptAt)` 复合索引顺序与 ORDER BY / WHERE 完全
+// 对齐，多 worker 并发抢锁互不阻塞。
+//
+// 表 region-bound：CN region PG 有自己的 BackgroundJob 行，payload 内部如引用跨
+// region 实体由调用方负责（RFC 0008 §10）。
+
+enum BackgroundJobStatus {
+  PENDING
+  RUNNING
+  SUCCEEDED
+  FAILED
+  DEAD_LETTER
+  CANCELED
+}
+
+model BackgroundJob {
+  id String @id @default(cuid())
+
+  /// `defineJob` 注册表里的 type 名字（如 `email.send` / `token.cleanup` /
+  /// `webhook.tick`）。worker 用 type 反查 registry 拿到 run handler。
+  type String
+
+  /// 任意 zod 校验过的 JSON payload。`defineJob` 强制单 payload < 64KB（RFC 0008 §7）。
+  payload Json
+
+  /// 业务侧给的幂等键。同 (type, runId) 在表里只能存在一行 —— 重复 enqueue 直接
+  /// 走 P2002 swallow（noop 成功）。null 表示调用方不在意去重（多数 ad-hoc 活）。
+  /// schedule 触发的 runId 形如 `schedule:<scheduleName>:<unixMinute>`，让重复
+  /// 触发自动 swallow（RFC 0008 §4.3）。
+  runId String?
+
+  status BackgroundJobStatus @default(PENDING)
+  /// 高优先级先抢；claim 时按 priority desc 再按 nextAttemptAt asc。v1 全用默认 0
+  /// （RFC 0008 §9 评审决策）；列保留是为了后续 RFC 0010 metered billing dunning /
+  /// SCIM 实时同步等高优场景启用 100/200/500 档位时不破坏 API。
+  priority Int @default(0)
+  /// 多 worker 想分队列时用。v1 worker 永远只 claim `default`（RFC 0008 §9 评审决策）。
+  queue String @default("default")
+
+  attempt       Int      @default(0)
+  /// `defineJob` 里覆盖；默认 5 次涵盖大多数活。
+  maxAttempts   Int      @default(5)
+  /// 抢锁时的 `WHERE nextAttemptAt <= now()` 比较列。schedule 投影 / 重试都写它。
+  nextAttemptAt DateTime @default(now())
+
+  /// 抢到锁的 worker 自报家门（`worker-${pid}-${ts}`）。崩溃恢复时按
+  /// `lockedAt < now() - LOCK_TIMEOUT` 把 RUNNING 翻回 PENDING（RFC 0008 §4.4）。
+  lockedBy String?
+  lockedAt DateTime?
+
+  /// 上次失败的错误（截断 2KB）。SUCCEEDED 时仍保留最后一次重试前的错误，方便 admin debug。
+  lastError String?
+
+  /// run handler 返回的结果 JSON。SUCCEEDED 状态下可读；多数活返回 null。
+  result Json?
+
+  createdAt   DateTime  @default(now())
+  startedAt   DateTime?
+  completedAt DateTime?
+
+  /// retention：终态行（SUCCEEDED / FAILED / DEAD_LETTER / CANCELED）按
+  /// `defineJob.retentionDays` 推一个 deleteAt 进来；`job.prune` 每天扫这个列删行。
+  deleteAt DateTime?
+
+  /// 同 (type, runId) 唯一 —— 幂等键。runId = null 不参与 unique（PG 多 NULL 允许）。
+  @@unique([type, runId], map: "background_job_type_run_unique")
+  /// claim 索引：列顺序与 worker 的 `WHERE status='PENDING' AND queue=$1 AND
+  /// nextAttemptAt<=now() ORDER BY priority DESC, nextAttemptAt ASC` 完全对齐
+  /// （RFC 0008 §3.1）。
+  @@index([status, queue, priority, nextAttemptAt], map: "background_job_claim_idx")
+  /// prune 单列范围扫。
+  @@index([deleteAt], map: "background_job_prune_idx")
+  /// admin 后台 `/admin/jobs?type=email.send&status=FAILED` 过滤的常规索引。
+  @@index([type, status])
+}
