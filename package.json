@@ -25,6 +25,8 @@
     "db:seed": "tsx prisma/seed.ts",
     "email:dev": "email dev --dir src/emails --port 3001",
     "stripe:listen": "stripe listen --forward-to localhost:3000/api/stripe/webhook",
+    "test:unit": "vitest run",
+    "test:unit:watch": "vitest",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "test:e2e:install": "playwright install --with-deps chromium",
@@ -104,7 +106,8 @@
     "prisma": "^5.22.0",
     "tailwindcss": "^3.4.17",
     "tsx": "^4.19.2",
-    "typescript": "^5.7.2"
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
   },
   "lint-staged": {
     "*.{ts,tsx,js,jsx}": [
