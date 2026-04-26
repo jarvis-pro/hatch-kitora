@@ -1,5 +1,7 @@
-import 'server-only';
-
+// NOTE: deliberately *not* `'server-only'` here — Playwright e2e tests
+// drive `createDeviceSession` / `hashSid` in-process via the SSO flow's
+// `issueSsoSession` helper. The transitive `@/lib/db` (prisma) + `node:crypto`
+// imports already gate accidental client bundling.
 import { createHash, randomBytes } from 'node:crypto';
 
 import { prisma } from '@/lib/db';

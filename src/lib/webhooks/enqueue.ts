@@ -1,5 +1,7 @@
-import 'server-only';
-
+// NOTE: deliberately *not* `'server-only'` here — `bridgeAuditToWebhook`
+// imports this and is itself reachable from `recordAudit`, which the e2e
+// suite drives via `provisionSsoUser`. The transitive `@/lib/db` (prisma)
+// dependency keeps client bundling honest.
 import { randomBytes } from 'node:crypto';
 
 import { prisma } from '@/lib/db';

@@ -1,5 +1,8 @@
-import 'server-only';
-
+// NOTE: deliberately *not* `'server-only'` here — Playwright e2e tests
+// import this transitively via `provisionSsoUser` (RFC 0004 PR-2) and
+// previously through cron-driven flows. The transitive `@/lib/db` (prisma)
+// + `@/lib/request` (next/headers) deps are Node-only, so accidental
+// client bundling still fails loudly.
 import type { Prisma } from '@prisma/client';
 
 import { prisma } from '@/lib/db';

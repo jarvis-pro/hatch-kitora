@@ -1,5 +1,7 @@
-import 'server-only';
-
+// NOTE: deliberately *not* `'server-only'` here — `recordAudit` (from
+// `@/lib/audit`) imports this transitively, and the Playwright e2e suite
+// reaches it via `provisionSsoUser`. Transitive `@/lib/db` (prisma) gates
+// accidental client bundling.
 import { enqueueWebhook } from './enqueue';
 import type { WebhookEventType } from './events';
 
