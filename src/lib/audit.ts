@@ -7,6 +7,7 @@ import type { Prisma } from '@prisma/client';
 
 import { prisma } from '@/lib/db';
 import { logger } from '@/lib/logger';
+import { currentRegion } from '@/lib/region';
 import { getClientIp } from '@/lib/request';
 import { bridgeAuditToWebhook } from '@/lib/webhooks/from-audit';
 
@@ -97,6 +98,10 @@ export async function recordAudit(input: RecordAuditInput): Promise<void> {
         target: input.target ?? null,
         metadata: input.metadata,
         ip: ip === 'unknown' ? null : ip,
+        // RFC 0005 — stamp the row with the deploy region. Callers never
+        // pass region in: a single process only ever serves one region,
+        // so any "override" would mean the call site is wrong.
+        region: currentRegion(),
       },
     });
   } catch (err) {

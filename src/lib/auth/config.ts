@@ -76,6 +76,11 @@ export const authConfig = {
         // without re-login still takes effect.
         const status = (user as { status?: 'ACTIVE' | 'PENDING_DELETION' }).status;
         token.status = status ?? 'ACTIVE';
+        // RFC 0005 — region of the User row. Region is immutable after
+        // creation, so we seed it once at sign-in. Middleware (edge) reads
+        // this off the JWT to detect cross-region cookie smuggling.
+        const region = (user as { region?: 'GLOBAL' | 'CN' | 'EU' }).region;
+        if (region) token.region = region;
       }
       // The full Node-side config in `src/lib/auth/index.ts` overrides this
       // callback to additionally validate `token.sessionVersion` against the
@@ -103,6 +108,13 @@ export const authConfig = {
       // route PENDING_DELETION users to the cancel-deletion screen.
       if (token.status === 'PENDING_DELETION') {
         session.userStatus = 'PENDING_DELETION';
+      }
+      // RFC 0005 — surface the user's region so middleware (also edge)
+      // can compare against the deploy region. Cross-region cookie
+      // smuggling shouldn't be possible across distinct domains, but we
+      // keep this as a server-side belt-and-braces check.
+      if (token.region === 'GLOBAL' || token.region === 'CN' || token.region === 'EU') {
+        session.userRegion = token.region;
       }
       return session;
     },

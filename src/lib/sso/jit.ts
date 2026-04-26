@@ -20,6 +20,7 @@ import type { OrgRole } from '@prisma/client';
 import { recordAudit } from '@/lib/audit';
 import { prisma } from '@/lib/db';
 import { logger } from '@/lib/logger';
+import { currentRegion } from '@/lib/region';
 
 export interface JitInput {
   /** IdP row id (from `IdentityProvider`). */
@@ -64,8 +65,13 @@ export async function provisionSsoUser(input: JitInput): Promise<JitResult> {
   }
 
   // Path B: existing User row by email, but no SSO binding yet.
+  // RFC 0005 — SSO is region-bound: the IdP belongs to an Org that lives
+  // in this stack's region (the SSO start handler enforces this), so the
+  // matching legacy account must too. The composite (email, region) key
+  // returns the right row without ambiguity.
+  const region = currentRegion();
   const existingUser = await prisma.user.findUnique({
-    where: { email: input.email.toLowerCase() },
+    where: { email_region: { email: input.email.toLowerCase(), region } },
     select: { id: true },
   });
   if (existingUser) {
@@ -102,6 +108,10 @@ export async function provisionSsoUser(input: JitInput): Promise<JitResult> {
       email: input.email.toLowerCase(),
       name: input.name ?? null,
       emailVerified: new Date(),
+      // RFC 0005 — JIT-created users live in the same region as the
+      // process. The IdP is region-bound (its parent Org carries
+      // `region`), so this is the only correct value.
+      region,
       memberships: {
         create: {
           orgId: input.orgId,

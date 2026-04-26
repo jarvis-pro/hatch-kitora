@@ -9,6 +9,7 @@ import { signIn, signOut } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { logger } from '@/lib/logger';
 import { strictLimiter } from '@/lib/rate-limit';
+import { currentRegion } from '@/lib/region';
 import { getClientIp } from '@/lib/request';
 
 import { sendPasswordResetEmail, sendVerificationEmail, sendWelcomeEmail } from './email-flows';
@@ -41,7 +42,14 @@ export async function signupAction(input: z.infer<typeof signupSchema>) {
   }
 
   const { name, email, password } = parsed.data;
-  const existing = await prisma.user.findUnique({ where: { email } });
+  // RFC 0005 — sign-up is region-scoped: an email is unique within a
+  // region, but the same address may exist as an independent account in
+  // another region (kitora.cn vs kitora.io). Look up by the composite
+  // (email, region) key.
+  const region = currentRegion();
+  const existing = await prisma.user.findUnique({
+    where: { email_region: { email, region } },
+  });
   if (existing) {
     return { ok: false as const, error: 'email-taken' };
   }
@@ -49,11 +57,13 @@ export async function signupAction(input: z.infer<typeof signupSchema>) {
   const passwordHash = await bcrypt.hash(password, 12);
   // 同事务建 user + personal org + OWNER membership —— 第一个请求进 dashboard
   // 时 requireActiveOrg() 即可命中已存在记录，无需 lazy creation。
+  // RFC 0005 — both User and Organization carry the deploy region; we
+  // stamp them inside the same transaction as the membership row.
   const user = await prisma.$transaction(async (tx) => {
-    const created = await tx.user.create({ data: { name, email, passwordHash } });
+    const created = await tx.user.create({ data: { name, email, passwordHash, region } });
     const slug = `personal-${created.id.slice(-8)}`;
     const org = await tx.organization.create({
-      data: { slug, name: name || 'Personal' },
+      data: { slug, name: name || 'Personal', region },
     });
     await tx.membership.create({
       data: { orgId: org.id, userId: created.id, role: OrgRole.OWNER },
@@ -136,7 +146,9 @@ export async function requestEmailVerificationAction(input: { email: string }) {
     return { ok: false as const, error: 'rate-limited' };
   }
 
-  const user = await prisma.user.findUnique({ where: { email: parsed.data.email } });
+  const user = await prisma.user.findUnique({
+    where: { email_region: { email: parsed.data.email, region: currentRegion() } },
+  });
   if (user && !user.emailVerified) {
     try {
       await sendVerificationEmail(user);
@@ -199,7 +211,9 @@ export async function requestPasswordResetAction(input: { email: string }) {
     return { ok: false as const, error: 'rate-limited' };
   }
 
-  const user = await prisma.user.findUnique({ where: { email: parsed.data.email } });
+  const user = await prisma.user.findUnique({
+    where: { email_region: { email: parsed.data.email, region: currentRegion() } },
+  });
   // Only send if the user has a password set; OAuth-only users wouldn't know
   // what to reset. Either way the response stays generic.
   if (user?.passwordHash) {

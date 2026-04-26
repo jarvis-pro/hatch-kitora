@@ -30,6 +30,13 @@ declare module 'next-auth' {
      * either cancel or the cron deletes them.
      */
     userStatus?: 'ACTIVE' | 'PENDING_DELETION';
+    /**
+     * RFC 0005: region the User row lives in. Stamped at sign-in from
+     * `User.region` and compared against `currentRegion()` in middleware
+     * — a mismatch (e.g. cookie smuggled across stacks) bounces to
+     * `/region-mismatch`.
+     */
+    userRegion?: 'GLOBAL' | 'CN' | 'EU';
   }
 
   interface User {
@@ -37,6 +44,7 @@ declare module 'next-auth' {
     sessionVersion?: number;
     twoFactorEnabled?: boolean;
     status?: 'ACTIVE' | 'PENDING_DELETION';
+    region?: 'GLOBAL' | 'CN' | 'EU';
   }
 }
 
@@ -53,5 +61,7 @@ declare module 'next-auth/jwt' {
     tfa_pending?: boolean;
     /** RFC 0002 PR-4: account lifecycle state. */
     status?: 'ACTIVE' | 'PENDING_DELETION';
+    /** RFC 0005: deploy region the User belongs to. */
+    region?: 'GLOBAL' | 'CN' | 'EU';
   }
 }

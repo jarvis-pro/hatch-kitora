@@ -8,6 +8,7 @@ import { z } from 'zod';
 
 import { prisma } from '@/lib/db';
 import { logger } from '@/lib/logger';
+import { currentRegion } from '@/lib/region';
 
 import { authConfig } from './config';
 import { createDeviceSession, generateSid, hashSid, validateDeviceSession } from './device-session';
@@ -24,6 +25,41 @@ const credentialsSchema = z.object({
   password: z.string().min(8),
 });
 
+/**
+ * RFC 0005 — Region-aware Prisma adapter.
+ *
+ * The stock `@auth/prisma-adapter` issues `findUnique({ where: { email } })`
+ * for OAuth account-linking lookups and `prisma.user.create({ data })`
+ * without a region. Both break under the new `(email, region)` composite:
+ * the lookup no longer compiles, and the create silently writes the
+ * column's `GLOBAL` default — wrong on a CN/EU stack.
+ *
+ * We delegate to the stock adapter and override only the two affected
+ * methods so future Auth.js features ride the upstream behaviour.
+ */
+function regionAwarePrismaAdapter() {
+  const base = PrismaAdapter(prisma);
+  return {
+    ...base,
+    async getUserByEmail(email: string) {
+      return prisma.user.findUnique({
+        where: { email_region: { email, region: currentRegion() } },
+      });
+    },
+    async createUser(data: Parameters<NonNullable<typeof base.createUser>>[0]) {
+      // The stock adapter's behaviour: drop any incoming id, let Prisma
+      // mint one. We reuse `stripUndefined`'s spirit by destructuring.
+      // RFC 0005 — stamp the deploy region so OAuth-created users land in
+      // the right `(email, region)` slot.
+      const { id: _id, ...rest } = data;
+      void _id;
+      return prisma.user.create({
+        data: { ...rest, region: currentRegion() },
+      });
+    },
+  };
+}
+
 export const {
   handlers,
   auth,
@@ -32,7 +68,7 @@ export const {
   unstable_update: update,
 } = NextAuth({
   ...authConfig,
-  adapter: PrismaAdapter(prisma),
+  adapter: regionAwarePrismaAdapter(),
   // Route Auth.js noise through pino with sane levels. Wrong password is
   // user-error, not app-error — keep it at debug so prod logs don't blow up
   // on every failed login.
@@ -66,7 +102,13 @@ export const {
         }
 
         const { email, password } = parsed.data;
-        const user = await prisma.user.findUnique({ where: { email } });
+        // RFC 0005 — credentials login is region-scoped. The same address
+        // may exist as an independent account in a different region; the
+        // process only ever serves its own region, so a stack-leaking
+        // session cannot be issued from here.
+        const user = await prisma.user.findUnique({
+          where: { email_region: { email, region: currentRegion() } },
+        });
         if (!user?.passwordHash) {
           return null;
         }
@@ -114,6 +156,11 @@ export const {
           sessionVersion: user.sessionVersion,
           twoFactorEnabled: user.twoFactorEnabled,
           status: user.status,
+          // RFC 0005 — propagate the User row's region into the Auth.js
+          // user object so `authConfig.callbacks.jwt` can stamp the
+          // token. The composite-unique findUnique above already restricts
+          // to `currentRegion()`, so this is always in lock-step.
+          region: user.region,
         };
       },
     }),
@@ -169,6 +216,7 @@ export const {
             role: true,
             twoFactorEnabled: true,
             status: true,
+            region: true,
           },
         });
         if (!fresh) {
@@ -185,6 +233,10 @@ export const {
         // PENDING_DELETION flip the moment the action commits, no need
         // to wait for a fresh JWT mint.
         base.status = fresh.status;
+        // RFC 0005 — region is immutable on the User row, but pre-RFC-0005
+        // tokens won't have it claimed. Refresh from the DB so middleware
+        // always has a region to compare against `currentRegion()`.
+        base.region = fresh.region;
 
         // ── RFC 0002 PR-2: tfa_pending state machine ──────────────────
         //
