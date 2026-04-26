@@ -524,7 +524,7 @@
         "UNPAID": "Unpaid"
       },
       "table": {
-        "user": "User",
+        "organization": "Organization",
         "status": "Status",
         "priceId": "Price ID",
         "periodEnd": "Period end",

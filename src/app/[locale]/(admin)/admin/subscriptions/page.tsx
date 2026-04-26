@@ -65,7 +65,7 @@ export default async function AdminSubscriptionsPage({ searchParams }: PageProps
       skip: (page - 1) * PAGE_SIZE,
       take: PAGE_SIZE,
       include: {
-        user: { select: { id: true, email: true, name: true } },
+        organization: { select: { id: true, slug: true, name: true } },
       },
     }),
   ]);
@@ -107,7 +107,7 @@ export default async function AdminSubscriptionsPage({ searchParams }: PageProps
         <table className="w-full text-sm">
           <thead className="bg-muted/40 text-left text-xs uppercase tracking-wide text-muted-foreground">
             <tr>
-              <th className="px-4 py-3 font-medium">{t('table.user')}</th>
+              <th className="px-4 py-3 font-medium">{t('table.organization')}</th>
               <th className="px-4 py-3 font-medium">{t('table.status')}</th>
               <th className="px-4 py-3 font-medium">{t('table.priceId')}</th>
               <th className="px-4 py-3 font-medium">{t('table.periodEnd')}</th>
@@ -125,10 +125,10 @@ export default async function AdminSubscriptionsPage({ searchParams }: PageProps
               items.map((sub) => (
                 <tr key={sub.id} className="border-t">
                   <td className="px-4 py-3">
-                    <div className="font-medium">{sub.user.email}</div>
-                    {sub.user.name ? (
-                      <div className="text-xs text-muted-foreground">{sub.user.name}</div>
-                    ) : null}
+                    <div className="font-medium">{sub.organization.name}</div>
+                    <div className="font-mono text-xs text-muted-foreground">
+                      {sub.organization.slug}
+                    </div>
                   </td>
                   <td className="px-4 py-3">
                     <span

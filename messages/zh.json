@@ -519,7 +519,7 @@
         "UNPAID": "未支付"
       },
       "table": {
-        "user": "用户",
+        "organization": "组织",
         "status": "状态",
         "priceId": "Price ID",
         "periodEnd": "周期结束",
