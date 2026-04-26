@@ -103,11 +103,12 @@ model Organization {
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
-  memberships      Membership[]
-  invitations      Invitation[]
-  subscriptions    Subscription[]
-  apiTokens        ApiToken[]
-  webhookEndpoints WebhookEndpoint[]
+  memberships       Membership[]
+  invitations       Invitation[]
+  subscriptions     Subscription[]
+  apiTokens         ApiToken[]
+  webhookEndpoints  WebhookEndpoint[]
+  identityProviders IdentityProvider[]
 
   @@index([slug])
 }
@@ -119,11 +120,26 @@ model Membership {
   role     OrgRole  @default(MEMBER)
   joinedAt DateTime @default(now())
 
-  organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
-  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // RFC 0004 — SSO. Set on JIT-provisioned members so the next SAML/OIDC
+  // login can resolve back to this row even if the user's email rotates
+  // (NameID / OIDC sub stays stable across that). Both null for legacy
+  // (password / OAuth) members.
+  providerId      String?
+  providerSubject String?
+
+  // RFC 0004 — SCIM PATCH `active: false` is "deactivate, may reactivate";
+  // we soft-delete here rather than removing the row so a follow-up
+  // `active: true` can resurrect membership without a DB-level recreate.
+  // SCIM DELETE / manual remove paths still hard-delete.
+  deletedAt DateTime?
+
+  organization     Organization      @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  identityProvider IdentityProvider? @relation(fields: [providerId], references: [id], onDelete: SetNull)
 
   @@unique([orgId, userId])
   @@index([userId])
+  @@index([providerId, providerSubject])
 }
 
 enum OrgRole {
@@ -331,6 +347,73 @@ enum WebhookDeliveryStatus {
   DELIVERED
   DEAD_LETTER
   CANCELED
+}
+
+// ---------------------------------------------------------------------------
+// SSO — SAML + OIDC + SCIM (RFC 0004)
+// ---------------------------------------------------------------------------
+//
+// One row = one IdP configuration scoped to a single Organization. We allow at
+// most one SAML and one OIDC config per org (the @@unique below) since real-
+// world enterprise customers run a single IdP at a time; multi-IdP is a
+// follow-up RFC.
+//
+// Secrets-handling rules (mirror RFC 0002 / 0003):
+//   - OIDC client secret → AES-256-GCM ciphertext, key HKDF-derived from
+//     AUTH_SECRET + this row's id. Plaintext only flows through the
+//     create / update server actions.
+//   - SCIM token → sha256(plaintext) at rest; plaintext returned exactly once
+//     at create or rotate. The 8-char prefix is safe to render in the UI.
+
+model IdentityProvider {
+  id       String      @id @default(cuid())
+  orgId    String
+  name     String // human-readable label, e.g. "Okta production"
+  protocol SsoProtocol
+
+  // ── SAML ─────────────────────────────────────────────────────────────
+  // Full IdP metadata XML. saml-jackson parses out SSO URL, signing cert,
+  // NameIDFormat, etc. Stored verbatim because metadata can also rotate
+  // signing certs (multiple <KeyDescriptor> entries).
+  samlMetadata String? @db.Text
+
+  // ── OIDC ─────────────────────────────────────────────────────────────
+  oidcIssuer       String?
+  oidcClientId     String?
+  oidcClientSecret Bytes?
+
+  // ── Common ───────────────────────────────────────────────────────────
+  emailDomains String[] @db.Text
+  defaultRole  OrgRole  @default(MEMBER)
+
+  // OWNER-only flag. When true, the org's members cannot use password / OAuth
+  // login — they must come through this IdP. API tokens still work.
+  enforceForLogin Boolean @default(false)
+
+  // null → "configured but not yet live". A safety lane: OWNER can finish
+  // the form, click "Test SSO" (RFC 0004 PR-2 dry-run), then flip enabledAt
+  // to actually surface the entry on /login.
+  enabledAt DateTime?
+
+  // ── SCIM ─────────────────────────────────────────────────────────────
+  scimTokenHash   String? @unique
+  scimTokenPrefix String?
+  scimEnabled     Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  memberships  Membership[]
+
+  // Hard-cap: 1 SAML + 1 OIDC per org. Reconfigure existing row to switch.
+  @@unique([orgId, protocol])
+  @@index([orgId])
+}
+
+enum SsoProtocol {
+  SAML
+  OIDC
 }
 
 model TwoFactorSecret {
