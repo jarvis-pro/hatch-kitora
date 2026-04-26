@@ -56,6 +56,7 @@ test.describe('organizations', () => {
 
   test('invalid invitation token shows error page', async ({ page }) => {
     await page.goto('/invite/this-is-not-a-real-tokenXXXXXXXXXXXXX');
-    await expect(page.getByRole('heading', { name: /invalid invitation/i })).toBeVisible();
+    // CardTitle is a styled <div>, not a heading — assert by visible text.
+    await expect(page.getByText(/invalid invitation/i)).toBeVisible();
   });
 });
