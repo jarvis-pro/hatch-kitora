@@ -190,6 +190,7 @@ Kitora 设计上支持克隆后直接用于新项目，复用步骤如下：
 - [x] Health 探测（DB / Redis）+ Prometheus `/api/metrics`
 - [x] 中国区起步（region 切换 · 支付 provider 抽象 · ICP 备案页）
 - [x] 多租户 / 团队协作（Organization · OWNER/ADMIN/MEMBER · 邀请流 · per-org 计费 · cookie 切换）
+- [x] 安全合规进阶（Active Sessions · 2FA · GDPR 数据导出 · 30 天注销宽限 · Org 强制 2FA — RFC 0002）
 
 ---
 
