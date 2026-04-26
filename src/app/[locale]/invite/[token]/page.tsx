@@ -14,11 +14,11 @@ export const dynamic = 'force-dynamic';
 export const metadata: Metadata = { title: 'Accept invitation' };
 
 interface Props {
-  params: Promise<{ token: string; locale: string }>;
+  params: { token: string; locale: string };
 }
 
 export default async function AcceptInvitationPage({ params }: Props) {
-  const { token } = await params;
+  const { token } = params;
   const t = await getTranslations('orgs.invite');
 
   const tokenHash = hashToken(token);
