@@ -555,14 +555,38 @@ model PasswordResetToken {
 }
 
 // ---------------------------------------------------------------------------
-// Billing — Stripe subscriptions
+// Billing — Stripe + Alipay + WeChat Pay subscriptions (RFC 0006 §6.1)
 // ---------------------------------------------------------------------------
+//
+// Stripe path stays canonical: `provider = 'stripe'`, `stripeSubscriptionId`
+// non-null. CN paths land in the same table with `provider in ('alipay',
+// 'wechat')`, `cnAgreementId` non-null (= 支付宝免密协议号 / 微信周期扣款
+// 合同号), and `stripeSubscriptionId` null. The new columns are nullable
+// rather than synthesised so SQL queries reading "is this a Stripe sub?"
+// stay readable.
+//
+// Invariants enforced application-side (Prisma can't express them):
+//   1. provider = 'stripe' ⇒ stripeSubscriptionId NOT NULL ∧ cnAgreementId NULL
+//   2. provider in ('alipay','wechat') ⇒ cnAgreementId NOT NULL ∧ stripeSubscriptionId NULL
+//   3. The row's `region` (via Organization) determines which provider is
+//      legal — Stripe in GLOBAL/EU, Alipay/WeChat in CN. The region-scoped
+//      provider factory in `src/lib/region/providers.ts` is the only spot
+//      that picks one; webhook routes refuse cross-provider events.
 
 model Subscription {
   id                   String             @id @default(cuid())
   // PR-4 起 orgId 是唯一所有者；userId 已删除（保留在 git 历史里）。
   orgId                String
-  stripeSubscriptionId String             @unique
+  // RFC 0006 — which payment rail issued this subscription. Stamped at
+  // creation from the active billing provider; immutable thereafter.
+  provider             String             @default("stripe")
+  // Non-null for `provider = 'stripe'`. Nullable since RFC 0006 to make
+  // room for CN subscriptions that carry no Stripe ID.
+  stripeSubscriptionId String?            @unique
+  // RFC 0006 — Alipay / WeChat 周期扣款的合同号（i.e. the merchant-side
+  // identifier returned by `alipay.user.agreement.page.sign` or by the
+  // WeChat Pay Native sign endpoint). Stripe path leaves this null.
+  cnAgreementId        String?            @unique
   stripePriceId        String
   status               SubscriptionStatus
   currentPeriodEnd     DateTime
@@ -574,6 +598,9 @@ model Subscription {
 
   @@index([orgId])
   @@index([status])
+  @@index([provider])
+  // cnAgreementId already gets a btree from `@unique` above; no extra
+  // @@index needed.
 }
 
 enum SubscriptionStatus {
@@ -597,6 +624,39 @@ model StripeEvent {
 
   @@index([type])
   @@index([processedAt])
+}
+
+// ---------------------------------------------------------------------------
+// CN billing webhook idempotency (RFC 0006 §6.2) — Alipay + WeChat Pay
+// ---------------------------------------------------------------------------
+//
+// Stripe events keep using `StripeEvent` (UI / admin pages depend on its
+// shape — see `/admin/stripe-events`); we deliberately do NOT consolidate
+// the two tables in this PR. New table covers Alipay + WeChat only,
+// keyed by `(provider, providerEventId)` so the two SDKs' overlapping id
+// namespaces stay separated.
+//
+// `payload` keeps the verified-and-decrypted notification body so the
+// webhook handler stays idempotent on retry: a duplicate POST short-
+// circuits at the unique constraint and we re-respond 200 without
+// touching the Subscription. Useful for forensics / replays too.
+
+model BillingEvent {
+  id              String   @id @default(cuid())
+  // 'alipay' | 'wechat'
+  provider        String
+  // Provider-side event id (Alipay 的 `out_trade_no` 或通知里的 `notify_id`
+  // / WeChat 的 `event_id`). Whichever id the SDK gives us per-event.
+  providerEventId String
+  // Verbatim event type — `trade.success` / `trade.refund` / `agreement.signed`
+  // / `transaction.success` etc. Free-form on purpose; routing reads this.
+  type            String
+  processedAt     DateTime @default(now())
+  payload         Json?
+
+  @@unique([provider, providerEventId])
+  @@index([provider, processedAt])
+  @@index([type])
 }
 
 // ---------------------------------------------------------------------------
