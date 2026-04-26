@@ -13,6 +13,7 @@
 // never accidentally provision into another.
 
 import { prisma } from '@/lib/db';
+import { currentRegion } from '@/lib/region';
 import { hashScimToken } from '@/lib/sso/secret';
 
 export type ScimAuthResult =
@@ -36,7 +37,7 @@ export async function authenticateScim(request: Request): Promise<ScimAuthResult
       id: true,
       orgId: true,
       scimEnabled: true,
-      organization: { select: { slug: true } },
+      organization: { select: { slug: true, region: true } },
     },
   });
   if (!idp) {
@@ -46,6 +47,13 @@ export async function authenticateScim(request: Request): Promise<ScimAuthResult
     // Token was rotated to disable but not yet revoked? Refuse anyway —
     // the IT operator is responsible for rotating in their IdP.
     return { ok: false, status: 403, reason: 'scim-disabled' };
+  }
+  // RFC 0005 §5 — SCIM tokens are region-bound. The token hash lives in
+  // the region's own DB, so reaching this point already implies same
+  // region; we still cross-check against `currentRegion()` so a
+  // misconfigured stack can't accept tokens it shouldn't.
+  if (idp.organization.region !== currentRegion()) {
+    return { ok: false, status: 401, reason: 'wrong-region' };
   }
   return { ok: true, idpId: idp.id, orgId: idp.orgId, orgSlug: idp.organization.slug };
 }

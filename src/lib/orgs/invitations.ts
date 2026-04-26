@@ -9,6 +9,7 @@ import { requireActiveOrg, requireUser } from '@/lib/auth/session';
 import { expiresAt, generateRawToken, hashToken } from '@/lib/auth/tokens';
 import { prisma } from '@/lib/db';
 import { logger } from '@/lib/logger';
+import { currentRegion } from '@/lib/region';
 
 import { sendInvitationEmail } from './email-flows';
 import { can } from './permissions';
@@ -56,6 +57,24 @@ export async function createInvitationAction(input: z.infer<typeof createSchema>
   });
   if (existingMember) {
     return { ok: false as const, error: 'already-member' as const };
+  }
+
+  // RFC 0005 §5 — cross-region invites are forbidden. If a User row with
+  // this email exists in another region, refuse to issue an invitation
+  // that they could never legitimately accept (the accept flow is also
+  // region-scoped). When no User row exists yet the invitation is fine —
+  // the recipient will sign up in this region first.
+  const region = currentRegion();
+  const wrongRegionMatch = await prisma.user.findFirst({
+    where: { email, region: { not: region } },
+    select: { id: true, region: true },
+  });
+  if (wrongRegionMatch) {
+    logger.info(
+      { orgId: me.orgId, email, expectedRegion: region, foundRegion: wrongRegionMatch.region },
+      'invite-cross-region-blocked',
+    );
+    return { ok: false as const, error: 'cross-region' as const };
   }
 
   const raw = generateRawToken();
@@ -163,6 +182,7 @@ export async function acceptInvitationAction(input: z.infer<typeof acceptSchema>
       acceptedAt: true,
       revokedAt: true,
       expiresAt: true,
+      organization: { select: { region: true } },
     },
   });
   if (!inv || inv.acceptedAt || inv.revokedAt) {
@@ -170,6 +190,13 @@ export async function acceptInvitationAction(input: z.infer<typeof acceptSchema>
   }
   if (inv.expiresAt.getTime() < Date.now()) {
     return { ok: false as const, error: 'expired' as const };
+  }
+  // RFC 0005 §5 — invitations are region-bound. Cross-region tokens
+  // shouldn't exist (the create path blocks them) and same-stack DBs
+  // can't store cross-region rows, but as belt-and-braces we explicitly
+  // reject anything pointing outside this region.
+  if (inv.organization.region !== currentRegion()) {
+    return { ok: false as const, error: 'cross-region' as const };
   }
 
   const userEmail = (sessionUser.email ?? '').toLowerCase();

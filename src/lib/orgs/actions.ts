@@ -86,6 +86,10 @@ export async function updateOrgAction(input: z.infer<typeof updateOrgSchema>) {
     }
   }
 
+  // RFC 0005 — `region` is intentionally absent from `updateOrgSchema`,
+  // and the update payload here lists only `name` + `slug`. Region is a
+  // deploy-time-immutable property of an Org; any attempt to reach it
+  // would have to bypass both the zod schema and this explicit allow-list.
   await prisma.organization.update({
     where: { id: me.orgId },
     data: { name: parsed.data.name, slug: parsed.data.slug },
