@@ -1,0 +1,649 @@
+openapi: 3.1.0
+info:
+  title: Kitora REST API
+  version: '1.0.0'
+  summary: Public REST API for the Kitora SaaS platform.
+  description: |
+    Kitora's public API uses Bearer token authentication and returns JSON. Every
+    request is rate-limited per token; expect `X-RateLimit-Remaining` and
+    `X-RateLimit-Reset` (epoch seconds) on every response.
+
+    ### Authentication
+
+    Issue a Personal API token from `/settings/api-tokens` and send it in the
+    `Authorization` header:
+
+    ```bash
+    curl -H "Authorization: Bearer kitora_..." https://app.kitora.com/api/v1/me
+    ```
+
+    Tokens are bound to a single organization (the active org at the moment of
+    issue). Org-scoped endpoints (`/orgs/{slug}/...`) reject tokens whose org
+    does not match the path.
+
+    ### Errors
+
+    Errors are returned as `{ "error": "<machine_code>", "message"?: "..." }`
+    with an HTTP status that matches the error class:
+
+    | Status | `error` codes                                              |
+    | ------ | ---------------------------------------------------------- |
+    | `400`  | `invalid-json`, `invalid-url`, `invalid-events`, `unknown-event`, `bad-request`, `invalid-description`, `invalid-disabledAt` |
+    | `401`  | `unauthorized` (missing/invalid/revoked/expired token)     |
+    | `403`  | `forbidden` (token scope or role lacks the permission)     |
+    | `404`  | `not-found`                                                |
+    | `429`  | `rate-limited` (token bucket empty; retry after `X-RateLimit-Reset`) |
+
+    ### Webhook security model
+
+    Outbound webhook deliveries are signed with HMAC-SHA256. The receiver must
+    verify the signature **and** enforce a 5-minute timestamp window — see the
+    "Webhook signing" section in the [integration guide](https://github.com/your-org/kitora/blob/main/openapi/README.md).
+  contact:
+    name: Kitora Support
+    url: https://kitora.example.com/support
+    email: support@kitora.example.com
+  license:
+    name: Proprietary
+servers:
+  - url: https://app.kitora.com
+    description: Production
+  - url: http://localhost:3000
+    description: Local development
+tags:
+  - name: Account
+    description: The authenticated user, their orgs, and their plan.
+  - name: Webhooks
+    description: |
+      CRUD on webhook endpoints subscribed to org-level events. Only members
+      with `OWNER` or `ADMIN` role can manage endpoints; the token must also be
+      bound to the same org as the path slug.
+  - name: Webhook deliveries
+    description: |
+      Per-endpoint history of POST attempts. Rows are created when business
+      code calls `enqueueWebhook`; the cron worker drains them (see
+      `scripts/run-webhook-cron.ts`).
+security:
+  - bearerAuth: []
+paths:
+  /api/v1/me:
+    get:
+      tags: [Account]
+      summary: Get the authenticated principal
+      operationId: getMe
+      description: |
+        Returns the authenticated user's profile, the list of organizations
+        they belong to, and the active org's billing plan + subscription.
+
+        The `activeOrg` field reflects the org the token was issued for, not
+        an arbitrary "current" org — tokens are pinned at creation time.
+      responses:
+        '200':
+          description: Authenticated principal
+          headers:
+            X-RateLimit-Remaining: { $ref: '#/components/headers/XRateLimitRemaining' }
+            X-RateLimit-Reset: { $ref: '#/components/headers/XRateLimitReset' }
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Me'
+              example:
+                id: usr_2nF3...
+                email: jane@acme.com
+                name: Jane Doe
+                role: user
+                emailVerified: true
+                createdAt: '2026-01-12T08:13:55.000Z'
+                activeOrg:
+                  slug: acme
+                  name: Acme Inc.
+                  role: OWNER
+                organizations:
+                  - slug: acme
+                    name: Acme Inc.
+                    role: OWNER
+                plan:
+                  id: pro
+                  name: Pro
+                  status: active
+                  currentPeriodEnd: '2026-05-01T00:00:00.000Z'
+                  cancelAtPeriodEnd: false
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+
+  /api/v1/orgs/{slug}/webhooks:
+    parameters:
+      - $ref: '#/components/parameters/OrgSlug'
+    get:
+      tags: [Webhooks]
+      summary: List webhook endpoints
+      operationId: listWebhookEndpoints
+      description: |
+        Returns the org's webhook endpoints, newest first. The plaintext
+        secret is **never** included — only `secretPrefix` (the first 8 chars
+        of the base64url body, safe to display in UIs and logs).
+      responses:
+        '200':
+          description: List of endpoints
+          headers:
+            X-RateLimit-Remaining: { $ref: '#/components/headers/XRateLimitRemaining' }
+            X-RateLimit-Reset: { $ref: '#/components/headers/XRateLimitReset' }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/WebhookEndpoint'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+
+    post:
+      tags: [Webhooks]
+      summary: Create a webhook endpoint
+      operationId: createWebhookEndpoint
+      description: |
+        Registers a new endpoint. The response **includes the plaintext signing
+        secret exactly once** under the top-level `secret` field — store it
+        immediately, you cannot retrieve it again. To rotate, call
+        `POST /webhooks/{id}/rotate-secret`.
+
+        The `url` is validated against an SSRF allow-list (no private IPv4,
+        no IPv6 loopback / ULA / link-local, no cloud metadata hostnames).
+        `enabledEvents` must be a subset of the [event registry](#tag/Webhooks/operation/listWebhookEvents).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WebhookEndpointCreate'
+            example:
+              url: https://example.com/hooks/kitora
+              description: Production CRM bridge
+              enabledEvents:
+                - subscription.created
+                - subscription.updated
+                - audit.recorded
+      responses:
+        '201':
+          description: Endpoint created (plaintext secret returned once)
+          headers:
+            X-RateLimit-Remaining: { $ref: '#/components/headers/XRateLimitRemaining' }
+            X-RateLimit-Reset: { $ref: '#/components/headers/XRateLimitReset' }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, secret]
+                properties:
+                  data:
+                    $ref: '#/components/schemas/WebhookEndpoint'
+                  secret:
+                    type: string
+                    description: |
+                      The freshly-minted plaintext signing secret. Format:
+                      `whsec_<base64url(32 bytes)>`. **Stored once — there is
+                      no way to retrieve it after this response.**
+                    example: whsec_abcdef0123456789ABCDEF...
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+
+  /api/v1/orgs/{slug}/webhooks/{id}:
+    parameters:
+      - $ref: '#/components/parameters/OrgSlug'
+      - $ref: '#/components/parameters/WebhookId'
+    patch:
+      tags: [Webhooks]
+      summary: Update a webhook endpoint
+      operationId: patchWebhookEndpoint
+      description: |
+        Partial update — pass only the fields you want to change. Pass
+        `disabledAt: null` to re-enable a previously-disabled endpoint, or
+        any ISO timestamp to disable.
+
+        Mutating `enabledEvents` re-validates the entire array; if any element
+        is unknown the call is rejected wholesale (no partial save).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WebhookEndpointPatch'
+            example:
+              enabledEvents:
+                - subscription.updated
+                - subscription.canceled
+              disabledAt: null
+      responses:
+        '200':
+          description: Updated
+          headers:
+            X-RateLimit-Remaining: { $ref: '#/components/headers/XRateLimitRemaining' }
+            X-RateLimit-Reset: { $ref: '#/components/headers/XRateLimitReset' }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ok]
+                properties:
+                  ok: { type: boolean, const: true }
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+
+    delete:
+      tags: [Webhooks]
+      summary: Delete a webhook endpoint
+      operationId: deleteWebhookEndpoint
+      description: |
+        Removes the endpoint. Pending / retrying deliveries cascade-delete via
+        the FK constraint and will not fire. There is no undo.
+      responses:
+        '200':
+          description: Deleted
+          headers:
+            X-RateLimit-Remaining: { $ref: '#/components/headers/XRateLimitRemaining' }
+            X-RateLimit-Reset: { $ref: '#/components/headers/XRateLimitReset' }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ok]
+                properties:
+                  ok: { type: boolean, const: true }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+
+  /api/v1/orgs/{slug}/webhooks/{id}/rotate-secret:
+    parameters:
+      - $ref: '#/components/parameters/OrgSlug'
+      - $ref: '#/components/parameters/WebhookId'
+    post:
+      tags: [Webhooks]
+      summary: Rotate the signing secret
+      operationId: rotateWebhookSecret
+      description: |
+        Replaces the endpoint's signing secret. The previous secret is
+        invalidated the moment this call returns — there is **no overlap
+        window**. Plan to atomically swap your receiver-side configuration
+        before deploying the rotation.
+
+        If a delivery is mid-flight at rotation time, it will use the secret
+        in effect when the cron worker decrypts it (i.e., the new one).
+      responses:
+        '200':
+          description: Secret rotated (plaintext returned once)
+          headers:
+            X-RateLimit-Remaining: { $ref: '#/components/headers/XRateLimitRemaining' }
+            X-RateLimit-Reset: { $ref: '#/components/headers/XRateLimitReset' }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [secret, secretPrefix]
+                properties:
+                  secret:
+                    type: string
+                    description: New plaintext secret (format `whsec_<base64url(32)>`).
+                    example: whsec_NEW_SECRET_HERE...
+                  secretPrefix:
+                    type: string
+                    description: First 8 chars of the secret body, for display.
+                    example: NEW_SECR
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+
+  /api/v1/orgs/{slug}/webhooks/{id}/deliveries:
+    parameters:
+      - $ref: '#/components/parameters/OrgSlug'
+      - $ref: '#/components/parameters/WebhookId'
+    get:
+      tags: [Webhook deliveries]
+      summary: List recent deliveries
+      operationId: listWebhookDeliveries
+      description: |
+        Returns the most recent 50 deliveries for the endpoint, newest first.
+        The full event payload is **not** included here — fetch the dashboard
+        if you need it; we trim API responses to keep them token-bucket-cheap.
+
+        Each delivery row is immutable — retries flip `status` from `RETRYING`
+        to `DELIVERED` / `DEAD_LETTER` and bump `attempt`, but never spawn a
+        new row.
+      responses:
+        '200':
+          description: List of recent deliveries
+          headers:
+            X-RateLimit-Remaining: { $ref: '#/components/headers/XRateLimitRemaining' }
+            X-RateLimit-Reset: { $ref: '#/components/headers/XRateLimitReset' }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/WebhookDelivery'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: kitora_
+      description: |
+        Personal API tokens issued from `/settings/api-tokens`. Token format:
+        `kitora_<base64url(32)>`. Tokens are scoped to a single organization
+        and inherit the issuing user's role at issue-time.
+
+  parameters:
+    OrgSlug:
+      in: path
+      name: slug
+      required: true
+      schema: { type: string }
+      description: Organization slug (URL-safe, lowercase). Must match the token's bound org.
+      example: acme
+    WebhookId:
+      in: path
+      name: id
+      required: true
+      schema: { type: string }
+      description: Webhook endpoint id (cuid).
+      example: cmrz1k0b00001zz000001zzz
+
+  headers:
+    XRateLimitRemaining:
+      schema: { type: integer, format: int32, minimum: 0 }
+      description: Tokens remaining in the current window.
+      example: 99
+    XRateLimitReset:
+      schema: { type: integer, format: int64 }
+      description: Epoch seconds when the bucket refills.
+      example: 1745723404
+
+  responses:
+    BadRequest:
+      description: Validation error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          examples:
+            invalidJson:
+              summary: Malformed JSON body
+              value: { error: invalid-json }
+            invalidUrl:
+              summary: URL failed SSRF check
+              value: { error: invalid-url }
+            unknownEvent:
+              summary: Event not in registry
+              value: { error: unknown-event, event: invoice.paid }
+    Unauthorized:
+      description: Missing, invalid, expired, or revoked token
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+          example: { error: unauthorized }
+    Forbidden:
+      description: Authenticated but lacks org / role permission
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+          example: { error: forbidden }
+    NotFound:
+      description: Resource not found in this org
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+          example: { error: not-found }
+    RateLimited:
+      description: Token bucket empty
+      headers:
+        X-RateLimit-Remaining:
+          schema: { type: integer, const: 0 }
+        X-RateLimit-Reset: { $ref: '#/components/headers/XRateLimitReset' }
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+          example: { error: rate-limited }
+
+  schemas:
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
+          description: Machine-readable error code. See the `info.description` table for the full list.
+          example: unauthorized
+        message:
+          type: string
+          description: Optional human-readable detail. Not always present.
+        event:
+          type: string
+          description: Echoed back on `unknown-event` to identify which element failed.
+
+    Me:
+      type: object
+      required:
+        - id
+        - email
+        - emailVerified
+        - createdAt
+        - role
+        - organizations
+        - plan
+        - activeOrg
+      properties:
+        id: { type: string, example: usr_2nF3... }
+        email: { type: string, format: email }
+        name: { type: [string, 'null'] }
+        role:
+          type: string
+          enum: [user, admin, support]
+          description: Platform role (lowercase). `admin` is the staff role, not org-level.
+        emailVerified: { type: boolean }
+        createdAt: { type: string, format: date-time }
+        activeOrg:
+          oneOf:
+            - $ref: '#/components/schemas/MembershipSummary'
+            - type: 'null'
+          description: |
+            The org the calling token is bound to. `null` only on tokens whose
+            org has been deleted (rare; defensive shape).
+        organizations:
+          type: array
+          items: { $ref: '#/components/schemas/MembershipSummary' }
+        plan:
+          $ref: '#/components/schemas/Plan'
+
+    MembershipSummary:
+      type: object
+      required: [slug, name, role]
+      properties:
+        slug: { type: string, example: acme }
+        name: { type: string, example: Acme Inc. }
+        role:
+          type: string
+          enum: [OWNER, ADMIN, MEMBER]
+
+    Plan:
+      type: object
+      required: [id, name, status, currentPeriodEnd, cancelAtPeriodEnd]
+      properties:
+        id: { type: string, example: pro }
+        name: { type: string, example: Pro }
+        status:
+          type: string
+          enum: [free, trialing, active, past_due, canceled, unpaid, incomplete, incomplete_expired]
+        currentPeriodEnd:
+          oneOf:
+            - { type: string, format: date-time }
+            - type: 'null'
+        cancelAtPeriodEnd: { type: boolean }
+
+    WebhookEndpoint:
+      type: object
+      required:
+        - id
+        - url
+        - description
+        - enabledEvents
+        - secretPrefix
+        - disabledAt
+        - createdAt
+      properties:
+        id: { type: string, example: cmrz1k0b00001zz000001zzz }
+        url:
+          type: string
+          format: uri
+          example: https://example.com/hooks/kitora
+        description:
+          oneOf:
+            - { type: string, maxLength: 200 }
+            - type: 'null'
+        enabledEvents:
+          type: array
+          items: { $ref: '#/components/schemas/WebhookEventType' }
+        secretPrefix:
+          type: string
+          description: First 8 chars of the secret body, safe to display.
+          example: abcd1234
+        disabledAt:
+          oneOf:
+            - { type: string, format: date-time }
+            - type: 'null'
+          description: Timestamp the endpoint was disabled at, or `null` while live.
+        createdAt:
+          type: string
+          format: date-time
+
+    WebhookEndpointCreate:
+      type: object
+      required: [url]
+      properties:
+        url:
+          type: string
+          format: uri
+          description: |
+            Receiver URL. Must be `http` or `https`; private IPs and cloud
+            metadata hostnames are rejected. Path / query strings are allowed.
+        description:
+          type: [string, 'null']
+          maxLength: 200
+        enabledEvents:
+          type: array
+          items: { $ref: '#/components/schemas/WebhookEventType' }
+          default: []
+          description: Whitelist; empty array means the endpoint receives no events.
+
+    WebhookEndpointPatch:
+      type: object
+      description: |
+        All fields optional — pass any subset. `disabledAt: null` re-enables.
+      properties:
+        url:
+          type: string
+          format: uri
+        description:
+          type: [string, 'null']
+          maxLength: 200
+        enabledEvents:
+          type: array
+          items: { $ref: '#/components/schemas/WebhookEventType' }
+        disabledAt:
+          oneOf:
+            - { type: string, format: date-time }
+            - type: 'null'
+
+    WebhookDelivery:
+      type: object
+      required:
+        - id
+        - eventId
+        - eventType
+        - status
+        - attempt
+        - createdAt
+      properties:
+        id: { type: string, example: cmrz1k1...d01 }
+        eventId:
+          type: string
+          description: |
+            Logical event id, stable across retries. Receivers should use this
+            (not the delivery id) for idempotency.
+          example: evt_01HRZ7N9...
+        eventType:
+          $ref: '#/components/schemas/WebhookEventType'
+        status:
+          $ref: '#/components/schemas/WebhookDeliveryStatus'
+        attempt:
+          type: integer
+          minimum: 0
+          description: 1-based attempt count; 0 if never attempted (rare).
+        responseStatus:
+          oneOf:
+            - { type: integer, minimum: 100, maximum: 599 }
+            - type: 'null'
+        errorMessage:
+          oneOf:
+            - { type: string, maxLength: 500 }
+            - type: 'null'
+        createdAt: { type: string, format: date-time }
+        completedAt:
+          oneOf:
+            - { type: string, format: date-time }
+            - type: 'null'
+          description: Set once the delivery reaches DELIVERED / DEAD_LETTER / CANCELED.
+
+    WebhookEventType:
+      type: string
+      description: |
+        v1 event registry. Adding an event requires a code change + spec bump.
+      enum:
+        - subscription.created
+        - subscription.updated
+        - subscription.canceled
+        - member.added
+        - member.removed
+        - member.role_changed
+        - audit.recorded
+
+    WebhookDeliveryStatus:
+      type: string
+      description: |
+        Row state machine:
+
+        - `PENDING`     — newly enqueued or claimed by the cron, fetch in flight.
+        - `RETRYING`    — at least one attempt failed transiently; `nextAttemptAt` set.
+        - `DELIVERED`   — receiver returned 2xx.
+        - `DEAD_LETTER` — terminal failure (4xx other than 408/429, or attempt cap).
+        - `CANCELED`    — endpoint deleted / disabled before delivery succeeded.
+      enum:
+        - PENDING
+        - RETRYING
+        - DELIVERED
+        - DEAD_LETTER
+        - CANCELED
