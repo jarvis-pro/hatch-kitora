@@ -8,6 +8,7 @@ import { recordAudit } from '@/lib/audit';
 import { requireUser } from '@/lib/auth/session';
 import { prisma } from '@/lib/db';
 import { logger } from '@/lib/logger';
+import { removeConnections, syncOidcConnection, syncSamlConnection } from '@/lib/sso/connection';
 import { validateEmailDomain } from '@/lib/sso/domain';
 import { encryptOidcSecret, generateScimToken } from '@/lib/sso/secret';
 
@@ -201,6 +202,39 @@ export async function createIdentityProviderAction(
     });
   }
 
+  // Push to Jackson. We do this after the prisma write so a partial failure
+  // leaves at most a row that's not yet usable for login (better than the
+  // reverse: a Jackson connection no DB row tracks). If this fails the
+  // user sees an error and can retry; the prisma row remains for them to
+  // fix the SAML metadata / OIDC creds against.
+  try {
+    if (parsed.data.protocol === SsoProtocol.SAML && parsed.data.samlMetadata) {
+      await syncSamlConnection({
+        orgSlug: parsed.data.orgSlug,
+        samlMetadata: parsed.data.samlMetadata,
+      });
+    } else if (
+      parsed.data.protocol === SsoProtocol.OIDC &&
+      parsed.data.oidcIssuer &&
+      parsed.data.oidcClientId &&
+      parsed.data.oidcClientSecret
+    ) {
+      await syncOidcConnection({
+        orgSlug: parsed.data.orgSlug,
+        oidcIssuer: parsed.data.oidcIssuer,
+        oidcClientId: parsed.data.oidcClientId,
+        oidcClientSecret: parsed.data.oidcClientSecret,
+      });
+    }
+  } catch (err) {
+    logger.error({ err, providerId: created.id }, 'sso-jackson-sync-failed');
+    return {
+      ok: false,
+      error: 'jackson-sync-failed',
+      message: err instanceof Error ? err.message : String(err),
+    };
+  }
+
   await recordAudit({
     actorId: me.id,
     orgId: gate.orgId,
@@ -282,6 +316,56 @@ export async function updateIdentityProviderAction(
     data,
   });
 
+  // Re-sync Jackson if any field that affects the connection changed.
+  // Cheap: load the current row + re-push wholesale. Only the
+  // SAML metadata / OIDC fields actually matter to Jackson, but the upsert
+  // is idempotent so we just always send.
+  if (
+    data.samlMetadata !== undefined ||
+    data.oidcIssuer !== undefined ||
+    data.oidcClientId !== undefined ||
+    data.oidcClientSecret !== undefined
+  ) {
+    try {
+      const fresh = await prisma.identityProvider.findUniqueOrThrow({
+        where: { id: existing.id },
+        select: {
+          protocol: true,
+          samlMetadata: true,
+          oidcIssuer: true,
+          oidcClientId: true,
+        },
+      });
+      if (fresh.protocol === SsoProtocol.SAML && fresh.samlMetadata) {
+        await syncSamlConnection({
+          orgSlug: parsed.data.orgSlug,
+          samlMetadata: fresh.samlMetadata,
+        });
+      } else if (
+        fresh.protocol === SsoProtocol.OIDC &&
+        // OIDC client secret was just provided in this PATCH (we never re-
+        // decrypt because rotation requires the caller to resubmit).
+        parsed.data.oidcClientSecret &&
+        fresh.oidcIssuer &&
+        fresh.oidcClientId
+      ) {
+        await syncOidcConnection({
+          orgSlug: parsed.data.orgSlug,
+          oidcIssuer: fresh.oidcIssuer,
+          oidcClientId: fresh.oidcClientId,
+          oidcClientSecret: parsed.data.oidcClientSecret,
+        });
+      }
+    } catch (err) {
+      logger.error({ err, providerId: existing.id }, 'sso-jackson-sync-failed');
+      return {
+        ok: false,
+        error: 'jackson-sync-failed',
+        message: err instanceof Error ? err.message : String(err),
+      };
+    }
+  }
+
   await recordAudit({
     actorId: me.id,
     orgId: gate.orgId,
@@ -321,6 +405,15 @@ export async function deleteIdentityProviderAction(
   }
 
   await prisma.identityProvider.delete({ where: { id: existing.id } });
+
+  // Best-effort Jackson cleanup. If the row was never synced (e.g., earlier
+  // sync failed), `removeConnections` is a no-op. We swallow errors so a
+  // dead Jackson connection doesn't block deleting the user-facing row.
+  try {
+    await removeConnections(parsed.data.orgSlug);
+  } catch (err) {
+    logger.error({ err, providerId: existing.id }, 'sso-jackson-cleanup-failed');
+  }
 
   await recordAudit({
     actorId: me.id,
