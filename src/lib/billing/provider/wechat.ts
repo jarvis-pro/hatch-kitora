@@ -80,7 +80,14 @@ async function getClient(): Promise<WxPayClientLike> {
   }
 
   const mod = await import('wechatpay-node-v3');
-  const Ctor = ((mod as { default?: new (cfg: unknown) => WxPayClientLike }).default ??
+  // The community SDK's published types claim a 4-positional-argument
+  // constructor, but the README + most community usage passes a single
+  // config object. We cast through `unknown` to silence the type system;
+  // the cast asserts our `WxPayClientLike` is the *runtime* shape we
+  // actually call, regardless of how the SDK's d.ts files describe it.
+  // If the SDK's runtime contract changes (it has, repeatedly), this
+  // module fails fast at the first checkout/notify and we revisit.
+  const Ctor = ((mod as unknown as { default?: new (cfg: unknown) => WxPayClientLike }).default ??
     (mod as unknown as { WxPay?: new (cfg: unknown) => WxPayClientLike }).WxPay) as new (
     cfg: unknown,
   ) => WxPayClientLike;
