@@ -169,6 +169,20 @@ export const env = createEnv({
     SENTRY_ORG: z.string().optional(),
     SENTRY_PROJECT: z.string().optional(),
     SENTRY_ENVIRONMENT: z.string().optional(),
+
+    // RFC 0008 PR-4 — Background jobs Vercel Cron 鉴权密钥。
+    //
+    // `/api/jobs/tick` 路由比较 `Authorization: Bearer ${CRON_SECRET}`，
+    // Vercel Cron 自动注入此 header；外部直访问统一返回 401（不泄露路径存在性，
+    // 沿用 RFC 0003 webhook 同款模式）。
+    //
+    // 生产环境必须配 ≥ 32 字符强随机串：
+    //
+    //   openssl rand -base64 32
+    //
+    // dev / e2e 不强制（route 自身 503 「cron-not-configured」短路兜底，
+    // CLI 入口 `pnpm tsx scripts/run-jobs.ts` 不走 HTTP 完全无影响）。
+    CRON_SECRET: z.string().min(32).optional(),
   },
   client: {
     NEXT_PUBLIC_APP_URL: z.string().url().default('http://localhost:3000'),
@@ -242,6 +256,8 @@ export const env = createEnv({
     SENTRY_ORG: process.env.SENTRY_ORG,
     SENTRY_PROJECT: process.env.SENTRY_PROJECT,
     SENTRY_ENVIRONMENT: process.env.SENTRY_ENVIRONMENT,
+
+    CRON_SECRET: process.env.CRON_SECRET,
 
     NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
     NEXT_PUBLIC_APP_NAME: process.env.NEXT_PUBLIC_APP_NAME,
