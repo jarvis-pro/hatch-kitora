@@ -31,7 +31,10 @@ const mockedPrisma = prisma as unknown as {
   invitation: { deleteMany: ReturnType<typeof vi.fn> };
 };
 
-function ctxStub(): JobContext<unknown> {
+// 泛型 stub —— tokenCleanupJob 的 payloadSchema 推出来的 TPayload 是 `{}`（来自
+// `z.object({}).strict()`），用 `unknown` 直接调 `.run(ctx)` 会被 TS 拒
+// （`unknown` 不可赋给 `{}`）。让调用方按需窄化即可，默认空对象覆盖 v1 所有 case。
+function ctxStub<T = Record<string, never>>(payload: T = {} as T): JobContext<T> {
   // self-referencing logger stub —— `.child()` 必须返回同形状的 logger（runner.ts
   // 真实生产会绑 `{ jobId, jobType }`，单测只需拿到 child 不抛即可）。
   const noop = vi.fn();
@@ -48,11 +51,11 @@ function ctxStub(): JobContext<unknown> {
   };
   stubLogger.child.mockReturnValue(stubLogger);
   return {
-    payload: {},
+    payload,
     attempt: 1,
     jobId: 'test-job',
     workerId: 'test-worker',
-    logger: stubLogger as unknown as JobContext<unknown>['logger'],
+    logger: stubLogger as unknown as JobContext<T>['logger'],
   };
 }
 
