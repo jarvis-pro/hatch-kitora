@@ -37,16 +37,49 @@ function uniqueWorkerId(): string {
   return `e2e-worker-${randomBytes(4).toString('hex')}`;
 }
 
+/**
+ * 每个 test 用独立 queue 名 —— claimNext 的 SQL 是 `WHERE queue = $1`，独立 queue
+ * 让本测试的 worker 完全看不到别的 spec 留下来的真业务行（webhook.tick /
+ * export.tick / etc，它们注册在 dev server 进程的 registry，不在 test 进程的
+ * registry 里 —— 一旦被 claim 就被 DEAD_LETTER 掉，吃掉整个 budget）。
+ */
+function uniqueQueue(): string {
+  return `e2e-q-${randomBytes(4).toString('hex')}`;
+}
+
+/**
+ * Worker tick budget 必须 > runner.ts 的 `CLAIM_TAIL_GUARD_MS` (5s)，否则
+ * `elapsed + tailGuard >= budgetMs` 在第 0 次迭代就 true，循环直接 break，
+ * 一行都不 claim。给 30s 预算 → 有效工作时间 25s，单 job 测试足够 + 余量大。
+ */
+const TEST_TICK_BUDGET_MS = 30_000;
+
+/**
+ * 防 claim 时序竞态 —— `enqueueJob` 写 `nextAttemptAt = new Date()` (JS 毫秒)，
+ * 紧跟着的 `claimNext` 用 PG `NOW()` 比 `nextAttemptAt <= NOW()`。在 localhost
+ * loopback 上往返延迟 < 1ms，Prisma 的 timestamp(3) 插入和 PG 事务 NOW() 偶发
+ * 落到同一毫秒 / 微秒边界上，导致 `<=` 刚好不命中、claim 返回 []，row 永远
+ * 留在 attempt=0 PENDING（jobs:97 实测过这条路径）。
+ *
+ * 简单粗暴 sleep 100ms，让 PG_NOW 必然 ≥ nextAttemptAt + 100ms，竞态消失。
+ * 真正的修复是在 enqueue 写时回拨 1ms（`nextAttemptAt = new Date(Date.now() - 1)`），
+ * 但那是 prod 路径改动，影响面更大；测试侧加 sleep 是本地化、零风险的等价。
+ */
+async function waitForClaimEligibility(): Promise<void> {
+  await new Promise((r) => setTimeout(r, 100));
+}
+
 test.describe('RFC 0008 background jobs (lib state machine)', () => {
   test('enqueue → tick → SUCCEEDED + result + deleteAt set', async () => {
     const type = uniqueType();
+    const queue = uniqueQueue();
     registerJob({
       type,
       payloadSchema: z.object({ x: z.number() }),
       maxAttempts: 1,
       retentionDays: 1,
       retry: 'fixed',
-      queue: 'default',
+      queue,
       timeoutMs: 5_000,
       run: async ({ payload }) => {
         const p = payload as { x: number };
@@ -57,9 +90,11 @@ test.describe('RFC 0008 background jobs (lib state machine)', () => {
     const enq = await enqueueJob(type, { x: 21 });
     expect(enq.deduplicated).toBe(false);
 
+    await waitForClaimEligibility();
     const tick = await runWorkerTick(uniqueWorkerId(), {
       batchSize: 1,
-      budgetMs: 10_000,
+      budgetMs: TEST_TICK_BUDGET_MS,
+      queue,
     });
     expect(tick.succeeded).toBeGreaterThanOrEqual(1);
 
@@ -77,13 +112,14 @@ test.describe('RFC 0008 background jobs (lib state machine)', () => {
 
   test('enqueue → tick (handler 抛错 + attempt < maxAttempts) → PENDING + lastError', async () => {
     const type = uniqueType();
+    const queue = uniqueQueue();
     registerJob({
       type,
       payloadSchema: z.object({}),
       maxAttempts: 3, // 还有 retry 余量
       retentionDays: 1,
       retry: 'fixed',
-      queue: 'default',
+      queue,
       timeoutMs: 5_000,
       run: async () => {
         throw new Error('intentional-fail-retry');
@@ -92,7 +128,12 @@ test.describe('RFC 0008 background jobs (lib state machine)', () => {
 
     const enq = await enqueueJob(type, {});
     const beforeTick = Date.now();
-    await runWorkerTick(uniqueWorkerId(), { batchSize: 1, budgetMs: 5_000 });
+    await waitForClaimEligibility();
+    await runWorkerTick(uniqueWorkerId(), {
+      batchSize: 1,
+      budgetMs: TEST_TICK_BUDGET_MS,
+      queue,
+    });
 
     const row = await prisma.backgroundJob.findUniqueOrThrow({ where: { id: enq.id } });
     expect(row.status).toBe('PENDING');
@@ -110,13 +151,14 @@ test.describe('RFC 0008 background jobs (lib state machine)', () => {
 
   test('enqueue → tick (handler 抛错 + maxAttempts=1) → DEAD_LETTER + deleteAt', async () => {
     const type = uniqueType();
+    const queue = uniqueQueue();
     registerJob({
       type,
       payloadSchema: z.object({}),
       maxAttempts: 1, // 失败一次直接 DLQ
       retentionDays: 7,
       retry: 'fixed',
-      queue: 'default',
+      queue,
       timeoutMs: 5_000,
       run: async () => {
         throw new Error('fatal-fail-dlq');
@@ -124,7 +166,12 @@ test.describe('RFC 0008 background jobs (lib state machine)', () => {
     });
 
     const enq = await enqueueJob(type, {});
-    const tick = await runWorkerTick(uniqueWorkerId(), { batchSize: 1, budgetMs: 5_000 });
+    await waitForClaimEligibility();
+    const tick = await runWorkerTick(uniqueWorkerId(), {
+      batchSize: 1,
+      budgetMs: TEST_TICK_BUDGET_MS,
+      queue,
+    });
     expect(tick.deadLettered).toBeGreaterThanOrEqual(1);
 
     const row = await prisma.backgroundJob.findUniqueOrThrow({ where: { id: enq.id } });
