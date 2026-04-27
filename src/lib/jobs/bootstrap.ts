@@ -17,8 +17,10 @@
  * 不需要改。
  */
 
-import './jobs/webhook-tick';
-import './jobs/export-tick';
+// 暂未商用，webhook 投递和数据导出暂不启用（需要每分钟 cron，Vercel Hobby 不支持）
+// 启用时取消注释，并升级到 Vercel Pro 或配置 Upstash QStash
+// import './jobs/webhook-tick';
+// import './jobs/export-tick';
 import './jobs/deletion-tick';
 import './jobs/token-cleanup';
 import './jobs/job-prune';
