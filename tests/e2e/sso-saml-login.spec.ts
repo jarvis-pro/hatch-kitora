@@ -129,18 +129,21 @@ test.describe('sso saml login (PR-2)', () => {
       });
       if (!cookie) throw new Error('issueSsoSession returned null');
 
-      // Plant the cookie on a fresh browser context. We map the dev cookie
-      // name unconditionally — Playwright's webServer runs the app on
-      // http://localhost so the `__Secure-` prefix isn't expected.
+      // Plant the cookie on a fresh browser context.
+      //
+      // 用 `url`-based 形式而不是 `domain + path` —— Playwright 把 URL 解析成
+      // host + scheme + path，避免 Chromium 在 host-only `localhost` 域上偶发
+      // 把 cookie 当成无效条目悄悄丢弃的兼容坑。`secure` 由 URL 协议自动推导
+      // （http → false），与 `issueSsoSession` 输出的 cookie flags 一致。
+      const baseURL =
+        process.env.E2E_BASE_URL ?? `http://localhost:${process.env.E2E_PORT ?? 3000}`;
       await page.context().addCookies([
         {
+          url: baseURL,
           name: cookie.name,
           value: cookie.value,
-          domain: 'localhost',
-          path: '/',
           httpOnly: cookie.options.httpOnly,
           sameSite: 'Lax',
-          secure: false,
           expires: Math.floor(Date.now() / 1000) + cookie.options.maxAge,
         },
       ]);
@@ -150,25 +153,34 @@ test.describe('sso saml login (PR-2)', () => {
       // `id` / `sessionVersion` shape.
       const res = await page.goto('/dashboard');
 
+      const finalUrl = page.url();
+      // 必须命中 dashboard *路径段*。用正则 + `pathname` 收紧避免被
+      // `?callbackUrl=%2Fdashboard` 这种 URL 编码后的 callback query 误命中
+      //（旧 `toContain('/dashboard')` 在 `…/login?callbackUrl=%2Fdashboard`
+      // 形态下行为不可预测）。`/(?:[a-z]{2}\/)?dashboard` 同时覆盖默认
+      // locale（/dashboard）和带 locale 前缀（/zh/dashboard）两种合法落点。
+      const onDashboard = /^\/(?:[a-z]{2}\/)?dashboard(?:\/|$)/.test(new URL(finalUrl).pathname);
+
       // Failure-mode diagnostic. When the assertion below trips, the
       // common causes are (a) cookie name / salt mismatch between test
       // process and dev server (env divergence), (b) AUTH_SECRET diff,
       // (c) DeviceSession row racing the request. Dump enough state
       // to tell which one without rerunning. Cheap on the happy path.
-      if (!page.url().includes('/dashboard')) {
+      if (!onDashboard) {
         // eslint-disable-next-line no-console
         console.error('SSO test diagnostics:', {
           plantedCookieName: cookie.name,
           plantedCookieSecure: cookie.options.secure,
+          baseURL,
           contextCookies: await page.context().cookies(),
-          finalUrl: page.url(),
+          finalUrl,
           finalStatus: res?.status(),
           finalHeaders: res?.headers(),
         });
       }
 
       expect(res?.status()).toBeLessThan(400);
-      expect(page.url()).toContain('/dashboard');
+      expect(onDashboard, `expected to land on /dashboard, got ${finalUrl}`).toBe(true);
 
       const deviceSessionCount = await prisma.deviceSession.count({
         where: { userId: jit.userId },
