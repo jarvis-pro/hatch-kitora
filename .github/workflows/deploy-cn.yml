@@ -54,7 +54,7 @@ jobs:
     environment: production-cn
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           ref: ${{ inputs.sha || github.ref }}
 
@@ -73,8 +73,8 @@ jobs:
       # ── 2) Outbound traffic audit (RFC 0006 §8.1) ─────────────────────
       # Strict mode: fails on any forbidden-host reference.
       - name: Setup pnpm + Node
-        uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+        uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v6
         with:
           node-version-file: .nvmrc
           cache: pnpm
