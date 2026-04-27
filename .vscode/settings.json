@@ -1,11 +1,146 @@
 {
+  // ===== 项目专属（保留自原 settings.json）=====
+  // 锁定 Prisma 扩展使用 Prisma 6 版本
   "prisma.pinToPrisma6": true,
   // 显式声明 components.json 使用 shadcn/ui 的远程 schema —— 等价于"信任此源"，
-  // 让 VS Code 不再在 $schema 字段下抛 "schema 源不受信任" 的警告。
+  // 让 VS Code 不再在 $schema 字段下抛 "schema 源不受信任" 的警告
   "json.schemas": [
     {
       "fileMatch": ["components.json"],
       "url": "https://ui.shadcn.com/schema.json"
     }
-  ]
+  ],
+
+  // ===== 编辑器基础 =====
+  "editor.formatOnSave": true,
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  "editor.codeActionsOnSave": {
+    "source.fixAll.eslint": "explicit",
+    "source.organizeImports": "never"
+  },
+  "editor.tabSize": 2,
+  "editor.insertSpaces": true,
+  "editor.rulers": [100],
+  "files.eol": "\n",
+  "files.insertFinalNewline": true,
+  "files.trimTrailingWhitespace": true,
+
+  // ===== ESLint =====
+  "eslint.validate": ["javascript", "javascriptreact", "typescript", "typescriptreact"],
+  "eslint.useFlatConfig": false,
+  "eslint.workingDirectories": [{ "mode": "auto" }],
+
+  // ===== Prettier 作为各文件类型的默认格式化器 =====
+  "[typescript]": { "editor.defaultFormatter": "esbenp.prettier-vscode" },
+  "[typescriptreact]": { "editor.defaultFormatter": "esbenp.prettier-vscode" },
+  "[javascript]": { "editor.defaultFormatter": "esbenp.prettier-vscode" },
+  "[javascriptreact]": { "editor.defaultFormatter": "esbenp.prettier-vscode" },
+  "[json]": { "editor.defaultFormatter": "esbenp.prettier-vscode" },
+  "[jsonc]": { "editor.defaultFormatter": "esbenp.prettier-vscode" },
+  "[markdown]": { "editor.defaultFormatter": "esbenp.prettier-vscode" },
+  "[css]": { "editor.defaultFormatter": "esbenp.prettier-vscode" },
+  "[prisma]": { "editor.defaultFormatter": "Prisma.prisma" },
+
+  // ===== Tailwind CSS IntelliSense =====
+  "tailwindCSS.experimental.classRegex": [
+    ["cva\\(([^)]*)\\)", "[\"'`]([^\"'`]*).*?[\"'`]"],
+    ["cn\\(([^)]*)\\)", "[\"'`]([^\"'`]*).*?[\"'`]"],
+    ["clsx\\(([^)]*)\\)", "[\"'`]([^\"'`]*).*?[\"'`]"]
+  ],
+  "tailwindCSS.includeLanguages": {
+    "typescript": "javascript",
+    "typescriptreact": "javascript"
+  },
+
+  // ===== i18n Ally（next-intl）=====
+  "i18n-ally.localesPaths": ["src/i18n/messages", "messages", "src/messages"],
+  "i18n-ally.keystyle": "nested",
+  "i18n-ally.defaultNamespace": "common",
+  "i18n-ally.enabledFrameworks": ["next-intl"],
+  "i18n-ally.sourceLanguage": "en",
+  "i18n-ally.displayLanguage": "en",
+
+  // ===== 文件搜索 / 资源管理器 =====
+  "search.exclude": {
+    "**/node_modules": true,
+    "**/.next": true,
+    "**/dist": true,
+    "**/coverage": true,
+    "**/.turbo": true,
+    "**/playwright-report": true,
+    "**/test-results": true,
+    "pnpm-lock.yaml": true
+  },
+  "files.exclude": {
+    "**/.DS_Store": true,
+    "**/.git": true,
+    "**/Thumbs.db": true
+  },
+  "files.watcherExclude": {
+    "**/node_modules/**": true,
+    "**/.next/**": true,
+    "**/.turbo/**": true,
+    "**/coverage/**": true
+  },
+
+  // ===== 文件关联 =====
+  "files.associations": {
+    "*.css": "tailwindcss",
+    ".env*": "dotenv",
+    "Dockerfile*": "dockerfile",
+    "docker-compose*.yml": "dockercompose"
+  },
+
+  // ===== 拼写检查（中英混合项目，加入项目术语避免误报）=====
+  "cSpell.language": "en",
+  "cSpell.words": [
+    "Kitora",
+    "Hatch",
+    "kitora",
+    "hatch",
+    "nextjs",
+    "next-intl",
+    "next-auth",
+    "tailwindcss",
+    "shadcn",
+    "Radix",
+    "Prisma",
+    "Upstash",
+    "Resend",
+    "Sentry",
+    "Stripe",
+    "Alipay",
+    "Wechatpay",
+    "Boxyhq",
+    "Scalar",
+    "Redocly",
+    "openapi",
+    "webauthn",
+    "passkey",
+    "ratelimit",
+    "ioredis",
+    "pino",
+    "zod",
+    "tsx",
+    "dotenv",
+    "pnpm",
+    "vitest",
+    "playwright",
+    "Sonner"
+  ],
+
+  // ===== Markdown =====
+  "markdown.extension.toc.levels": "2..4",
+  "markdown.extension.orderedList.marker": "one",
+  "markdown.extension.list.indentationSize": "adaptive",
+  "markdownlint.config": {
+    "MD013": false,
+    "MD033": false,
+    "MD041": false
+  },
+
+  // ===== Git =====
+  "git.autofetch": true,
+  "git.confirmSync": false,
+  "git.enableSmartCommit": true
 }
