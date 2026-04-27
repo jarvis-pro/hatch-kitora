@@ -33,23 +33,38 @@ import { getJob } from './registry';
 
 const PAYLOAD_BYTE_LIMIT = 64 * 1024;
 
+/**
+ * 入队选项。
+ * @property runId - 幂等键；同 (type, runId) 在表里唯一。重复 enqueue 返回 deduplicated=true。
+ * @property priority - v1 全用默认 0；预留给 RFC 0010+ 高优场景。
+ * @property delayMs - 最早可被 claim 的时刻偏移（毫秒）。默认 0 = 立即。
+ * @property queue - v1 worker 只 claim `'default'`，但调用方可以塞别的 queue 名字给将来分流准备。
+ */
 export interface EnqueueOptions {
-  /** 幂等键 — 同 (type, runId) 在表里唯一。重复 enqueue 返回 deduplicated=true。 */
   runId?: string;
-  /** v1 全用默认 0；预留给 RFC 0010+ 高优场景。 */
   priority?: number;
-  /** 最早可被 claim 的时刻偏移（毫秒）。默认 0 = 立即。 */
   delayMs?: number;
-  /** v1 worker 只 claim `'default'`，但调用方可以塞别的 queue 名字给将来分流准备。 */
   queue?: string;
 }
 
+/**
+ * 入队结果。
+ * @property id - 任务 ID。
+ * @property deduplicated - true = 撞了 (type, runId) unique，复用现有 PENDING/RUNNING 行；false = 新建。
+ */
 export interface EnqueueResult {
   id: string;
-  /** true = 撞了 (type, runId) unique，复用现有 PENDING/RUNNING 行；false = 新建。 */
   deduplicated: boolean;
 }
 
+/**
+ * 入队后台任务。
+ * @param type - 任务类型。
+ * @param payload - 任务负载。
+ * @param opts - 入队选项。
+ * @returns 入队结果。
+ * @throws 如果任务类型未注册或 payload 验证失败。
+ */
 export async function enqueueJob(
   type: string,
   payload: unknown,
@@ -97,7 +112,7 @@ export async function enqueueJob(
     return { id: row.id, deduplicated: false };
   } catch (err) {
     if (isUniqueConstraintViolation(err) && runId !== null) {
-      // 撞 (type, runId) unique — swallow 并返回现有行。
+      // 撞 (type, runId) unique —— swallow 并返回现有行。
       const existing = await prisma.backgroundJob.findUnique({
         where: { type_runId: { type, runId } },
         select: { id: true },
@@ -112,12 +127,14 @@ export async function enqueueJob(
 }
 
 /**
- * 把一行 PENDING 翻 CANCELED。返回 true = 翻成功；false = 行不存在或已不在 PENDING
+ * 将一行 PENDING 翻为 CANCELED。返回 true = 翻成功；false = 行不存在或已不在 PENDING
  * （可能已经被 worker claim，或者 admin / 用户已 cancel 过）。
  *
- * RUNNING 行不能直接 cancel — caller 得等当次 run 结束（成功/失败/超时崩溃恢复）。
+ * RUNNING 行不能直接 cancel —— caller 得等当次 run 结束（成功/失败/超时崩溃恢复）。
  * 这是 v1 的明确权衡：要让 RUNNING 也 cancel 必须做 AbortController 全链路传递，
  * v1 不投资。
+ * @param id - 任务 ID。
+ * @returns 是否成功取消。
  */
 export async function cancelJob(id: string): Promise<boolean> {
   const result = await prisma.backgroundJob.updateMany({

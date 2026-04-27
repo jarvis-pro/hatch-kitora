@@ -33,6 +33,6 @@ export const deletionTickJob = defineJob({
 
 defineSchedule({
   name: 'deletion-cron',
-  cron: '0 3 * * *', // UTC 03:00 daily
+  cron: '0 3 * * *', // UTC 每天 03:00
   jobType: 'deletion.tick',
 });

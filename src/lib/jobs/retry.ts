@@ -20,13 +20,19 @@
  * 时无条件返回 null。
  */
 
+/**
+ * 重试策略类型。
+ */
 export type RetryStrategy =
   | 'exponential'
   | 'fixed'
   | { strategy: 'custom'; delays: readonly number[] };
 
+/**
+ * 指数退避延迟（秒）。
+ */
 const EXPONENTIAL_SECONDS: ReadonlyArray<number> = [
-  0, // attempt 0 → 立即跑（保留与 webhook retry 表一致的 0 索引）
+  0, // attempt 0 —— 立即跑（保留与 webhook retry 表一致的 0 索引）
   30,
   2 * 60,
   10 * 60,
@@ -36,13 +42,20 @@ const EXPONENTIAL_SECONDS: ReadonlyArray<number> = [
   24 * 60 * 60,
 ];
 
+/**
+ * 固定延迟时间（毫秒）。
+ */
 const FIXED_DELAY_MS = 60 * 1000;
 
 /**
- * 算下一次重试的 delay（毫秒）。返回 null = 不再重试，caller 应翻 DEAD_LETTER。
+ * 计算下一次重试的 delay（毫秒）。返回 null 表示不再重试，caller 应翻 DEAD_LETTER。
  *
  * 重要：本函数纯计算，不读 / 写 DB；caller 拿到返回值后自己写
  * `nextAttemptAt = new Date(Date.now() + delayMs)`。
+ * @param attempt - 当前尝试次数。
+ * @param maxAttempts - 最大尝试次数。
+ * @param strategy - 重试策略；默认 'exponential'。
+ * @returns 延迟毫秒数，或 null 如果不应再重试。
  */
 export function nextRetryDelayMs(
   attempt: number,
@@ -62,7 +75,7 @@ export function nextRetryDelayMs(
     return FIXED_DELAY_MS;
   }
 
-  // custom
+  // 自定义策略
   const delay = strategy.delays[attempt];
   return delay === undefined ? null : delay;
 }

@@ -15,7 +15,7 @@
  *      `Sentry.captureException(err, { tags: { jobType }, extra: { jobId, attempt } })`。
  *      未配 `NEXT_PUBLIC_SENTRY_DSN` 时 Sentry SDK 自动 noop（v8 设计），无需额外 guard。
  *
- * ## Sentry import 策略
+ * ## Sentry 导入策略
  *
  * **不**在文件顶部静态 import `@sentry/nextjs` —— 该包 server entry 透传
  * `next/dist/...` 内部模块，CLI 入口（`scripts/run-jobs.ts` 走 tsx）下没有 Next.js
@@ -44,9 +44,29 @@ import { logger } from '@/lib/logger';
  *   - `jobs.queue.lag.seconds` (gauge — 最老 PENDING 行的 createdAt 距 now)
  */
 export interface JobMetricsHook {
+  /**
+   * 记录任务成功。
+   * @param type - 任务类型。
+   * @param durationMs - 执行耗时（毫秒）。
+   */
   onSuccess(type: string, durationMs: number): void;
+  /**
+   * 记录任务失败。
+   * @param type - 任务类型。
+   * @param durationMs - 执行耗时（毫秒）。
+   * @param willRetry - 是否会重试。
+   */
   onFailure(type: string, durationMs: number, willRetry: boolean): void;
+  /**
+   * 记录任务死信。
+   * @param type - 任务类型。
+   */
   onDeadLetter(type: string): void;
+  /**
+   * 记录 tick 完成。
+   * @param durationMs - tick 耗时（毫秒）。
+   * @param claimed - 声称的任务数。
+   */
   onTickComplete(durationMs: number, claimed: number): void;
 }
 
@@ -59,10 +79,18 @@ const noopMetrics: JobMetricsHook = {
 
 let activeMetrics: JobMetricsHook = noopMetrics;
 
+/**
+ * 设置 metrics 钩子。
+ * @param hook - metrics 钩子实现。
+ */
 export function setMetricsHook(hook: JobMetricsHook): void {
   activeMetrics = hook;
 }
 
+/**
+ * 获取活跃的 metrics 钩子。
+ * @returns 当前 metrics 钩子。
+ */
 export function jobMetrics(): JobMetricsHook {
   return activeMetrics;
 }
@@ -72,10 +100,14 @@ export function jobMetrics(): JobMetricsHook {
 type SentryModule = typeof SentryNextjs;
 let sentryPromise: Promise<SentryModule | null> | null = null;
 
+/**
+ * 加载 Sentry SDK 模块（带缓存）。
+ * @returns Sentry 模块或 null（加载失败时）。
+ */
 function loadSentry(): Promise<SentryModule | null> {
   if (sentryPromise === null) {
     sentryPromise = import('@sentry/nextjs').catch((err) => {
-      // 一次性 warn，后续调用复用缓存的 null（Promise.resolve(null) 走 fast path）。
+      // 一次性 warn，后续调用复用缓存的 null（Promise.resolve(null) 走快速路径）。
       logger.warn({ err }, 'sentry-import-failed-fallback-noop');
       return null;
     });
@@ -84,12 +116,16 @@ function loadSentry(): Promise<SentryModule | null> {
 }
 
 /**
- * 给单 job 执行加一层 Sentry span。任何错误透传给上层（runner.ts 决定 retry / DLQ）；
+ * 为单个 job 执行添加一层 Sentry span。任何错误透传给上层（runner.ts 决定 retry / DLQ）；
  * 错误同时报给 Sentry 带上 `jobType` tag + `jobId` / `attempt` extra，方便 dashboard
- * 按 type 切片。
- *
- * 不需要 caller 关心 Sentry 是否可用 —— 加载失败 / SDK 未初始化时函数行为退化为
+ * 按 type 切片。不需要 caller 关心 Sentry 是否可用 —— 加载失败 / SDK 未初始化时函数行为退化为
  * 「logger debug + 透传」，业务路径不变。
+ * @param type - 任务类型。
+ * @param jobId - 任务 ID。
+ * @param attempt - 当前尝试次数。
+ * @param fn - 要执行的异步函数。
+ * @returns 函数执行结果。
+ * @throws 如果 fn 抛出异常，将被传递给 Sentry 并重新抛出。
  */
 export async function withJobTransaction<T>(
   type: string,
@@ -103,7 +139,7 @@ export async function withJobTransaction<T>(
   // 两道兜底：
   //   1. import 直接抛 → loadSentry 已 catch 返回 null（CLI 入口下 next/dist/* 缺失）。
   //   2. import 没抛但模块「形状不对」—— Playwright e2e 的 tsx 进程能加载
-  //      `@sentry/nextjs` 但 server entry 的某些 transitive bind 失败，
+  //      `@sentry/nextjs` 但 server entry 的某些 transitive 绑定失败，
   //      `Sentry.startSpan` / `Sentry.captureException` 落不下来。命中时如果还硬调，
   //      就把 `TypeError: Sentry.startSpan is not a function` 当成 handler 失败
   //      传给 runner，被 retry / DLQ 误判（jobs.spec.ts e2e 实测过这条路径）。
@@ -128,7 +164,7 @@ export async function withJobTransaction<T>(
         return out;
       } catch (err) {
         logger.debug({ jobType: type, jobId, attempt, err }, 'job-transaction-error');
-        // tags 用于在 Sentry dashboard 按 type 过滤；extra 出现在 issue detail 页。
+        // tags 用于在 Sentry dashboard 按 type 过滤；extra 出现在 issue 详情页。
         Sentry.captureException(err, {
           tags: { jobType: type },
           extra: { jobId, attempt },
@@ -139,6 +175,15 @@ export async function withJobTransaction<T>(
   );
 }
 
+/**
+ * 仅使用日志运行任务（无 Sentry）。
+ * @param type - 任务类型。
+ * @param jobId - 任务 ID。
+ * @param attempt - 当前尝试次数。
+ * @param fn - 要执行的异步函数。
+ * @returns 函数执行结果。
+ * @throws 如果 fn 抛出异常，将被记录并重新抛出。
+ */
 async function runWithLogger<T>(
   type: string,
   jobId: string,
@@ -156,14 +201,14 @@ async function runWithLogger<T>(
 }
 
 /**
- * Test-only — 单测用以重置 metrics hook 回 noop。
+ * 仅用于测试 — 重置 metrics hook 回 noop。
  */
 export function __resetMetrics(): void {
   activeMetrics = noopMetrics;
 }
 
 /**
- * Test-only — 单测用以重置 Sentry 加载缓存（让下一次调用重新 import）。
+ * 仅用于测试 — 重置 Sentry 加载缓存（让下一次调用重新 import）。
  */
 export function __resetSentryCache(): void {
   sentryPromise = null;

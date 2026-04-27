@@ -91,6 +91,12 @@ interface OrgGate {
   role: OrgRole;
 }
 
+/**
+ * 验证调用者是否为 SSO 管理者。
+ * @param userId - 用户 ID。
+ * @param orgSlug - 组织 slug。
+ * @returns 组织信息或 null。
+ */
 async function requireSsoManager(userId: string, orgSlug: string): Promise<OrgGate | null> {
   const membership = await prisma.membership.findFirst({
     where: {
@@ -103,6 +109,11 @@ async function requireSsoManager(userId: string, orgSlug: string): Promise<OrgGa
   return membership ? { orgId: membership.orgId, role: membership.role } : null;
 }
 
+/**
+ * 规范化和验证邮件域列表。
+ * @param input - 邮件域列表。
+ * @returns 规范化域列表或错误对象。
+ */
 function normalizeDomains(input: readonly string[]): string[] | { error: string; bad: string } {
   const out: string[] = [];
   for (const raw of input) {
@@ -115,6 +126,11 @@ function normalizeDomains(input: readonly string[]): string[] | { error: string;
   return out;
 }
 
+/**
+ * 断言协议特定字段的有效性。
+ * @param input - 输入数据。
+ * @returns 验证结果。
+ */
 function assertProtocolFields(input: {
   protocol: SsoProtocol;
   samlMetadata?: string;
@@ -174,8 +190,8 @@ export async function createIdentityProviderAction(
     return { ok: false, error: `invalid-domain:${domains.error}`, message: domains.bad };
   }
 
-  // 两步写入：插入行以分配 id，然后用该 id 作为 HKDF 盐加密
-  // OIDC 密钥。镜像 `WebhookEndpoint` 创建流程（RFC 0003 PR-2）。
+  // 两步写入：插入行以分配 id，然后用该 id 作为 HKDF 盐加密 OIDC 密钥。
+  // 镜像 `WebhookEndpoint` 创建流程（RFC 0003 PR-2）。
   const created = await prisma.identityProvider.create({
     data: {
       orgId: gate.orgId,
@@ -201,17 +217,17 @@ export async function createIdentityProviderAction(
     });
   }
 
-  // 推送到 Jackson。**创建时尽力而为** — 行以草稿形式出生
+  // 推送到 Jackson。**创建时尽力而为** —— 行以草稿形式出生
   // （`enabledAt = null`），登录查询已经跳过草稿行，所以
   // 这里的同步失败无法将半配置的 IdP 交给真实用户。OWNER
   // 将在 UI 中看到该行；稍后翻转 `enabledAt` 走更新路径，
-  // 该路径**确实**将同步失败视为致命 — 所以
+  // 该路径将同步失败视为致命 —— 所以
   // 格式错误的元数据 XML 会在破坏登录之前在那里浮出。
   //
   // 为什么不在失败时回滚 prisma 行：格式错误的 SAML 元数据是
-  // 最常见的配置错误（通常是缺少 X509Certificate
-  // 块），强制用户重新填充整个表单只是为了重试
-  // 是不友好的 UX。保留该行，让他们 PATCH 坏字段。
+  // 最常见的配置错误（通常是缺少 X509Certificate 块），
+  // 强制用户重新填充整个表单只是为了重试是不友好的 UX。
+  // 保留该行，让他们 PATCH 坏字段。
   try {
     if (parsed.data.protocol === SsoProtocol.SAML && parsed.data.samlMetadata) {
       await syncSamlConnection({
@@ -267,7 +283,7 @@ export async function updateIdentityProviderAction(
   const gate = await requireSsoManager(me.id, parsed.data.orgSlug);
   if (!gate) return { ok: false, error: 'forbidden' };
 
-  // 在对 `enforceForLogin` 进行角色检查之前消除行的歧义。
+  // 在对 `enforceForLogin` 进行角色检查之前先确认行存在。
   const existing = await prisma.identityProvider.findFirst({
     where: { id: parsed.data.id, orgId: gate.orgId },
     select: { id: true, protocol: true, enforceForLogin: true },
@@ -275,7 +291,7 @@ export async function updateIdentityProviderAction(
   if (!existing) return { ok: false, error: 'not-found' };
 
   // OWNER 对 enforce 标志的把守，无论新旧值如何
-  //（我们也阻止 ADMIN 从*清除*它 — 同样量级的决定）。
+  //（我们也阻止 ADMIN 从清除它 —— 同样量级的决定）。
   if (parsed.data.enforceForLogin !== undefined && gate.role !== OrgRole.OWNER) {
     return { ok: false, error: 'enforce-owner-only' };
   }
@@ -320,9 +336,9 @@ export async function updateIdentityProviderAction(
   });
 
   // 如果影响连接的任何字段发生了变化，重新同步 Jackson。
-  // 便宜：加载当前行 + 整体重新推送。只有
+  // 成本低廉：加载当前行 + 整体重新推送。只有
   // SAML metadata / OIDC 字段对 Jackson 真正重要，但 upsert
-  // 是幂等的，所以我们只是总是发送。
+  // 是幂等的，所以我们总是发送。
   if (
     data.samlMetadata !== undefined ||
     data.oidcIssuer !== undefined ||
@@ -346,8 +362,8 @@ export async function updateIdentityProviderAction(
         });
       } else if (
         fresh.protocol === SsoProtocol.OIDC &&
-        // OIDC client secret 刚在此 PATCH 中提供（我们永不重新
-        // 解密，因为轮换需要调用者重新提交）。
+        // OIDC client secret 刚在此 PATCH 中提供（我们永不重新解密，
+        // 因为轮换需要调用者重新提交）。
         parsed.data.oidcClientSecret &&
         fresh.oidcIssuer &&
         fresh.oidcClientId
@@ -396,7 +412,7 @@ export async function deleteIdentityProviderAction(
   const gate = await requireSsoManager(me.id, parsed.data.orgSlug);
   if (!gate) return { ok: false, error: 'forbidden' };
 
-  // 在 enforceForLogin 开启时阻止删除 — 操作者必须显式
+  // 在 enforceForLogin 开启时阻止删除 —— 操作者必须显式
   // 先取消强制，否则我们会将 org 锁定在任何密码回退之外。
   const existing = await prisma.identityProvider.findFirst({
     where: { id: parsed.data.id, orgId: gate.orgId },
@@ -430,13 +446,23 @@ export async function deleteIdentityProviderAction(
   return { ok: true };
 }
 
+/**
+ * 轮换 SCIM token 的结果。
+ * @property ok - 操作是否成功。
+ * @property token - 明文 SCIM token —— 向调用者显示一次，然后丢弃。
+ * @property prefix - SCIM token 前缀。
+ */
 interface RotateScimResult {
   ok: true;
-  /** 明文 SCIM token — 向调用者显示一次，然后丢弃。 */
   token: string;
   prefix: string;
 }
 
+/**
+ * 轮换身份提供者的 SCIM token。
+ * @param input - 输入数据。
+ * @returns 轮换结果。
+ */
 export async function rotateScimTokenAction(
   input: z.input<typeof idScopeSchema>,
 ): Promise<RotateScimResult | ErrorResult> {

@@ -22,11 +22,21 @@ import { deflateRawSync } from 'node:zlib';
  * 规范参考：APPNOTE.TXT 6.3.3 (PKWARE)。
  */
 
+/**
+ * ZIP 文件条目。
+ * @property name - 文件名。
+ * @property body - 文件内容。
+ */
 interface ZipEntry {
   name: string;
   body: Buffer;
 }
 
+/**
+ * 创建 ZIP 文件。
+ * @param entries - ZIP 条目列表。
+ * @returns 生成的 ZIP 文件 Buffer。
+ */
 export function makeZip(entries: readonly ZipEntry[]): Buffer {
   const localChunks: Buffer[] = [];
   const centralChunks: Buffer[] = [];
@@ -39,9 +49,8 @@ export function makeZip(entries: readonly ZipEntry[]): Buffer {
     const uncompressedSize = entry.body.length;
     const compressed = deflateRawSync(entry.body);
     const compressedSize = compressed.length;
-    // DOS 时间/日期 — 对兼容性来说不是严格必需的，
-    // 固定值使 zip 在运行中保持字节稳定
-    // （对内容散列/测试中的黄金快照有好处）。
+    // DOS 时间/日期 —— 对兼容性来说不是严格必需的，
+    // 固定值使 zip 在运行中保持字节稳定（对内容散列/测试中的黄金快照有好处）。
     const dosTime = 0;
     const dosDate = (2026 - 1980) << 9; // 任意年份的 1 月 1 日
 
@@ -101,6 +110,9 @@ export function makeZip(entries: readonly ZipEntry[]): Buffer {
 
 // ─── CRC-32 (zlib 多项式) ──────────────────────────────────────────────
 
+/**
+ * CRC-32 查找表。
+ */
 const CRC_TABLE = (() => {
   const table = new Uint32Array(256);
   for (let n = 0; n < 256; n++) {
@@ -113,6 +125,11 @@ const CRC_TABLE = (() => {
   return table;
 })();
 
+/**
+ * 计算缓冲区的 CRC-32 校验码。
+ * @param buf - 输入缓冲区。
+ * @returns CRC-32 值。
+ */
 function crc32(buf: Buffer): number {
   let c = 0xffffffff;
   for (let i = 0; i < buf.length; i++) {

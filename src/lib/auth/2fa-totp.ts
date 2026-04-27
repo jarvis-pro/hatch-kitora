@@ -10,8 +10,16 @@ import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
 
 // ─── Base32（RFC 4648）──────────────────────────────────────────────────────
 
+/**
+ * Base32 字符集。
+ */
 const B32 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
 
+/**
+ * 将缓冲区编码为 Base32 字符串。
+ * @param buf - 输入缓冲区。
+ * @returns Base32 编码的字符串。
+ */
 export function base32Encode(buf: Buffer): string {
   let bits = 0;
   let value = 0;
@@ -30,6 +38,12 @@ export function base32Encode(buf: Buffer): string {
   return out;
 }
 
+/**
+ * 将 Base32 字符串解码为缓冲区。
+ * @param s - Base32 编码的字符串。
+ * @returns 解码后的缓冲区。
+ * @throws 如果字符串包含无效的 Base32 字符。
+ */
 export function base32Decode(s: string): Buffer {
   const clean = s.replace(/=+$/, '').toUpperCase().replace(/\s+/g, '');
   let bits = 0;
@@ -50,21 +64,35 @@ export function base32Decode(s: string): Buffer {
 
 // ─── TOTP（RFC 6238 / RFC 4226）────────────────────────────────────────────
 
+/**
+ * TOTP 代码位数。
+ */
 const TOTP_DIGITS = 6;
-const TOTP_PERIOD = 30; // 秒
 
-/** 生成新的 20 字节 TOTP 秘密。 */
+/**
+ * TOTP 时间步长（秒）。
+ */
+const TOTP_PERIOD = 30;
+
+/**
+ * 生成新的 20 字节 TOTP 秘密。
+ * @returns 生成的秘密缓冲区。
+ */
 export function generateTotpSecret(): Buffer {
   return randomBytes(20);
 }
 
-/** 计算给定计数器的 TOTP 码（用于验证和测试）。 */
+/**
+ * 计算给定计数器的 HOTP 码（用于 TOTP 验证和测试）。
+ * @param secret - TOTP 秘密。
+ * @param counter - HMAC 计数器。
+ * @returns HOTP 码。
+ */
 function hotp(secret: Buffer, counter: bigint): string {
   const counterBuf = Buffer.alloc(8);
   counterBuf.writeBigUInt64BE(counter);
   const mac = createHmac('sha1', secret).update(counterBuf).digest();
-  // SHA-1 摘要总是 20 字节 — 这些访问在范围内；断言
-  // 以满足 noUncheckedIndexedAccess。
+  // SHA-1 摘要总是 20 字节 —— 这些访问在范围内；断言以满足 noUncheckedIndexedAccess。
   const offset = mac[mac.length - 1]! & 0x0f;
   const truncated =
     ((mac[offset]! & 0x7f) << 24) |
@@ -75,7 +103,12 @@ function hotp(secret: Buffer, counter: bigint): string {
   return code.toString().padStart(TOTP_DIGITS, '0');
 }
 
-/** 计算秘密的当前 TOTP。对测试 / 开发工具有用。 */
+/**
+ * 计算秘密的当前 TOTP 码。对测试和开发工具有用。
+ * @param secret - TOTP 秘密。
+ * @param now - 当前时间戳（毫秒）；默认为 Date.now()。
+ * @returns 当前 TOTP 码。
+ */
 export function totpNow(secret: Buffer, now = Date.now()): string {
   const counter = BigInt(Math.floor(now / 1000 / TOTP_PERIOD));
   return hotp(secret, counter);
@@ -84,6 +117,10 @@ export function totpNow(secret: Buffer, now = Date.now()): string {
 /**
  * 用 ±1 步窗口验证 6 位 TOTP 码。匹配时返回 true。
  * 按步进行恒定时间字符串比较以避免泄露哪个步匹配。
+ * @param secret - TOTP 秘密。
+ * @param code - 要验证的 6 位 TOTP 码。
+ * @param now - 当前时间戳（毫秒）；默认为 Date.now()。
+ * @returns 码是否有效。
  */
 export function verifyTotp(secret: Buffer, code: string, now = Date.now()): boolean {
   if (!/^\d{6}$/.test(code)) return false;
@@ -101,7 +138,10 @@ export function verifyTotp(secret: Buffer, code: string, now = Date.now()): bool
 
 /**
  * 为验证者 URI 构建标签（otpauth://totp/label）。
- * 格式：accountLabel（`user@example.com`）或 accountLabel（发行者）。
+ * 格式：accountLabel（`user@example.com`）或 issuer:accountLabel。
+ * @param accountLabel - 账户标签。
+ * @param issuer - 可选的发行者名称。
+ * @returns 标签字符串。
  */
 function buildLabel(accountLabel: string, issuer?: string): string {
   if (issuer) {
@@ -113,6 +153,8 @@ function buildLabel(accountLabel: string, issuer?: string): string {
 /**
  * 生成 otpauth:// URI（用于二维码或手动输入）。
  * 格式符合 RFC 6238（带有可选的 issuer 参数）。
+ * @param opts - 生成选项。
+ * @returns otpauth URI 字符串。
  */
 export function buildOtpauthUri(opts: {
   secret: Buffer;

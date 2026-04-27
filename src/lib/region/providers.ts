@@ -28,8 +28,11 @@ import type { StorageProvider } from '@/lib/storage';
 
 // ─── Email ─────────────────────────────────────────────────────────────────
 
+/**
+ * 邮件提供者句柄。
+ * @property id - 日志和仪表板的标识符。
+ */
 export interface EmailProviderHandle {
-  /** 日志/仪表板的标识符。 */
   readonly id: 'resend' | 'aliyun-direct-mail';
 }
 

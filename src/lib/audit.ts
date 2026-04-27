@@ -72,21 +72,27 @@ export const AUDIT_ACTIONS = [
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
 
 /**
+ * 将审计操作码转换为 i18n 键。
  * `next-intl` 拒绝键段中的 `.`，因为它解析点为嵌套。
  * 我们在数据库中保持点号操作码以保持可读性，仅在查找消息字符串时
  * 将其转换为下划线形式。
+ * @param action - 审计操作码。
+ * @returns i18n 键。
  */
 export function auditActionToI18nKey(action: string): string {
   return action.replaceAll('.', '_');
 }
 
+/**
+ * 记录审计日志的输入。
+ * @property actorId - 行为者的 ID；如果是平台级操作则为 null。
+ * @property orgId - 此审计行的组织范围。为租户范围的操作传递活跃 org；为平台级操作传递 `null`。
+ * @property action - 审计操作码。
+ * @property target - 操作的目标资源 ID。
+ * @property metadata - 操作的额外元数据。
+ */
 interface RecordAuditInput {
   actorId: string | null;
-  /**
-   * 此审计行的组织范围。为租户范围的操作传递活跃 org（计费变更、成员更新、...）。
-   * 为平台级操作传递 `null`，其中参与者跨 org 移动（平台管理员角色变更、
-   * 系统管理）。
-   */
   orgId?: string | null;
   action: AuditAction;
   target?: string | null;
@@ -94,8 +100,9 @@ interface RecordAuditInput {
 }
 
 /**
- * 附加审计日志条目。 尽力而为 — 失败被记录但永不抛出，所以审计存储
+ * 记录审计日志条目。尽力而为 —— 失败被记录但永不抛出，所以审计存储
  * 中断无法阻止基础业务操作。
+ * @param input - 审计输入。
  */
 export async function recordAudit(input: RecordAuditInput): Promise<void> {
   try {
@@ -108,8 +115,8 @@ export async function recordAudit(input: RecordAuditInput): Promise<void> {
         target: input.target ?? null,
         metadata: input.metadata,
         ip: ip === 'unknown' ? null : ip,
-        // RFC 0005 — 用部署区域标记该行。调用者永不传递区域：
-        // 单个流程仅服务一个区域，所以任何"覆盖"意味着调用点错误。
+        // RFC 0005 —— 用部署区域标记该行。调用者永不传递区域：
+        // 单个流程仅服务一个区域，所以任何「覆盖」意味着调用点错误。
         region: currentRegion(),
       },
     });

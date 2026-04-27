@@ -56,8 +56,10 @@ const resendSchema = orgScopeSchema.extend({
 });
 
 /**
- * 验证调用者属于具有 ADMIN 或 OWNER 角色的命名 org。
- * 成功时返回已解析的 orgId，auth 失败时返回 null。
+ * 验证调用者属于具有 ADMIN 或 OWNER 角色的命名 org。成功时返回已解析的 orgId，auth 失败时返回 null。
+ * @param userId - 用户 ID。
+ * @param orgSlug - 组织 slug。
+ * @returns 组织 ID 或 null。
  */
 async function requireWebhookManager(userId: string, orgSlug: string): Promise<string | null> {
   const membership = await prisma.membership.findFirst({
@@ -71,6 +73,11 @@ async function requireWebhookManager(userId: string, orgSlug: string): Promise<s
   return membership?.orgId ?? null;
 }
 
+/**
+ * 验证事件列表中的所有事件是否已知。
+ * @param events - 事件列表。
+ * @returns 验证结果；如果有未知事件则返回错误信息。
+ */
 function rejectUnknownEvents(events: readonly string[]): { ok: true } | { ok: false; bad: string } {
   for (const e of events) {
     if (!WEBHOOK_EVENTS_SET.has(e)) {
@@ -82,6 +89,11 @@ function rejectUnknownEvents(events: readonly string[]): { ok: true } | { ok: fa
 
 // ─── Create ─────────────────────────────────────────────────────────────────
 
+/**
+ * 创建 webhook 端点。
+ * @param input - 输入数据。
+ * @returns 结果对象。
+ */
 export async function createWebhookEndpointAction(input: z.infer<typeof createSchema>) {
   const me = await requireUser();
   const parsed = createSchema.safeParse(input);
@@ -100,7 +112,7 @@ export async function createWebhookEndpointAction(input: z.infer<typeof createSc
   }
 
   const secret = generateWebhookSecret();
-  // 两步写入因为 encSecret 是从行 id 派生的 HKDF。
+  // 两步写入，因为 encSecret 是从行 id 派生的 HKDF。
   const endpoint = await prisma.webhookEndpoint.create({
     data: {
       orgId,
@@ -137,6 +149,11 @@ export async function createWebhookEndpointAction(input: z.infer<typeof createSc
 
 // ─── Update ─────────────────────────────────────────────────────────────────
 
+/**
+ * 更新 webhook 端点。
+ * @param input - 输入数据。
+ * @returns 结果对象。
+ */
 export async function updateWebhookEndpointAction(input: z.infer<typeof updateSchema>) {
   const me = await requireUser();
   const parsed = updateSchema.safeParse(input);
@@ -145,9 +162,8 @@ export async function updateWebhookEndpointAction(input: z.infer<typeof updateSc
   const orgId = await requireWebhookManager(me.id, parsed.data.orgSlug);
   if (!orgId) return { ok: false as const, error: 'forbidden' as const };
 
-  // 防御性的：在触及之前确认端点实际上属于此 org。
-  // 防止"我是 org A 的 OWNER，但我会 PATCH 属于 org B 的端点 X"
-  // 通过猜测 id。
+  // 防御性检查：在触及之前确认端点实际上属于此 org。
+  // 防止"我是 org A 的 OWNER，但我会 PATCH 属于 org B 的端点 X"通过猜测 id。
   const existing = await prisma.webhookEndpoint.findFirst({
     where: { id: parsed.data.id, orgId },
     select: { id: true },
@@ -191,6 +207,11 @@ export async function updateWebhookEndpointAction(input: z.infer<typeof updateSc
 
 // ─── Delete ─────────────────────────────────────────────────────────────────
 
+/**
+ * 删除 webhook 端点。
+ * @param input - 输入数据。
+ * @returns 结果对象。
+ */
 export async function deleteWebhookEndpointAction(input: z.infer<typeof idScopeSchema>) {
   const me = await requireUser();
   const parsed = idScopeSchema.safeParse(input);
@@ -205,8 +226,7 @@ export async function deleteWebhookEndpointAction(input: z.infer<typeof idScopeS
   if (result.count === 0) return { ok: false as const, error: 'not-found' as const };
 
   // FK 上的级联处理 WebhookDelivery 行。PR-2 cron
-  // 另外翻转转义级联竞争的孤立 PENDING/RETRYING 行到 CANCELED —
-  // 安心睡吧。
+  // 另外翻转转义级联竞争的孤立 PENDING/RETRYING 行到 CANCELED —— 安心睡吧。
 
   logger.info({ actor: me.id, orgId, endpointId: parsed.data.id }, 'webhook-endpoint-deleted');
   await recordAudit({
@@ -221,6 +241,11 @@ export async function deleteWebhookEndpointAction(input: z.infer<typeof idScopeS
 
 // ─── Rotate secret ─────────────────────────────────────────────────────────
 
+/**
+ * 轮换 webhook 密钥。
+ * @param input - 输入数据。
+ * @returns 结果对象。
+ */
 export async function rotateWebhookSecretAction(input: z.infer<typeof idScopeSchema>) {
   const me = await requireUser();
   const parsed = idScopeSchema.safeParse(input);
@@ -231,8 +256,7 @@ export async function rotateWebhookSecretAction(input: z.infer<typeof idScopeSch
 
   const fresh = generateWebhookSecret();
   // updateMany 返回 count 而不是 id；提前做 findFirst 保护，所以
-  // 我们知道行存在于触及 encSecret 之前（其密钥由
-  // id 派生，所以我们需要它）。
+  // 我们知道行存在于触及 encSecret 之前（其密钥由 id 派生，所以我们需要它）。
   const existing = await prisma.webhookEndpoint.findFirst({
     where: { id: parsed.data.id, orgId },
     select: { id: true },
@@ -260,7 +284,7 @@ export async function rotateWebhookSecretAction(input: z.infer<typeof idScopeSch
   return { ok: true as const, secret: fresh.plain, secretPrefix: fresh.prefix };
 }
 
-// ─── Resend a delivery ─────────────────────────────────────────────────────
+// ─── 重新发送 delivery ──────────────────────────────────────────────────────
 
 /**
  * RFC 0003 PR-2 — 手动重新排队单个 delivery 行。重置 attempt
@@ -269,6 +293,8 @@ export async function rotateWebhookSecretAction(input: z.infer<typeof idScopeSch
  *
  * 用于 DEAD_LETTER 恢复：用户修复了他们的端点并
  * 想要重新播放卡住的事件而不从源再次触发它。
+ * @param input - 输入数据。
+ * @returns 结果对象。
  */
 export async function resendWebhookDeliveryAction(input: z.infer<typeof resendSchema>) {
   const me = await requireUser();
@@ -278,7 +304,7 @@ export async function resendWebhookDeliveryAction(input: z.infer<typeof resendSc
   const orgId = await requireWebhookManager(me.id, parsed.data.orgSlug);
   if (!orgId) return { ok: false as const, error: 'forbidden' as const };
 
-  // 防御性双重检查：delivery 必须属于由*此* org 拥有的端点。
+  // 防御性双重检查：delivery 必须属于由此 org 拥有的端点。
   // updateMany 与受约束 where 在单个查询中捕获跨 org 猜测。
   const result = await prisma.webhookDelivery.updateMany({
     where: {

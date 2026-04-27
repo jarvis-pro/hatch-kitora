@@ -99,8 +99,11 @@ function parseIntStrict(value: string, fieldLabel: string): number {
 }
 
 /**
- * 解析 cron 表达式 → 5 个 Set<number>。无效表达式抛错（明确比 silent fail 好，
+ * 解析 cron 表达式为 5 个 Set<number>。无效表达式抛错（明确比 silent fail 好，
  * defineSchedule 在启动时会立刻冒出来）。
+ * @param cron - cron 表达式字符串。
+ * @returns 解析后的 cron 表达式。
+ * @throws 如果 cron 表达式格式无效。
  */
 export function parseCronExpression(cron: string): CronExpression {
   const parts = cron.trim().split(/\s+/);
@@ -110,7 +113,7 @@ export function parseCronExpression(cron: string): CronExpression {
     );
   }
   // noUncheckedIndexedAccess 让 parts[i] 是 string | undefined；上面已校验 length === 5，
-  // 这里逐一守 undefined 保证类型收窄到 string。
+  // 这里逐一守护 undefined 保证类型收窄到 string。
   const [m, h, dom, mo, dow] = parts;
   if (
     m === undefined ||
@@ -135,6 +138,9 @@ export function parseCronExpression(cron: string): CronExpression {
  *
  * 注意：cron 标准的 `dom` / `dow` 在「都不为 *」时是 OR 关系（任一匹配即触发）。
  * 这里采纳同款语义，避免与一般认知不一致。
+ * @param cron - cron 表达式字符串。
+ * @param date - 要检查的日期。
+ * @returns 是否匹配。
  */
 export function matchesCron(cron: string, date: Date): boolean {
   return matchesParsed(parseCronExpression(cron), date);
@@ -147,7 +153,7 @@ function matchesParsed(expr: CronExpression, date: Date): boolean {
   const domOk = expr.dom.has(date.getUTCDate());
   const dowOk = expr.dow.has(date.getUTCDay());
 
-  // dom / dow OR-合（标准 Vixie cron 行为）：除非两者都未限定（== 全集），否则
+  // dom / dow OR 逻辑（标准 Vixie cron 行为）：除非两者都未限定（== 全集），否则
   // 只要一个匹配就算匹配。这里通过比较 size 与全集大小推断「是否限定」。
   const domLimited = expr.dom.size < FULL_DOM_SIZE;
   const dowLimited = expr.dow.size < FULL_DOW_SIZE;
@@ -157,10 +163,12 @@ function matchesParsed(expr: CronExpression, date: Date): boolean {
 }
 
 /**
- * 把 Date 向下取整到分钟，返回 unix epoch minutes（unix seconds / 60）。
+ * 将 Date 向下取整到分钟，返回 unix epoch minutes（unix seconds / 60）。
  *
  * schedule runId 形如 `schedule:<name>:<unixMinute>` —— 同分钟内重复触发自然
  * 走 (type, runId) unique 的 P2002 swallow 去重（RFC 0008 §4.3）。
+ * @param date - 要取整的日期。
+ * @returns Unix 分钟数。
  */
 export function floorToUnixMinute(date: Date): number {
   return Math.floor(date.getTime() / 60_000);

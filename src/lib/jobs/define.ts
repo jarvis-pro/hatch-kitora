@@ -45,18 +45,24 @@ import {
 } from './registry';
 import type { RetryStrategy } from './retry';
 
+/**
+ * 定义后台任务的选项。
+ * @property type - 任务类型的唯一标识符。
+ * @property payloadSchema - Zod 类型定义，用于验证任务负载。
+ * @property maxAttempts - 最大尝试次数；默认 5；超过后转为 DEAD_LETTER。建议 ≤ 8（与 webhook 退避表深度一致）。
+ * @property retentionDays - 终态行保留多少天后被 prune job 删掉；默认 7。
+ * @property retry - 重试策略；默认 `'exponential'`。
+ * @property queue - v1 worker 永远只跑 `'default'`（RFC 0008 §9 评审决策）；保留此字段供未来分队列。
+ * @property timeoutMs - 单次 run handler 超时（毫秒）；默认 10s（< Vercel Hobby 10s function timeout 的 8s 安全档）。
+ * @property run - 任务执行函数。
+ */
 export interface DefineJobOptions<TPayload, TResult> {
   type: string;
   payloadSchema: z.ZodType<TPayload>;
-  /** 默认 5；超过后翻 DEAD_LETTER。建议 ≤ 8（与 webhook 退避表深度一致）。 */
   maxAttempts?: number;
-  /** 终态行多少天后被 prune job 删掉。默认 7。 */
   retentionDays?: number;
-  /** 重试策略；默认 `'exponential'`。 */
   retry?: RetryStrategy;
-  /** v1 worker 永远只跑 `'default'`（RFC 0008 §9 评审决策）；保留此字段供未来分队列。 */
   queue?: string;
-  /** 单次 run handler 超时（毫秒）；默认 10s（< Vercel Hobby 10s function timeout 的 8s 安全档）。 */
   timeoutMs?: number;
   run: (ctx: JobContext<TPayload>) => Promise<TResult>;
 }
@@ -66,6 +72,11 @@ const DEFAULT_RETENTION_DAYS = 7;
 const DEFAULT_TIMEOUT_MS = 8_000;
 const DEFAULT_QUEUE = 'default';
 
+/**
+ * 定义后台任务。调用方在 `src/lib/jobs/jobs/<type>.ts` 文件里声明一次。
+ * @param opts - 任务定义选项。
+ * @returns 任务定义对象。
+ */
 export function defineJob<TPayload, TResult = unknown>(
   opts: DefineJobOptions<TPayload, TResult>,
 ): JobDefinition<TPayload, TResult> {
@@ -83,17 +94,25 @@ export function defineJob<TPayload, TResult = unknown>(
   return def;
 }
 
+/**
+ * 定义定时任务的选项。
+ * @property name - 唯一的 schedule 名字，同时是 runId 前缀（`schedule:<name>:<unixMinute>`）。
+ * @property cron - 5 段或 6 段 cron 字符串；PR-2 的 `fireSchedules` 解析此值。
+ * @property jobType - 触发时投递的 job type；`defineJob` 必须先注册过此 type。
+ * @property payload - 固定 payload — schedule 没有「调用方动态参数」概念。默认 `{}`。
+ */
 export interface DefineScheduleOptions {
-  /** 唯一 schedule 名字 — 同时是 runId 前缀（`schedule:<name>:<unixMinute>`）。 */
   name: string;
-  /** 5 段或 6 段 cron 字符串；PR-2 的 `fireSchedules` 解析此值。 */
   cron: string;
-  /** 触发时投递的 job type；`defineJob` 必须先注册过此 type。 */
   jobType: string;
-  /** 固定 payload — schedule 没有「调用方动态参数」概念。默认 `{}`。 */
   payload?: unknown;
 }
 
+/**
+ * 定义定时任务。
+ * @param opts - 定时任务定义选项。
+ * @returns 定时任务定义对象。
+ */
 export function defineSchedule(opts: DefineScheduleOptions): ScheduleDefinition {
   const def: ScheduleDefinition = {
     name: opts.name,

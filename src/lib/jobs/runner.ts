@@ -48,6 +48,13 @@ const CLAIM_TAIL_GUARD_MS = 5_000;
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 const ERROR_TRUNCATE_BYTES = 2_000;
 
+/**
+ * Worker tick 选项。
+ * @property batchSize - 每次声称的任务数；默认 5。
+ * @property budgetMs - Tick 时间预算（毫秒）；默认 50_000。
+ * @property lockTimeoutMs - 锁定超时时间；默认 5 分钟。
+ * @property queue - 声称任务的队列名；默认 'default'。
+ */
 export interface RunWorkerTickOptions {
   batchSize?: number;
   budgetMs?: number;
@@ -55,6 +62,17 @@ export interface RunWorkerTickOptions {
   queue?: string;
 }
 
+/**
+ * Worker tick 执行结果。
+ * @property workerId - worker ID。
+ * @property recovered - 恢复的卡住任务数。
+ * @property claimed - 声称的任务数。
+ * @property succeeded - 成功的任务数。
+ * @property retried - 需要重试的任务数。
+ * @property deadLettered - 进入死信队列的任务数。
+ * @property unknownType - 未知类型任务数。
+ * @property durationMs - Tick 执行耗时（毫秒）。
+ */
 export interface RunWorkerTickResult {
   workerId: string;
   recovered: number;
@@ -66,6 +84,15 @@ export interface RunWorkerTickResult {
   durationMs: number;
 }
 
+/**
+ * 声称的任务行。
+ * @property id - 任务 ID。
+ * @property type - 任务类型。
+ * @property payload - 任务负载。
+ * @property attempt - 当前尝试次数。
+ * @property maxAttempts - 最大尝试次数。
+ * @property runId - 幂等键。
+ */
 interface ClaimedRow {
   id: string;
   type: string;
@@ -147,6 +174,11 @@ export async function runWorkerTick(
   };
 }
 
+/**
+ * 恢复卡住的任务（超时的 RUNNING 任务）。
+ * @param lockTimeoutMs - 锁定超时时间。
+ * @returns 恢复的任务数。
+ */
 async function recoverStuckJobs(lockTimeoutMs: number): Promise<number> {
   const cutoff = new Date(Date.now() - lockTimeoutMs);
   const result = await prisma.backgroundJob.updateMany({
@@ -160,12 +192,16 @@ async function recoverStuckJobs(lockTimeoutMs: number): Promise<number> {
 }
 
 /**
- * Claim 算法 — `FOR UPDATE SKIP LOCKED` 是这条路径多 worker 安全的钢底。
+ * 声称算法 —— `FOR UPDATE SKIP LOCKED` 是这条路径多 worker 安全的钢底。
  * 内层 SELECT 在 (status, queue, priority, nextAttemptAt) 索引上扫，hit 的行
  * 上行锁，被别的 worker 持锁的会被 SKIP；外层 UPDATE 把抢到的翻 RUNNING 一次性返回。
  *
- * `attempt = attempt + 1` 在 claim 时就 bump — 这意味着「成功 / 失败」都是基于
+ * `attempt = attempt + 1` 在 claim 时就 bump —— 这意味着「成功 / 失败」都是基于
  * 当前次（包含本次）的 attempt 计数，与 retry.ts 的 `attempt >= maxAttempts` 判断一致。
+ * @param workerId - worker ID。
+ * @param batchSize - 批次大小。
+ * @param queue - 队列名。
+ * @returns 声称的任务行列表。
  */
 async function claimNext(
   workerId: string,
@@ -192,12 +228,21 @@ async function claimNext(
   `;
 }
 
+/**
+ * 任务执行结果类型。
+ */
 type RunOutcome = 'succeeded' | 'retry' | 'dead-letter' | 'unknown-type';
 
+/**
+ * 执行单个任务。
+ * @param row - 待执行的任务行。
+ * @param workerId - worker ID。
+ * @returns 执行结果。
+ */
 async function runOne(row: ClaimedRow, workerId: string): Promise<RunOutcome> {
   const def = getJob(row.type);
   if (!def) {
-    // Unknown type — 通常是 schema drift（rolled-back worker 跑到了未来版本 enqueue 的行）。
+    // Unknown type —— 通常是 schema drift（rolled-back worker 跑到了未来版本 enqueue 的行）。
     // 直接 DEAD_LETTER，admin 可在 `/admin/jobs` 看到 lastError 决定 retry / cancel。
     const deleteAt = new Date(Date.now() + 7 * MS_PER_DAY);
     await prisma.backgroundJob.update({
@@ -294,6 +339,14 @@ async function runOne(row: ClaimedRow, workerId: string): Promise<RunOutcome> {
   }
 }
 
+/**
+ * 用超时时间运行 Promise。
+ * @param p - 要运行的 Promise。
+ * @param timeoutMs - 超时时间（毫秒）。
+ * @param msg - 超时错误消息。
+ * @returns Promise 执行结果。
+ * @throws 如果 Promise 超时或抛出异常。
+ */
 async function runWithTimeout<T>(p: Promise<T>, timeoutMs: number, msg: string): Promise<T> {
   let timer: NodeJS.Timeout | undefined;
   const timeout = new Promise<never>((_, reject) => {
@@ -306,11 +359,21 @@ async function runWithTimeout<T>(p: Promise<T>, timeoutMs: number, msg: string):
   }
 }
 
+/**
+ * 将任务结果序列化为 Prisma JSON 值。
+ * @param result - 任务执行结果。
+ * @returns 序列化的值。
+ */
 function serializeResult(result: unknown): Prisma.InputJsonValue | typeof Prisma.JsonNull {
   if (result === null || result === undefined) return Prisma.JsonNull;
   return result as Prisma.InputJsonValue;
 }
 
+/**
+ * 将错误对象转换为字符串。
+ * @param err - 错误对象。
+ * @returns 错误字符串表示。
+ */
 function errorToString(err: unknown): string {
   if (err instanceof Error) {
     return err.stack ? `${err.name}: ${err.message}\n${err.stack}` : `${err.name}: ${err.message}`;

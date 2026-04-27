@@ -99,7 +99,7 @@ export const emailSendJob = defineJob({
   retentionDays: 7,
   retry: 'exponential',
   // sendEmail 内部走 Resend / Aliyun DirectMail 的 HTTP 调用；网络抖动场景下
-  // 给 15s 余量，保留 def.timeoutMs - 5s 给 retry 决策本身的写库时间。
+  // 给 15s 余量，保留 def.timeoutMs - 5s 给重试决策本身的写库时间。
   timeoutMs: 15_000,
   async run({ payload, jobId, logger }) {
     const react = renderTemplate(payload);
@@ -114,8 +114,10 @@ export const emailSendJob = defineJob({
 });
 
 /**
- * 把 payload 投影到对应的 React Email 模板。switch 必穷尽 —— 加新模板时 TS
+ * 将 payload 投影到对应的 React Email 模板。switch 必穷尽 —— 加新模板时 TS
  * `noFallthroughCasesInSwitch` + discriminated union 会让漏写的支强制冒错。
+ * @param payload - 邮件负载。
+ * @returns React Email 元素。
  */
 function renderTemplate(payload: EmailPayload): React.ReactElement {
   switch (payload.template) {
@@ -130,15 +132,13 @@ function renderTemplate(payload: EmailPayload): React.ReactElement {
 
 // ── enqueueEmail helper ─────────────────────────────────────────────
 
+/**
+ * 邮件入队选项。
+ * @property runId - 幂等键；同 (type='email.send', runId) 在表里唯一，重复 enqueue 走 P2002 swallow。业务侧建议形如 `email:password-reset:user:${userId}`。
+ * @property delayMs - 最早可被 claim 的时刻偏移，毫秒。一般无需指定（默认立即）。
+ */
 export interface EnqueueEmailOptions {
-  /**
-   * 幂等键 — 同 (type='email.send', runId) 在表里唯一，重复 enqueue 走 P2002 swallow。
-   * 业务侧建议形如 `email:password-reset:user:${userId}` —— 同一用户短时间内多次
-   * 触发（如「重发邮件」按钮被连点），让最后一次 enqueue 落到同一行而不是
-   * 复制发 5 次邮件。
-   */
   runId?: string;
-  /** 最早可被 claim 的时刻偏移，毫秒。一般无需指定（默认立即）。 */
   delayMs?: number;
 }
 
@@ -148,19 +148,9 @@ export interface EnqueueEmailOptions {
  *
  * **强一致场景请仍用 `sendEmail()`** —— 注册验证邮件、登录提示等需要分钟级到达，
  * 等不到 30s/2m 的退避；走 enqueueEmail 反而让用户卡 30 秒看不到验证邮件。
- *
- * 用法：
- *
- * ```ts
- * await enqueueEmail({
- *   template: 'password-reset',
- *   to: user.email,
- *   subject: 'Reset your password',
- *   props: { resetUrl, name: user.name },
- * }, {
- *   runId: `email:password-reset:user:${user.id}`,
- * });
- * ```
+ * @param payload - 邮件负载。
+ * @param opts - 入队选项。
+ * @returns 入队结果。
  */
 export async function enqueueEmail(
   payload: EmailPayload,
