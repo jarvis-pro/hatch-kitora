@@ -126,6 +126,20 @@ pnpm dev
 
 ---
 
+## 📚 文档导航
+
+新同事/贡献者建议从 [`docs/getting-started/`](docs/getting-started/) 入手，再按需翻其他两个目录。
+
+| 目录                                             | 内容                                                         | 何时读                                                                 |
+| ------------------------------------------------ | ------------------------------------------------------------ | ---------------------------------------------------------------------- |
+| [`docs/getting-started/`](docs/getting-started/) | 入门资料：速通对照（按背景）、4–6 周体系化学习路线、模块深挖 | 第一次接触本仓库时；想从能改 issue 升级为模块负责人时                  |
+| [`docs/rfcs/`](docs/rfcs/)                       | 重大架构决策的提案与权衡（含活索引表）                       | 看代码不理解"为什么这样设计"时；动手做跨多 PR / 影响数据模型的工作之前 |
+| [`docs/deploy/`](docs/deploy/)                   | 各 region 的部署蓝图（GLOBAL / CN / EU）                     | 第一次部署到某 region 时；运维排障时                                   |
+
+API 契约见 [`openapi/v1.yaml`](openapi/v1.yaml)，运行时浏览 `/<locale>/docs/api` 查交互式文档（Scalar 渲染）。
+
+---
+
 ## 📁 项目结构
 
 ```
@@ -214,27 +228,6 @@ Kitora 设计上支持克隆后直接用于新项目，复用步骤如下：
 - [x] 多租户 / 团队协作（Organization · OWNER/ADMIN/MEMBER · 邀请流 · per-org 计费 · cookie 切换）
 - [x] 安全合规进阶（Active Sessions · 2FA · GDPR 数据导出 · 30 天注销宽限 · Org 强制 2FA — RFC 0002）
 - [x] CN 区落地工程层（Aliyun OSS / DirectMail / Alipay+WeChat 完整支付 / ioredis 限流 / `pnpm egress:check` / `/legal/data-rights` / `deploy-cn.yml` — RFC 0006）
-
----
-
-## 🌏 区域 / 中国区
-
-通过 `REGION` env 切换默认市场：
-
-```env
-REGION=global   # 海外市场（Stripe / USD）
-# 或
-REGION=cn       # 中国大陆（支付宝 / 微信支付 · ICP / 备案）
-ICP_NUMBER=京ICP备XXXXXX号-X
-PUBLIC_SECURITY_NUMBER=京公网安备XXXXXXXXXXXX号
-```
-
-`src/lib/billing/provider/` 下抽出统一接口：
-
-- `StripeProvider` — global 默认，已落地
-- `AlipayProvider` / `WechatPayProvider` — 占位，等 ICP 备案过审后接 `alipay-sdk` / `wechatpay-node-v3`
-
-`getProvider()` 按 `REGION` + `WECHAT_PAY_MCH_ID` 自动选择。CN 模式下 footer 自动渲染备案号 + 链接到 `/icp` 公示页；其它模式下 `/icp` 直接 404，避免空页面 SEO 劣化。
 
 ---
 
