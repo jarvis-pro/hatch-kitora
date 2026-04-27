@@ -2,26 +2,35 @@ import { Section, Text } from '@react-email/components';
 
 import { EmailLayout } from './_layout';
 
+/**
+ * Webhook 自动禁用邮件的 Props 接口。
+ * @property {string} [name="there"] - 收件人的显示名称
+ * @property {string} [appUrl="https://kitora.dev"] - 应用基础 URL
+ * @property {string} endpointUrl - 刚刚被自动禁用的端点 URL
+ * @property {string} orgSlug - 端点所在的组织 slug（用于深层链接）
+ * @property {string} endpointId - 端点 ID（用于深层链接）
+ * @property {number} consecutiveFailures - 触发自动禁用的连续失败次数（信息用途）
+ */
 interface Props {
-  /** 收件人的显示名称（如果我们没有，默认为 "there"）。 */
   name?: string;
   appUrl?: string;
-  /** 刚刚被自动禁用的端点 URL。 */
   endpointUrl: string;
-  /** 端点所在的组织的 slug — 用于深层链接。 */
   orgSlug: string;
-  /** 端点 id — 用于深层链接。 */
   endpointId: string;
-  /** 触发自动禁用的连续失败次数（信息性）。 */
   consecutiveFailures: number;
 }
 
 /**
- * RFC 0003 PR-4 — 每当 cron 工作线程触发端点的自动禁用阈值时，
- * 发送给组织的 OWNER + ADMIN（默认：8 次连续失败，≈ 2 天的尝试）。
+ * Webhook 自动禁用邮件模板。
  *
- * 语气：可操作的，而不是耸人听闻的 — 端点已暂停，未删除，
- * 接收团队通常只需要修复其服务并重新启用。
+ * 在 cron 工作线程触发 Webhook 端点自动禁用阈值时发送给组织的 OWNER + ADMIN
+ * （RFC 0003 PR-4，默认：8 次连续失败，约 2 天的尝试）。
+ *
+ * 语气：可操作性强，而非耸人听闻 — 端点已暂停（未删除），
+ * 接收团队通常只需修复其服务并重新启用即可。
+ *
+ * @param {Props} props - 邮件参数
+ * @returns {React.ReactElement} Webhook 自动禁用邮件
  */
 export default function WebhookAutoDisabledEmail({
   name = 'there',

@@ -2,11 +2,25 @@ import { Button, Section, Text } from '@react-email/components';
 
 import { EmailLayout } from './_layout';
 
+/**
+ * 密码重置邮件的 Props 接口。
+ * @property {string} resetUrl - 密码重置链接（通常包含一次性 token）
+ * @property {string} [name="there"] - 收件人的显示名称
+ */
 interface ResetPasswordEmailProps {
   resetUrl: string;
   name?: string;
 }
 
+/**
+ * 密码重置邮件模板。
+ *
+ * 在用户请求密码重置时发送。邮件包含重置密码的按钮链接，
+ * 默认链接有效期为 30 分钟。
+ *
+ * @param {ResetPasswordEmailProps} props - 邮件参数
+ * @returns {React.ReactElement} 密码重置邮件
+ */
 export default function ResetPasswordEmail({ resetUrl, name = 'there' }: ResetPasswordEmailProps) {
   return (
     <EmailLayout

@@ -2,20 +2,32 @@ import { Button, Section, Text } from '@react-email/components';
 
 import { EmailLayout } from './_layout';
 
+/**
+ * 数据导出就绪邮件的 Props 接口。
+ * @property {string} [name="there"] - 收件人的显示名称
+ * @property {string} [appUrl="https://kitora.dev"] - 应用基础 URL
+ * @property {string} downloadUrl - 下载链接（绝对或相对）
+ * @property {'USER' | 'ORG'} scope - 导出范围：个人数据或组织数据
+ * @property {string} [expiresIn="in 7 days"] - 过期时间的显示文案（例如"7 天内"）
+ */
 interface Props {
   name?: string;
   appUrl?: string;
   downloadUrl: string;
   scope: 'USER' | 'ORG';
-  /** 存储过期副本的显示 — 例如 "在 7 天内"。 */
   expiresIn?: string;
 }
 
 /**
- * RFC 0002 PR-3 — 当数据导出完成时由 cron 工作线程发送。
- * 链接受身份验证保护（收件人必须登录才能下载）
- * 和文件在服务器端过期，所以即使 URL 本身不是单次使用，
- * 这也可以安全地通过电子邮件发送。
+ * 数据导出就绪邮件模板。
+ *
+ * 在 cron 工作线程完成数据导出后发送（RFC 0002 PR-3）。
+ * 下载链接受身份验证保护（收件人必须登录才能下载），
+ * 文件在服务器端过期，因此即使 URL 本身不是单次使用，
+ * 通过邮件发送也是安全的。
+ *
+ * @param {Props} props - 邮件参数
+ * @returns {React.ReactElement} 数据导出就绪邮件
  */
 export default function DataExportReadyEmail({
   name = 'there',

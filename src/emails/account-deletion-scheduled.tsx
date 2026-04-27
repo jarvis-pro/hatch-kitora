@@ -2,17 +2,26 @@ import { Button, Section, Text } from '@react-email/components';
 
 import { EmailLayout } from './_layout';
 
+/**
+ * 账户删除计划邮件的 Props 接口。
+ * @property {string} [name="there"] - 收件人的显示名称
+ * @property {string} [appUrl="https://kitora.dev"] - 应用基础 URL，用于取消删除链接
+ * @property {string} scheduledFor - 预格式化的删除日期（调用方负责本地化格式）
+ */
 interface Props {
   name?: string;
   appUrl?: string;
-  /** Pre-formatted scheduled date — caller does the locale-aware formatting. */
   scheduledFor: string;
 }
 
 /**
- * RFC 0002 PR-4 — sent when a user requests account deletion. Acts as a
- * tripwire: if the recipient didn't actually schedule it, they have until
- * `scheduledFor` to sign in and cancel.
+ * 账户删除计划邮件模板。
+ *
+ * 在用户请求账户删除时发送（RFC 0002 PR-4）。作为防误触机制：
+ * 如果收件人未主动计划删除，可在 `scheduledFor` 日期前登录并取消。
+ *
+ * @param {Props} props - 邮件参数
+ * @returns {React.ReactElement} 账户删除计划邮件
  */
 export default function AccountDeletionScheduledEmail({
   name = 'there',

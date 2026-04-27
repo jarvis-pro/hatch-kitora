@@ -2,16 +2,26 @@ import { Section, Text } from '@react-email/components';
 
 import { EmailLayout } from './_layout';
 
+/**
+ * 双因素认证启用邮件的 Props 接口。
+ * @property {string} [name="there"] - 收件人的显示名称
+ * @property {string} [appUrl="https://kitora.dev"] - 应用基础 URL
+ */
 interface Props {
   name?: string;
   appUrl?: string;
 }
 
 /**
- * RFC 0002 PR-2 — 在成功 2FA 注册确认后立即发送。
- * 此电子邮件的重点不是庆祝；而是如果 *其他人* 刚刚打开 2FA，
- * 则警告账户所有者（例如，会话被劫持）。如果
- * 收件人没有启用 2FA，他们应该登录并禁用它。
+ * 双因素认证启用邮件模板。
+ *
+ * 在成功 2FA 注册确认后立即发送（RFC 0002 PR-2）。
+ * 本邮件的重点不是庆祝，而是在他人可能刚开启 2FA 时
+ * 警告账户所有者（例如会话被劫持）。
+ * 如果收件人未主动启用 2FA，应登录并立即禁用。
+ *
+ * @param {Props} props - 邮件参数
+ * @returns {React.ReactElement} 双因素认证启用邮件
  */
 export default function TwoFactorEnabledEmail({
   name = 'there',

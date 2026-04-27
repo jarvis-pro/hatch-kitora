@@ -11,20 +11,30 @@ import {
   Text,
 } from '@react-email/components';
 
+/**
+ * 邮件布局组件的 Props 接口。
+ * @property {string} preview - 邮件预览文本（客户端展示）
+ * @property {string} heading - 邮件主标题
+ * @property {React.ReactNode} children - 邮件正文内容
+ * @property {string} [footerNote] - 法律行上方的页脚注释，通常是"如果你没有……忽略"类的免责声明
+ * @property {string} [brand="Kitora"] - 在页眉和页脚中显示的品牌名称
+ */
 interface EmailLayoutProps {
   preview: string;
   heading: string;
   children: React.ReactNode;
-  /** 法律行上方的页脚注释 — 通常是 "如果你没有……忽略" 免责声明。 */
   footerNote?: string;
-  /** 在页眉和页脚中显示的品牌名称。 */
   brand?: string;
 }
 
 /**
- * 每个交易电子邮件的共享框架 — 页眉、容器宽度、
- * 页脚免责声明 + 品牌行。个人模板只需要放入
- * 他们的预览、标题和正文内容。
+ * 邮件布局公共框架组件。
+ *
+ * 为所有事务性邮件提供统一的页眉、容器宽度、页脚免责声明和品牌行。
+ * 各个邮件模板只需注入预览文本、标题和正文内容即可。
+ *
+ * @param {EmailLayoutProps} props - 布局组件的配置项
+ * @returns {React.ReactElement} 包装好的邮件 HTML 结构
  */
 export function EmailLayout({
   preview,

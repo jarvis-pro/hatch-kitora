@@ -2,17 +2,26 @@ import { Section, Text } from '@react-email/components';
 
 import { EmailLayout } from './_layout';
 
+/**
+ * 双因素认证禁用邮件的 Props 接口。
+ * @property {string} [name="there"] - 收件人的显示名称
+ * @property {string} [appUrl="https://kitora.dev"] - 应用基础 URL
+ * @property {boolean} [byAdmin=false] - 是否由平台管理员禁用（账户恢复流程）
+ */
 interface Props {
   name?: string;
   appUrl?: string;
-  /** True when the disable was performed by a platform admin (account recovery). */
   byAdmin?: boolean;
 }
 
 /**
- * RFC 0002 PR-2 — sent whenever 2FA is removed from the account, whether by
- * the user themselves or by a platform admin during a recovery flow. As with
- * the enable email this is a security alert, not a polite notice.
+ * 双因素认证禁用邮件模板。
+ *
+ * 在 2FA 从账户移除时发送（无论用户自行禁用还是平台管理员在恢复流程中禁用）
+ * （RFC 0002 PR-2）。这是一封安全警报邮件，而非礼貌通知。
+ *
+ * @param {Props} props - 邮件参数
+ * @returns {React.ReactElement} 双因素认证禁用邮件
  */
 export default function TwoFactorDisabledEmail({
   name = 'there',
