@@ -5,55 +5,105 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { authConfig } from '@/lib/auth/config';
 import { routing } from '@/i18n/routing';
 
+/**
+ * next-intl 国际化中间件实例。
+ * 根据 routing 配置自动处理区域检测和 URL 重写。
+ */
 const intlMiddleware = createIntlMiddleware(routing);
+
+/**
+ * Auth.js 中间件实例。
+ * 基于 authConfig 处理会话验证和认证状态管理。
+ */
 const { auth } = NextAuth(authConfig);
 
+/**
+ * 受保护路由模式。
+ * 匹配 /dashboard、/settings、/admin 及其子路由（考虑可选的区域前缀 /zh 等）。
+ */
 const PROTECTED = /^\/(?:[a-z]{2}\/)?(?:dashboard|settings|admin)(?:\/|$)/;
+
+/**
+ * 仅限管理员路由模式。
+ * 匹配 /admin 及其子路由。
+ */
 const ADMIN_ONLY = /^\/(?:[a-z]{2}\/)?admin(?:\/|$)/;
-// RFC 0002 PR-2 — 仅允许 tfa-pending 用户到达的页面。
-// PROTECTED 下的任何其他内容都会被反弹到 /login/2fa。
+
+/**
+ * RFC 0002 PR-2 — 2FA 验证页面。
+ * 仅允许等待 TOTP 验证的用户访问；PROTECTED 下的其他内容重定向到此页面。
+ */
 const TFA_CHALLENGE = /^\/(?:[a-z]{2}\/)?login\/2fa(?:\/|$)/;
-// RFC 0002 PR-4 — PENDING_DELETION 用户允许到达的页面。
-// 设置是唯一允许的目标地点，以便他们可以取消；PROTECTED 下的任何
-// 其他内容都会被漏斗到 /settings。
+
+/**
+ * RFC 0002 PR-4 — 待删除账户允许访问的页面。
+ * 仅允许 /settings（取消删除页面所在）；PROTECTED 下的其他内容重定向到此页面。
+ */
 const SETTINGS_BASE = /^\/(?:[a-z]{2}\/)?settings(?:\/|$)/;
-// RFC 0005 — 不匹配的着陆页本身；不受重定向防护
-// 以便我们不会在其上循环。
+
+/**
+ * RFC 0005 — 区域不匹配着陆页。
+ * 用户区域与部署区域不一致时的目标；本身不受重定向保护，避免循环。
+ */
 const REGION_MISMATCH = /^\/(?:[a-z]{2}\/)?region-mismatch(?:\/|$)/;
 
 /**
- * RFC 0005 — 边缘运行时区域读取。
+ * RFC 0005 — 在边缘运行时读取部署区域。
  *
- * 中间件不能导入 `currentRegion()`（仅 Node：它传递性地
- * 导入 pino + Prisma）。我们内联复制解析规则。
- * 与 `src/lib/region.ts` 保持同步。
+ * 中间件无法导入 `currentRegion()`（仅 Node 环境，会传递性导入 pino + Prisma）。
+ * 此处内联复制解析规则，确保在边缘运行时可用。
+ * 必须与 `src/lib/region.ts` 中的逻辑保持同步。
+ *
+ * @returns 部署区域：'GLOBAL'、'CN' 或 'EU'。
  */
 function deployRegion(): 'GLOBAL' | 'CN' | 'EU' {
+  // 优先读取规范环境变量 KITORA_REGION（大写）
   const raw = process.env.KITORA_REGION;
   if (raw === 'GLOBAL' || raw === 'CN' || raw === 'EU') return raw;
+  // 后向兼容：尝试读取遗留的 REGION 变量（小写）
   const legacy = process.env.REGION;
   if (legacy === 'cn') return 'CN';
   if (legacy === 'global') return 'GLOBAL';
+  // 默认回退到全球部署
   return 'GLOBAL';
 }
 
+/**
+ * Next.js 主中间件处理程序。
+ *
+ * 基于 Auth.js 运行，按顺序执行以下检查：
+ * 1. 区域一致性验证（RFC 0005）
+ * 2. 受保护路由认证检查
+ * 3. 2FA 状态验证（RFC 0002 PR-2）
+ * 4. 待删除账户路由限制（RFC 0002 PR-4）
+ * 5. 管理员权限检查
+ * 6. 国际化路由处理
+ *
+ * @param req Next.js 请求对象，包含认证会话和 URL 信息。
+ * @returns 可能的重定向响应或修改后的国际化请求。
+ */
 export default auth((req) => {
   const { pathname } = req.nextUrl;
   const user = req.auth?.user;
+  // 检查用户是否已认证
   const isLoggedIn = !!user;
+  // 检查当前路由是否受保护（需要认证）
   const isProtected = PROTECTED.test(pathname);
+  // 检查是否为仅限管理员的路由
   const isAdminOnly = ADMIN_ONLY.test(pathname);
+  // 检查是否为 2FA 验证页面
   const isTfaChallenge = TFA_CHALLENGE.test(pathname);
+  // 检查是否为区域不匹配着陆页
   const isRegionMismatch = REGION_MISMATCH.test(pathname);
+  // 检查是否处于 2FA 待验证状态
   const tfaPending = req.auth?.tfaPending === true;
 
-  // RFC 0005 — 地区漂移守卫。在实践中应该永不触发，因为
-  // 每个地区的堆栈都位于自己的域（kitora.io / kitora.cn /
-  // kitora.eu）且 cookie 不跨域。我们仍然在服务器端进行双重检查：
-  // 一个伪造的 cookie 携带 `userRegion: CN` 到 GLOBAL 堆栈
-  // 否则将被接受。豁免列表很广（任何非 PROTECTED 路径），
-  // 以便未认证的营销页面保持可达；一旦陈旧的跨区域会话尝试访问
-  // dashboard / settings / admin 我们就反弹。
+  // RFC 0005 — 区域漂移检查。在理想情况下不应触发，因为各区域堆栈
+  // 均位于独立域名（kitora.io / kitora.cn / kitora.eu）且 cookie 不跨域。
+  // 但作为防御措施：若已认证用户的 userRegion 与部署区域不符（如 cookie
+  // 被走私到其他堆栈），则强制重定向到区域不匹配页面。
+  // 白名单宽松（非 PROTECTED 路由均放行），以保持营销页面可达；
+  // 仅当进入 PROTECTED 路由时才触发检查。
   const userRegion = req.auth?.userRegion;
   if (
     isLoggedIn &&
@@ -62,46 +112,59 @@ export default auth((req) => {
     userRegion &&
     userRegion !== deployRegion()
   ) {
+    // 重定向到区域不匹配页面，传递期望的用户区域用于调试
     const url = new URL('/region-mismatch', req.nextUrl);
     url.searchParams.set('expected', userRegion);
     return NextResponse.redirect(url);
   }
 
+  // 未认证用户访问受保护路由：重定向到登录，保存原始路径用于登录后跳转
   if (isProtected && !isLoggedIn) {
     const loginUrl = new URL('/login', req.nextUrl);
     loginUrl.searchParams.set('callbackUrl', pathname);
     return NextResponse.redirect(loginUrl);
   }
 
-  // RFC 0002 PR-2 — 一个具有 `tfa_pending` 的已登录用户只能看到
-  // 2FA 质询页面。PROTECTED 下的一切其他内容都被反弹到
-  // /login/2fa，原始请求的路径被捕获用于验证后
-  // 重定向。（我们让页面本身，而不仅仅是管理页面，把关这个，
-  // 所以半认证的人也不能戳 /settings。）
+  // RFC 0002 PR-2 — 2FA 待验证状态限制。
+  // 如果用户已认证但尚未通过 TOTP 验证（tfaPending = true），
+  // 则仅允许访问 /login/2fa 页面。其他 PROTECTED 路由统一重定向到 2FA 验证页面。
+  // 注意：页面本身也有此检查，防止半认证用户绕过（如直接访问 /settings）。
   if (isLoggedIn && tfaPending && isProtected && !isTfaChallenge) {
+    // 重定向到 2FA 验证页面，保存原始路径用于验证后跳转
     const url = new URL('/login/2fa', req.nextUrl);
     url.searchParams.set('callbackUrl', pathname);
     return NextResponse.redirect(url);
   }
 
-  // RFC 0002 PR-4 — 处于删除宽限期的账户只有一个
-  // 允许的目标地点：/settings（取消横幅位于此处）。
-  // 我们故意不对其余的进行 404——保持用户能够登录
-  // 和转向是整个宽限期的要点。
+  // RFC 0002 PR-4 — 待删除账户路由限制。
+  // 已安排删除的账户（userStatus = 'PENDING_DELETION'）仅允许访问 /settings
+  // 页面（取消删除横幅所在地）。其他 PROTECTED 路由统一重定向到 /settings。
+  // 我们故意不返回 404——保持用户能够登录和路由重定向是宽限期的核心机制。
   const userStatus = req.auth?.userStatus;
   const isSettings = SETTINGS_BASE.test(pathname);
   if (isLoggedIn && userStatus === 'PENDING_DELETION' && isProtected && !isSettings) {
+    // 强制重定向到设置页面，用户可在此取消删除操作
     return NextResponse.redirect(new URL('/settings', req.nextUrl));
   }
 
+  // 非管理员用户尝试访问管理员专属路由：重定向到仪表板
   if (isAdminOnly && user?.role !== 'ADMIN') {
     return NextResponse.redirect(new URL('/dashboard', req.nextUrl));
   }
 
+  // 通过所有检查后，交由国际化中间件处理区域设置和 URL 重写
   return intlMiddleware(req as unknown as NextRequest);
 });
 
+/**
+ * Next.js 中间件路由匹配配置。
+ *
+ * 定义哪些请求需要经过中间件处理。此处配置排除了：
+ * - /api — 由 route handlers 直接处理
+ * - /_next — Next.js 内部资源（编译输出、热重载等）
+ * - /_vercel — Vercel 平台信息端点
+ * - 含点的路径（*.jpg, *.css 等） — 静态资产
+ */
 export const config = {
-  // 跳过 Next 内部、静态资产和 auth/Stripe webhook 路由
   matcher: ['/((?!api|_next|_vercel|.*\\..*).*)'],
 };
