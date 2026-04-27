@@ -43,13 +43,34 @@ const nextConfig = {
   // webpack 打包后会破坏其正常运行。
   // （Next 15+ 此选项已重命名为 `serverExternalPackages`。）
   experimental: {
-    serverComponentsExternalPackages: ['pino', 'pino-pretty', '@prisma/client'],
+    // 把这些包保持在服务端 webpack bundle 之外。它们内部走动态 require
+    // 或带可选 native 依赖（typeorm 的 mysql/sap-hana/react-native 驱动、
+    // mongodb 的 aws4），打包后会触发一堆 "Critical dependency" 警告。
+    serverComponentsExternalPackages: [
+      'pino',
+      'pino-pretty',
+      '@prisma/client',
+      '@boxyhq/saml-jackson',
+      'typeorm',
+      'mongodb',
+    ],
     serverActions: {
       bodySizeLimit: '2mb',
     },
     // Next 14 中 @sentry/nextjs 加载 `src/instrumentation.ts` 所必须。
     // （Next 15+ 已稳定，该选项在 15+ 中被移除。）
     instrumentationHook: true,
+  },
+  // typeorm / mongodb 列出了一堆只在特定运行时/数据库下才需要的可选依赖
+  // （react-native、SAP HANA、MySQL、AWS4 签名）。我们都不用，让 webpack
+  // 直接忽略它们的 require，避免 "Module not found" 警告刷屏。
+  webpack: (config, { webpack }) => {
+    config.plugins.push(
+      new webpack.IgnorePlugin({
+        resourceRegExp: /^(react-native-sqlite-storage|@sap\/hana-client(\/.*)?|mysql|aws4)$/,
+      }),
+    );
+    return config;
   },
   images: {
     remotePatterns: [

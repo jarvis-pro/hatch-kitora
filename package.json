@@ -4,7 +4,7 @@
   "private": true,
   "description": "Production-ready Next.js SaaS starter — global by default.",
   "engines": {
-    "node": ">=22"
+    "node": "22.x"
   },
   "packageManager": "pnpm@10.33.2",
   "scripts": {
@@ -120,5 +120,15 @@
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@prisma/client",
+      "@prisma/engines",
+      "prisma",
+      "sharp",
+      "esbuild",
+      "@sentry/cli"
+    ]
   }
 }
