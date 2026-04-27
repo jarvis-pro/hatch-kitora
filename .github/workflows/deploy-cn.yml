@@ -100,11 +100,27 @@ jobs:
             .
 
       # ── 4) Apply image rollout to ACK ─────────────────────────────────
-      - name: Configure kubectl for ACK
-        uses: aliyun/setup-kubectl-aliyun-action@v1
+      # 不用 `aliyun/setup-kubectl-aliyun-action` —— 该仓库不存在；用 Microsoft 维护
+      # 的 `azure/setup-kubectl`（跨云通用 kubectl installer）+ step 1 已注入的
+      # Aliyun 凭证 + 现有 `aliyun` CLI（line 92 已 `aliyun cr` 验证过 CLI 可用）
+      # 直接拉 ACK 的 user kubeconfig，写到 $RUNNER_TEMP，导出 KUBECONFIG env。
+      - name: Install kubectl
+        uses: azure/setup-kubectl@v4
         with:
-          cluster-id: ${{ secrets.ACK_CLUSTER_ID }}
-          region-id: cn-shanghai
+          version: 'latest'
+
+      - name: Configure kubectl for ACK
+        env:
+          CLUSTER_ID: ${{ secrets.ACK_CLUSTER_ID }}
+        run: |
+          aliyun cs DescribeClusterUserKubeconfig \
+            --ClusterId "$CLUSTER_ID" \
+            --PrivateIpAddress=false \
+            --output json \
+            | jq -r '.config' > "$RUNNER_TEMP/kubeconfig"
+          chmod 600 "$RUNNER_TEMP/kubeconfig"
+          echo "KUBECONFIG=$RUNNER_TEMP/kubeconfig" >> "$GITHUB_ENV"
+          kubectl --kubeconfig "$RUNNER_TEMP/kubeconfig" version --client
 
       - name: Rollout deployment
         env:
