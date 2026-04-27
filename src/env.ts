@@ -5,7 +5,7 @@ export const env = createEnv({
   server: {
     NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
 
-    // Database
+    // 数据库
     DATABASE_URL: z.string().url(),
     DIRECT_URL: z.string().url().optional(),
 
@@ -13,7 +13,7 @@ export const env = createEnv({
     AUTH_SECRET: z.string().min(32, 'AUTH_SECRET must be at least 32 characters'),
     AUTH_URL: z.string().url().optional(),
 
-    // OAuth providers (optional during initial dev)
+    // OAuth 提供商（初始开发期间可选）
     AUTH_GITHUB_ID: z.string().optional(),
     AUTH_GITHUB_SECRET: z.string().optional(),
     AUTH_GOOGLE_ID: z.string().optional(),
@@ -25,8 +25,8 @@ export const env = createEnv({
     STRIPE_PRO_PRICE_ID: z.string().optional(),
     STRIPE_TEAM_PRICE_ID: z.string().optional(),
 
-    // Email — accepts either a plain address (`a@b.com`) or the RFC 5322
-    // "Name <a@b.com>" sender format used by Resend / SendGrid / SMTP.
+    // 电子邮件 — 接受纯地址（`a@b.com`）或 RFC 5322
+    // "Name <a@b.com>" 发送方格式（由 Resend / SendGrid / SMTP 使用）。
     RESEND_API_KEY: z.string().optional(),
     EMAIL_FROM: z
       .string()
@@ -38,82 +38,81 @@ export const env = createEnv({
       )
       .default('Kitora <onboarding@example.com>'),
 
-    // Upstash Redis (rate limiting)
+    // Upstash Redis（速率限制）
     UPSTASH_REDIS_REST_URL: z.string().url().optional(),
     UPSTASH_REDIS_REST_TOKEN: z.string().optional(),
 
-    // RFC 0005 — Multi-region. `KITORA_REGION` is the canonical name and
-    // its values are uppercase to align with the Prisma `Region` enum
-    // (GLOBAL / CN / EU). It is a process-wide constant: read it through
-    // `currentRegion()` in `src/lib/region.ts`, never via `process.env`
-    // directly.
+    // RFC 0005 — 多区域。`KITORA_REGION` 是规范名称，
+    // 其值为大写以与 Prisma `Region` 枚举对齐
+    // （GLOBAL / CN / EU）。它是进程范围的常量：通过
+    // `src/lib/region.ts` 中的 `currentRegion()` 读取，
+    // 永不直接通过 `process.env`。
     //
-    // The lower-case `REGION` is honoured for one deprecation window
-    // (v0.6 + v0.7 accept it as an alias; v0.8 removes the read). When
-    // both are set, `KITORA_REGION` wins. A `logger.warn` fires the first
-    // time `currentRegion()` falls back to the legacy variable so
-    // operators see the prompt to migrate.
+    // 小写的 `REGION` 在一个弃用窗口内被接受
+    // （v0.6 + v0.7 接受它作为别名；v0.8 移除读取）。
+    // 当两者都设置时，`KITORA_REGION` 获胜。第一次
+    // `currentRegion()` 回退到遗留变量时触发 `logger.warn`，
+    // 以便运营商看到迁移提示。
     KITORA_REGION: z.enum(['GLOBAL', 'CN', 'EU']).optional(),
     REGION: z.enum(['global', 'cn']).optional(),
 
-    // Mainland-China only: shown in the footer to satisfy ICP / 公安部备案
-    // requirements. Both leave empty in 'global' mode.
+    // 仅限中国大陆：在页脚中显示以满足 ICP / 公安部备案
+    // 要求。在"global"模式中两者都留空。
     ICP_NUMBER: z.string().optional(),
     PUBLIC_SECURITY_NUMBER: z.string().optional(),
 
-    // CN infrastructure credentials (RFC 0006 PR-2). All optional at the
-    // env layer so dev / GLOBAL stacks boot fine without setting them;
-    // the providers themselves throw a configuration error if a CN-region
-    // request lands and the matching credential block is missing.
+    // 中国基础设施凭证（RFC 0006 PR-2）。所有可选
+    // 在 env 层以便 dev / GLOBAL 堆栈无需设置即可启动；
+    // 提供商本身在中国区域请求到达且缺少匹配的凭证块时
+    // 抛出配置错误。
     //
-    // RAM AccessKey is shared by Aliyun OSS (object storage) and DirectMail
-    // (transactional email). Production uses a STS-backed RAM Role bound to
-    // the ACK Service Account so these env vars only need filling for local
-    // dev against a sandbox account.
+    // RAM AccessKey 由阿里云 OSS（对象存储）和 DirectMail
+    // （事务性电子邮件）共享。生产使用 STS 支持的 RAM 角色
+    // 绑定到 ACK 服务账户，因此这些 env 变量仅在本地 dev
+    // 对沙箱账户时需要填充。
     ALIYUN_ACCESS_KEY_ID: z.string().optional(),
     ALIYUN_ACCESS_KEY_SECRET: z.string().optional(),
 
-    // OSS — bucket + region (e.g. cn-shanghai). Endpoint is optional and
-    // only set when using a non-default endpoint (e.g. the VPC-internal
-    // `oss-cn-shanghai-internal.aliyuncs.com` for ACK→OSS traffic).
+    // OSS — bucket + region（例如 cn-shanghai）。端点可选
+    // 仅在使用非默认端点时设置（例如 VPC 内部
+    // `oss-cn-shanghai-internal.aliyuncs.com` 用于 ACK→OSS 流量）。
     ALIYUN_OSS_BUCKET: z.string().optional(),
     ALIYUN_OSS_REGION: z.string().optional(),
     ALIYUN_OSS_ENDPOINT: z.string().url().optional(),
 
-    // DirectMail — verified sender address (`AccountName` in DirectMail
-    // parlance) and the regional endpoint (e.g.
-    // `dm.cn-hangzhou.aliyuncs.com`). DirectMail's region can differ from
-    // OSS / RDS region; cn-hangzhou is the canonical mainland endpoint.
+    // DirectMail — 已验证的发送方地址（DirectMail 术语中的
+    // `AccountName`）和地区端点（例如
+    // `dm.cn-hangzhou.aliyuncs.com`）。DirectMail 的地区可能
+    // 与 OSS / RDS 地区不同；cn-hangzhou 是规范的大陆端点。
     ALIYUN_DM_ACCOUNT_NAME: z.string().optional(),
     ALIYUN_DM_ENDPOINT: z.string().optional(),
 
-    // Aliyun Redis — TCP-protocol Redis URL used by `src/lib/rate-limit.ts`
-    // when `currentRegion()` is CN. Replaces Upstash REST in CN region
-    // (Upstash sits outside the GFW, RTT >200ms is unacceptable on hot
-    // paths). Format: `redis://:{password}@{host}:6379` or `rediss://...`
-    // for the TLS port (6380). Should resolve over the VPC, not public.
+    // 阿里云 Redis — TCP 协议 Redis URL，由
+    // `src/lib/rate-limit.ts` 在 `currentRegion()` 为 CN 时使用。
+    // 在中国区域替换 Upstash REST（Upstash 位于 GFW 外，
+    // RTT >200ms 在热路径上不可接受）。格式：`redis://:{password}@{host}:6379` 或
+    // `rediss://...` 用于 TLS 端口 (6380)。应在 VPC 上解析，不是公共的。
     ALIYUN_REDIS_URL: z.string().optional(),
 
-    // CN-payment credentials (RFC 0006 PR-3). All optional at the env layer
-    // so dev / GLOBAL stacks boot fine without setting them; the providers
-    // themselves throw a configuration error if a CN-region request lands
-    // and the matching credential block is missing.
+    // 中国支付凭证（RFC 0006 PR-3）。所有可选在 env 层
+    // 以便 dev / GLOBAL 堆栈无需设置即可启动；提供商本身
+    // 在中国区域请求到达且缺少匹配的凭证块时抛出配置错误。
     //
-    // Alipay — 「电脑网站支付 + 周期扣款」 needs four pieces:
-    //   * APP_ID                — 应用 ID（开放平台拿到）
+    // 支付宝 — 「电脑网站支付 + 周期扣款」需要四个部分：
+    //   * APP_ID                — 应用 ID（从开放平台获取）
     //   * APP_PRIVATE_KEY       — 应用私钥（PKCS8, PEM 一行去掉 BEGIN/END）
     //   * ALIPAY_PUBLIC_KEY     — 支付宝公钥，用于回调验签
-    //   * GATEWAY               — 默认正式网关；sandbox 时换成 openapi-sandbox
+    //   * GATEWAY               — 默认正式网关；沙箱时换成 openapi-sandbox
     ALIPAY_APP_ID: z.string().optional(),
     ALIPAY_PRIVATE_KEY: z.string().optional(),
     ALIPAY_PUBLIC_KEY: z.string().optional(),
     ALIPAY_GATEWAY: z.string().url().default('https://openapi.alipay.com/gateway.do'),
-    // Webhook handlers want a stable hostname for `notify_url`; in CN region
-    // this is `https://api.kitora.cn` (RFC 0006 §3.5). Fallback uses
-    // NEXT_PUBLIC_APP_URL for dev / staging.
+    // Webhook 处理程序想要一个 stable 主机名用于 `notify_url`；
+    // 在中国区域这是 `https://api.kitora.cn`（RFC 0006 §3.5）。
+    // 回退使用 NEXT_PUBLIC_APP_URL 用于 dev / staging。
     CN_PUBLIC_API_URL: z.string().url().optional(),
 
-    // WeChat Pay APIv3 — Native pay 二维码模式 + 周期扣款 (papay).
+    // 微信支付 APIv3 — Native 支付二维码模式 + 周期扣款 (papay)。
     //   * MCH_ID                — 商户号
     //   * APIV3_KEY             — APIv3 secret，用于回调 AES-GCM 解密
     //   * MERCHANT_PRIVATE_KEY  — 商户证书私钥 (PEM)
@@ -124,21 +123,20 @@ export const env = createEnv({
     WECHAT_PAY_MERCHANT_PRIVATE_KEY: z.string().optional(),
     WECHAT_PAY_MERCHANT_SERIAL_NO: z.string().optional(),
     WECHAT_PAY_APP_ID: z.string().optional(),
-    // Backwards compat — the old name `WECHAT_PAY_API_KEY` is the v2
-    // signing key.  v3 callers must migrate to `WECHAT_PAY_APIV3_KEY`.
-    // Keep accepting the legacy name for one deprecation window so existing
-    // .env files don't fail validation on upgrade.
+    // 向后兼容 — 旧名称 `WECHAT_PAY_API_KEY` 是 v2 签名密钥。
+    // v3 调用者必须迁移到 `WECHAT_PAY_APIV3_KEY`。在一个弃用窗口
+    // 内继续接受遗留名称，以便现有的 .env 文件在升级时不会验证失败。
     WECHAT_PAY_API_KEY: z.string().optional(),
 
-    // Logging
+    // 日志
     LOG_LEVEL: z
       .enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent'])
       .default('info'),
 
-    // Data export (RFC 0002 PR-3) — where the cron worker drops finished
-    // zip artefacts. `local` writes under DATA_EXPORT_LOCAL_DIR (defaults
-    // to ./tmp/exports — git-ignored). `s3` requires the bucket + region
-    // vars; signed URLs are minted at download time.
+    // 数据导出（RFC 0002 PR-3）— cron worker 放置已完成
+    // zip 工件的位置。`local` 在 DATA_EXPORT_LOCAL_DIR 下写入
+    //（默认为 ./tmp/exports — git-ignored）。`s3` 需要 bucket + region
+    // 变量；签名 URL 在下载时生成。
     DATA_EXPORT_STORAGE: z.enum(['local', 's3']).default('local'),
     DATA_EXPORT_LOCAL_DIR: z.string().default('./tmp/exports'),
     DATA_EXPORT_S3_BUCKET: z.string().optional(),
@@ -146,31 +144,31 @@ export const env = createEnv({
     DATA_EXPORT_S3_ACCESS_KEY_ID: z.string().optional(),
     DATA_EXPORT_S3_SECRET_ACCESS_KEY: z.string().optional(),
 
-    // RFC 0007 — WebAuthn / Passkey config. All optional; the lib auto-
-    // derives sensible defaults from `NEXT_PUBLIC_APP_URL`. Override
-    // explicitly when running behind a reverse proxy where the public
-    // hostname differs from `NEXT_PUBLIC_APP_URL`.
+    // RFC 0007 — WebAuthn / Passkey 配置。所有可选；lib
+    // 从 `NEXT_PUBLIC_APP_URL` 自动派生合理的默认值。
+    // 在运行在反向代理后（其中公共主机名与
+    // `NEXT_PUBLIC_APP_URL` 不同）时明确覆盖。
     //
-    //   * RP_ID    — eTLD+1 the credential binds to. Must match the
-    //                document hostname browser-side. Production usually
-    //                sets this to `kitora.io` / `kitora.cn` / `kitora.eu`.
-    //                Dev / e2e can leave unset → falls back to URL host.
-    //   * RP_NAME  — Human label in the consent prompt. Defaults `Kitora`.
-    //   * ORIGIN   — Full origin (scheme + host + port). Defaults to
-    //                `NEXT_PUBLIC_APP_URL`.
+    //   * RP_ID    — 凭据绑定到的 eTLD+1。必须与
+    //                浏览器端的文档主机名匹配。生产通常
+    //                将其设置为 `kitora.io` / `kitora.cn` / `kitora.eu`。
+    //                Dev / e2e 可以留空 → 回退到 URL 主机。
+    //   * RP_NAME  — 同意提示中的人类标签。默认 `Kitora`。
+    //   * ORIGIN   — 完整源（scheme + host + port）。默认为
+    //                `NEXT_PUBLIC_APP_URL`。
     WEBAUTHN_RP_ID: z.string().optional(),
     WEBAUTHN_RP_NAME: z.string().optional(),
     WEBAUTHN_ORIGIN: z.string().url().optional(),
 
-    // Sentry — server-side build-time vars for source-map upload. Runtime DSN
-    // is on the client side (NEXT_PUBLIC_SENTRY_DSN). All optional: missing
-    // values just disable the relevant integration.
+    // Sentry — 服务端构建时变量用于源地图上传。运行时 DSN
+    // 在客户端（NEXT_PUBLIC_SENTRY_DSN）。所有可选：缺少
+    // 值只是禁用相关的集成。
     SENTRY_AUTH_TOKEN: z.string().optional(),
     SENTRY_ORG: z.string().optional(),
     SENTRY_PROJECT: z.string().optional(),
     SENTRY_ENVIRONMENT: z.string().optional(),
 
-    // RFC 0008 PR-4 — Background jobs Vercel Cron 鉴权密钥。
+    // RFC 0008 PR-4 — 后台任务 Vercel Cron 认证密钥。
     //
     // `/api/jobs/tick` 路由比较 `Authorization: Bearer ${CRON_SECRET}`，
     // Vercel Cron 自动注入此 header；外部直访问统一返回 401（不泄露路径存在性，
@@ -188,7 +186,7 @@ export const env = createEnv({
     NEXT_PUBLIC_APP_URL: z.string().url().default('http://localhost:3000'),
     NEXT_PUBLIC_APP_NAME: z.string().default('Kitora'),
     NEXT_PUBLIC_ANALYTICS_ID: z.string().optional(),
-    /** Public DSN — exposed to the browser. Empty string disables Sentry. */
+    /** 公共 DSN — 暴露给浏览器。空字符串禁用 Sentry。*/
     NEXT_PUBLIC_SENTRY_DSN: z.string().optional(),
   },
   runtimeEnv: {
