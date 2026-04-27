@@ -2,6 +2,7 @@ import 'server-only';
 
 import { OrgRole } from '@prisma/client';
 import { cookies } from 'next/headers';
+import { cache } from 'react';
 
 import { prisma } from '@/lib/db';
 
@@ -50,8 +51,17 @@ export interface ActiveOrg {
  *   3. 如果用户根本没有成员关系（例如回填从未看到的 OAuth
  *      用户），延迟创建他们的个人组织。通过 upsert 幂等，
  *      在并发请求下安全。
+ *
+ * 用 React 18 的 `cache()` 包一层 —— App Router 渲染同一个 dashboard
+ * 页面时 layout 和 page 都会调到这个函数，cache 让它们在单次渲染内
+ * 共享同一个 promise，避免：
+ *   * 重复读 cookie + 两次 membership 查询
+ *   * `ensurePersonalOrg` 被并发触发时撞 P2002（即便有 try/catch
+ *     兜底，Prisma 仍会把错误 emit 到 stderr，造成噪音 + 多余 SQL）
+ * 跨请求并发（同一用户两个标签页 / 双击）依然要靠 `ensurePersonalOrg`
+ * 内部的 P2002 兜底护住，cache 只覆盖单请求渲染期。
  */
-export async function requireActiveOrg(): Promise<ActiveOrg> {
+export const requireActiveOrg = cache(async (): Promise<ActiveOrg> => {
   const sessionUser = await requireUser();
 
   const c = await cookies();
@@ -100,7 +110,19 @@ export async function requireActiveOrg(): Promise<ActiveOrg> {
   // 个人组织。通过 slug 的 upsert 幂等；在并发
   // 请求下安全（只有一个赢，其余落在 `update: {}`）。
   return ensurePersonalOrg(sessionUser.id);
-}
+});
+
+/**
+ * Prisma 唯一约束错误码。`upsert` 在并发下不是单条原子 SQL，而是
+ * SELECT + INSERT/UPDATE 两步：两个并发请求都 SELECT 不到行就都尝试
+ * INSERT，DB 唯一索引会让后到的那个抛 P2002。我们靠这个码识别 race，
+ * 然后退回 findUnique 拿胜出方写入的行（幂等结果一致）。
+ *
+ * App Router 在渲染同一个 dashboard 页面时会并发渲染 layout 和 page，
+ * 两边都会走 requireActiveOrg → ensurePersonalOrg；这就是 race 的
+ * 真实触发场景，详见 RFC 0002 PR-3 兜底注释。
+ */
+const PRISMA_UNIQUE_VIOLATION = 'P2002';
 
 async function ensurePersonalOrg(userId: string): Promise<ActiveOrg> {
   const user = await prisma.user.findUniqueOrThrow({
@@ -109,21 +131,36 @@ async function ensurePersonalOrg(userId: string): Promise<ActiveOrg> {
   });
   const slug = `personal-${user.id.slice(-8)}`;
 
-  const org = await prisma.organization.upsert({
-    where: { slug },
-    create: {
-      slug,
-      name: user.name ?? 'Personal',
-    },
-    update: {},
-    select: { id: true, slug: true },
-  });
+  // Organization 行：upsert + P2002 兜底。
+  let org;
+  try {
+    org = await prisma.organization.upsert({
+      where: { slug },
+      create: {
+        slug,
+        name: user.name ?? 'Personal',
+      },
+      update: {},
+      select: { id: true, slug: true },
+    });
+  } catch (err) {
+    if ((err as { code?: string }).code !== PRISMA_UNIQUE_VIOLATION) throw err;
+    org = await prisma.organization.findUniqueOrThrow({
+      where: { slug },
+      select: { id: true, slug: true },
+    });
+  }
 
-  await prisma.membership.upsert({
-    where: { orgId_userId: { orgId: org.id, userId } },
-    create: { orgId: org.id, userId, role: OrgRole.OWNER },
-    update: {},
-  });
+  // Membership 行：同样 upsert + P2002 兜底。并发胜出方已建好则吞掉。
+  try {
+    await prisma.membership.upsert({
+      where: { orgId_userId: { orgId: org.id, userId } },
+      create: { orgId: org.id, userId, role: OrgRole.OWNER },
+      update: {},
+    });
+  } catch (err) {
+    if ((err as { code?: string }).code !== PRISMA_UNIQUE_VIOLATION) throw err;
+  }
 
   return {
     orgId: org.id,
