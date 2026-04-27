@@ -35,20 +35,20 @@ const nextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
   compress: true,
-  // Only emit the standalone server bundle when explicitly requested (Docker
-  // build). Vercel and `next start` don't need it, and standalone confuses
-  // both `pnpm start` (warning) and Sentry's build-trace collector.
+  // 仅在明确指定时（Docker 构建）才输出 standalone server bundle。
+  // Vercel 和 `next start` 不需要它，standalone 模式会干扰
+  // `pnpm start`（报警告）和 Sentry 的 build-trace 收集器。
   output: process.env.BUILD_STANDALONE === '1' ? 'standalone' : undefined,
-  // Keep these packages outside the webpack bundle on the server — they ship
-  // their own runtime resolution that webpack would otherwise break.
-  // (In Next 15+ this option is renamed to `serverExternalPackages`.)
+  // 让这些包保持在服务端 webpack bundle 之外 —— 它们自带运行时解析逻辑，
+  // webpack 打包后会破坏其正常运行。
+  // （Next 15+ 此选项已重命名为 `serverExternalPackages`。）
   experimental: {
     serverComponentsExternalPackages: ['pino', 'pino-pretty', '@prisma/client'],
     serverActions: {
       bodySizeLimit: '2mb',
     },
-    // Required by @sentry/nextjs in Next 14 to load `src/instrumentation.ts`.
-    // (Stable in Next 15+ and removed there.)
+    // Next 14 中 @sentry/nextjs 加载 `src/instrumentation.ts` 所必须。
+    // （Next 15+ 已稳定，该选项在 15+ 中被移除。）
     instrumentationHook: true,
   },
   images: {
@@ -67,10 +67,9 @@ const nextConfig = {
   },
 };
 
-// Sentry should wrap the outermost config — this lets it inject build-time
-// instrumentation (stack-frame stripping, source-map upload) over whatever the
-// other plugins produce. We only pass an `org`/`project` when the auth token
-// is set, otherwise the source-map upload step is silently skipped.
+// Sentry 应该包裹最外层的 config —— 这样它才能在所有插件产出之上注入
+// 构建时能力（堆栈帧剥离、source map 上传）。只有当 auth token 存在时
+// 才传入 `org`/`project`，否则 source map 上传步骤会静默跳过。
 const sentryUploadConfigured = !!(
   process.env.SENTRY_AUTH_TOKEN &&
   process.env.SENTRY_ORG &&
@@ -84,9 +83,9 @@ export default withSentryConfig(withNextIntl(nextConfig), {
   silent: !process.env.CI,
   hideSourceMaps: true,
   disableLogger: true,
-  // No-op when auth token / org / project missing — keeps the build green
-  // for forks and OSS users who don't have a Sentry account.
+  // auth token / org / project 缺失时静默 noop —— 保持 fork 和
+  // 没有 Sentry 账号的 OSS 用户构建通过。
   sourcemaps: sentryUploadConfigured ? { disable: false } : { disable: true },
-  // Tunnel browser SDK requests through this app, bypassing ad-blockers.
+  // 浏览器 SDK 请求通过本应用隧道转发，绕过广告拦截器。
   tunnelRoute: '/monitoring',
 });

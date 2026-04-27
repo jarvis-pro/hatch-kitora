@@ -2,7 +2,9 @@ import type { Config } from 'tailwindcss';
 import tailwindcssAnimate from 'tailwindcss-animate';
 
 const config: Config = {
+  // class 策略：由根元素 class="dark" 切换暗色模式
   darkMode: ['class'],
+  // 扫描范围：所有 src/ 下的 TS/TSX 文件
   content: [
     './src/pages/**/*.{ts,tsx}',
     './src/components/**/*.{ts,tsx}',
@@ -18,10 +20,12 @@ const config: Config = {
       },
     },
     extend: {
+      // 字体：CSS 变量注入，由 next/font 在 layout.tsx 中绑定
       fontFamily: {
         sans: ['var(--font-sans)', 'system-ui', 'sans-serif'],
         mono: ['var(--font-mono)', 'ui-monospace', 'monospace'],
       },
+      // 颜色系统：全部通过 CSS 变量驱动，支持主题切换
       colors: {
         border: 'hsl(var(--border))',
         input: 'hsl(var(--input))',
@@ -57,11 +61,13 @@ const config: Config = {
           foreground: 'hsl(var(--card-foreground))',
         },
       },
+      // 圆角：三档基于 CSS 变量的半径值
       borderRadius: {
         lg: 'var(--radius)',
         md: 'calc(var(--radius) - 2px)',
         sm: 'calc(var(--radius) - 4px)',
       },
+      // 动画：shadcn/ui Accordion 展开 / 收起
       keyframes: {
         'accordion-down': {
           from: { height: '0' },

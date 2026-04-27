@@ -1,9 +1,9 @@
 **/.git
 **/.next
 **/node_modules
-# `.env` is committed and only carries non-secret defaults — let it into the
-# build context so `next build` can read it. Keep secrets (`.env.local` and
-# any `.env.*.local` variant) out.
+# `.env` 已提交，仅含非 secret 的默认值 —— 允许进入构建上下文，
+# 让 `next build` 能读到它。真实 secret（`.env.local` 及所有
+# `.env.*.local` 变体）必须排除在外。
 **/.env.local
 **/.env.*.local
 **/npm-debug.log
