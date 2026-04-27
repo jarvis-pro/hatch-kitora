@@ -9,7 +9,7 @@
   "packageManager": "pnpm@10.33.2",
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "pnpm db:generate && next build",
     "start": "next start",
     "lint": "next lint",
     "lint:fix": "next lint --fix",
