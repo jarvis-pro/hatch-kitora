@@ -16,15 +16,15 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 /**
- * RFC 0004 PR-4 — SCIM Users collection.
+ * RFC 0004 PR-4 — SCIM 用户集合。
  *
  *   GET  /api/scim/v2/Users[?filter=userName eq "x"&startIndex=1&count=20]
- *   POST /api/scim/v2/Users  — create User + Membership in the SCIM org
+ *   POST /api/scim/v2/Users  — 在 SCIM 组织中创建用户 + 成员资格
  *
- * The IdP-side connector calls GET first to discover existing users, then
- * POST to provision the ones it has assigned. Our `id` is the Membership
- * row id (per RFC 0004 §4.3) so SCIM DELETE later cleanly drops that
- * tenant's binding without disturbing the User row.
+ * IdP 端连接器首先调用 GET 来发现现有用户，然后
+ * POST 来配置它已分配的用户。我们的 `id` 是成员资格行 id
+ * （根据 RFC 0004 §4.3），所以稍后 SCIM DELETE 干净地删除该租户的绑定，
+ * 而不会扰乱用户行。
  */
 
 export async function GET(request: Request) {
@@ -36,9 +36,9 @@ export async function GET(request: Request) {
   const startIndex = clampInt(url.searchParams.get('startIndex'), 1, 1, 10_000);
   const count = clampInt(url.searchParams.get('count'), 50, 0, 200);
 
-  // Build the where-clause. Default → all (non-deleted) memberships in the
-  // tenant. With an `eq` filter we narrow down — `userName` is the user's
-  // email; `externalId` maps to `providerSubject`.
+  // 构建 where 子句。默认 → 租户中的所有（未删除）成员资格。
+  // 使用 `eq` 过滤器，我们缩小范围 — `userName` 是用户的电子邮件；
+  // `externalId` 映射到 `providerSubject`。
   const baseWhere: Prisma.MembershipWhereInput = {
     orgId: auth.orgId,
     deletedAt: null,
@@ -132,8 +132,8 @@ export async function POST(request: Request) {
       .join(' ')
       .trim() || null;
 
-  // Group → role. Default MEMBER. We refuse OWNER per RFC 0004 §4.4: that
-  // promotion has to happen inside Kitora.
+  // 组 → 角色。默认成员。我们根据 RFC 0004 §4.4 拒绝所有者：
+  // 该晋升必须在 Kitora 内进行。
   let role: OrgRole = OrgRole.MEMBER;
   if (Array.isArray(body.groups) && body.groups.length > 0) {
     for (const g of body.groups) {
@@ -148,8 +148,8 @@ export async function POST(request: Request) {
     }
   }
 
-  // Idempotency: if a membership with this externalId or email already
-  // exists in the tenant, return 409 per SCIM convention.
+  // 幂等性：如果租户中已存在带有此 externalId 或电子邮件的成员资格，
+  // 根据 SCIM 约定返回 409。
   const existing = await prisma.membership.findFirst({
     where: {
       orgId: auth.orgId,
@@ -164,8 +164,8 @@ export async function POST(request: Request) {
     return scimError(409, 'user already exists', { scimType: 'uniqueness' });
   }
 
-  // Reuse the JIT pipeline so audit + (existing-user-by-email) handling
-  // stays in lockstep with SAML/OIDC login provisioning.
+  // 重用 JIT 管道，以便审计 +（现有用户通过电子邮件）处理
+  // 与 SAML/OIDC 登录配置保持一致。
   let jit;
   try {
     jit = await provisionSsoUser({
@@ -192,8 +192,8 @@ export async function POST(request: Request) {
     },
   });
 
-  // SCIM defaults `active = true` on create. If the caller passed `active:
-  // false` we honor it via deletedAt.
+  // SCIM 在创建时默认 `active = true`。如果调用者传递了 `active: false`，
+  // 我们通过 deletedAt 来遵守它。
   if (body.active === false) {
     await prisma.membership.update({
       where: { id: membership.id },
@@ -202,8 +202,8 @@ export async function POST(request: Request) {
     membership.deletedAt = new Date();
   }
 
-  // Promote to ADMIN if the create payload asked for it. (We pre-validated
-  // OWNER above so this can only land on MEMBER or ADMIN.)
+  // 如果创建有效载荷要求，晋升为 ADMIN。（我们在上面预先验证了 OWNER，
+  // 所以这只能落在 MEMBER 或 ADMIN 上。）
   if (role !== OrgRole.MEMBER && membership.role !== role) {
     await prisma.membership.update({ where: { id: membership.id }, data: { role } });
     membership.role = role;
@@ -234,7 +234,7 @@ export async function POST(request: Request) {
   );
 }
 
-// ─── helpers ────────────────────────────────────────────────────────────────
+// ─── 助手函数 ────────────────────────────────────────────────────────────────
 
 function stringField(v: unknown): string | null {
   if (typeof v !== 'string') return null;

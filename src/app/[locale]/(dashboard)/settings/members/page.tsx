@@ -17,7 +17,7 @@ export default async function MembersPage() {
   const me = await requireActiveOrg().catch(() => null);
   if (!me) redirect('/login');
 
-  // Personal orgs don't have a meaningful members concept — bounce.
+  // 个人组织没有有意义的成员概念——反弹。
   if (me.slug.startsWith('personal-')) redirect('/settings');
 
   const t = await getTranslations('orgs.members');

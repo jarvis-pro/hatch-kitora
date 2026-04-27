@@ -4,11 +4,11 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 /**
- * RFC 0004 PR-4 / SCIM 2.0 §7 — Schemas discovery.
+ * RFC 0004 PR-4 / SCIM 2.0 §7 — Schemas 发现。
  *
- * Returns the static SCIM schemas we implement: User + Group. No
- * EnterpriseUser extension (manager / employeeNumber / etc.) — that's
- * follow-up territory and most IdPs are happy without it.
+ * 返回我们实现的静态 SCIM schemas：User + Group。没有
+ * EnterpriseUser 扩展（经理/员工号等）— 那是后续领地，
+ * 大多数 IdP 都对没有它感到满意。
  */
 export async function GET(request: Request) {
   const auth = await authenticateScim(request);

@@ -19,7 +19,7 @@ export default async function OrganizationSettingsPage() {
   const me = await requireActiveOrg().catch(() => null);
   if (!me) redirect('/login');
 
-  // Personal orgs are bound to the user account — no rename / delete UI here.
+  // 个人组织与用户账户绑定 — 这里没有重命名/删除 UI。
   if (me.slug.startsWith('personal-')) redirect('/settings');
 
   if (!can(me.role, 'org.update')) redirect('/settings');
@@ -32,7 +32,7 @@ export default async function OrganizationSettingsPage() {
   });
 
   const canDelete = can(me.role, 'org.delete');
-  // RFC 0002 PR-3 — OWNER-only org data export.
+  // RFC 0002 PR-3 — 仅限 OWNER 的组织数据导出。
   const isOwner = me.role === OrgRole.OWNER;
   const orgExports = isOwner
     ? await prisma.dataExportJob.findMany({

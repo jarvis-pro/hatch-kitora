@@ -10,9 +10,8 @@ export const metadata: Metadata = {
 };
 
 /**
- * Compliance landing page for mainland-China deployments. Surfaces the
- * ICP filing number and 公安部 record. Returns 404 outside CN region so
- * `global` deployments don't leak an empty page.
+ * 适用于中国大陆部署的合规落地页，展示 ICP 备案号和公安部备案信息。
+ * 在 CN 以外的 region 返回 404，避免 `global` 部署暴露空页面。
  */
 export default async function IcpPage() {
   if (!isCnRegion()) notFound();

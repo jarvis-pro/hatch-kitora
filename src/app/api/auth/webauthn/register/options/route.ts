@@ -1,14 +1,12 @@
 // RFC 0007 PR-2 — POST /api/auth/webauthn/register/options
 //
-// Step 1 of credential registration. Authenticated user; returns the
-// `PublicKeyCredentialCreationOptions` envelope the browser feeds to
-// `navigator.credentials.create()`. Side effect: persists the SDK-
-// generated challenge on `User.webauthnChallenge` for `register/verify`
-// to cross-check.
+// 凭证注册的第 1 步。已认证的用户；返回浏览器将传递给
+// `navigator.credentials.create()` 的 `PublicKeyCredentialCreationOptions` 信封。
+// 副作用：将 SDK 生成的质询持久化到 `User.webauthnChallenge`
+// 供 `register/verify` 交叉检查。
 //
-// `excludeCredentials` lists the user's existing credentials so the
-// browser can dedupe — no point letting Touch ID enroll the same key
-// twice.
+// `excludeCredentials` 列出用户现有的凭证，以便浏览器可以
+// 去重 — 不需要两次 Touch ID 同一密钥。
 
 import { NextResponse } from 'next/server';
 
@@ -27,10 +25,9 @@ export async function POST() {
   if (!me) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   }
-  // Auth.js session shape leaves email / name as `string | null | undefined`.
-  // Every Credentials / OAuth / SSO user has an email by construction (the
-  // adapter creates it that way), but the type system can't see that —
-  // narrow here so the SDK call below sees plain strings.
+  // Auth.js 会话形状将 email/name 保留为 `string | null | undefined`。
+  // 每个 Credentials / OAuth / SSO 用户都有电子邮件（适配器这样创建它），
+  // 但类型系统看不到 — 在这里缩小范围，以便下面的 SDK 调用看到纯字符串。
   if (!me.email) {
     return NextResponse.json({ error: 'no-email-on-account' }, { status: 400 });
   }
@@ -45,31 +42,28 @@ export async function POST() {
   const options = await generateRegistrationOptions({
     rpName: getRpName(),
     rpID: getRpId(),
-    // userID is the WebAuthn-protocol-level user handle — bytes the
-    // authenticator stores opaquely. Use our cuid bytes; @simplewebauthn
-    // accepts a Uint8Array.
+    // userID 是 WebAuthn 协议级别的用户句柄 — 认证器存储的不透明字节。
+    // 使用我们的 cuid 字节；@simplewebauthn 接受 Uint8Array。
     userID: new TextEncoder().encode(me.id),
     userName: userEmail,
     userDisplayName,
-    attestationType: 'none', // RFC 0007 §1 non-goal: attestation chain
+    attestationType: 'none', // RFC 0007 §1 非目标：证明链
     excludeCredentials: existing.map((c) => ({
       id: c.credentialId,
       transports: c.transports as never,
     })),
     authenticatorSelection: {
-      // 'preferred' — accept hardware keys without UV, but ask for it
-      // when the authenticator supports UV (RFC 0007 §9 decision).
+      // 'preferred' — 接受没有 UV 的硬件密钥，但在认证器支持时请求它
+      // (RFC 0007 §9 决策)。
       userVerification: 'preferred',
-      // Allow both platform (Touch ID / Windows Hello) and cross-platform
-      // (YubiKey) authenticators.
+      // 允许平台（Touch ID / Windows Hello）和跨平台（YubiKey）认证器。
       residentKey: 'preferred',
       requireResidentKey: false,
     },
   });
 
-  // Persist the SDK-issued challenge for verify to cross-check.
-  // `consumeChallenge` (RFC 0007 PR-1 lib) will read + clear it on
-  // verify success or expiry.
+  // 持久化 SDK 颁发的质询供 `register/verify` 交叉检查。
+  // `consumeChallenge`（RFC 0007 PR-1 库）将在验证成功或过期时读取 + 清除它。
   await prisma.user.update({
     where: { id: me.id },
     data: {

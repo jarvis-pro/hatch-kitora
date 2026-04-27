@@ -15,11 +15,11 @@ export const metadata: Metadata = {
 export const dynamic = 'force-dynamic';
 
 /**
- * RFC 0007 PR-2 — `/settings/security/passkeys`.
+ * RFC 0007 PR-2 — `/settings/security/passkeys`。
  *
- * Lists every WebAuthnCredential row for the current user and offers
- * register / rename / delete. Mirrors the RFC 0002 PR-1 Active Sessions
- * card layout for visual consistency.
+ * 列出当前用户的每一行 WebAuthnCredential 并提供
+ * 注册/重命名/删除。镜像 RFC 0002 PR-1 Active Sessions
+ * 卡片布局以确保视觉一致性。
  */
 export default async function PasskeysSettingsPage() {
   const me = await requireUser().catch(() => null);

@@ -14,9 +14,9 @@ export const dynamic = 'force-dynamic';
 /**
  * RFC 0003 PR-1 — `/settings/organization/webhooks`
  *
- * OWNER / ADMIN only. Personal orgs are bounced (no infra to integrate with).
- * The detail page lives one level deeper at `/settings/organization/webhooks/[id]`
- * and is added in the same PR.
+ * 仅限 OWNER/ADMIN。个人组织被拒绝（没有基础设施可集成）。
+ * 详情页面位于 `/settings/organization/webhooks/[id]`
+ * 并在同一 PR 中添加。
  */
 export default async function WebhooksPage() {
   const me = await requireActiveOrg().catch(() => null);

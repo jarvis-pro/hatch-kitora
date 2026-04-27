@@ -1,10 +1,9 @@
 // RFC 0007 PR-2 — POST /api/auth/webauthn/register/verify
 //
-// Step 2 of credential registration. Receives the `RegistrationResponseJSON`
-// from `navigator.credentials.create()`, verifies the signature against
-// the challenge minted in step 1, and persists a new `WebAuthnCredential`
-// row. Same transaction recomputes `User.twoFactorEnabled` so adding a
-// passkey to a previously-no-2FA account flips the flag in one shot.
+// 凭证注册的步骤 2。接收来自 `navigator.credentials.create()` 的 `RegistrationResponseJSON`，
+// 验证对步骤 1 中铸造的质询的签名，并持久化新的 `WebAuthnCredential` 行。
+// 相同的事务重新计算 `User.twoFactorEnabled`，以便向先前无 2FA 的账户添加密钥
+// 一次性地翻转标志。
 
 import { NextResponse } from 'next/server';
 
@@ -24,12 +23,11 @@ export const dynamic = 'force-dynamic';
 
 const inputSchema = z.object({
   /**
-   * Verbatim `RegistrationResponseJSON` returned by
-   * `@simplewebauthn/browser`'s `startRegistration()`. We don't shape-
-   * check the inner fields here — the SDK's verify helper does that.
+   * `@simplewebauthn/browser` 的 `startRegistration()` 返回的逐字 `RegistrationResponseJSON`。
+   * 我们不在这里进行形状检查内部字段 — SDK 的验证助手进行检查。
    */
   response: z.unknown(),
-  /** User-given label for the credential, e.g. "MacBook Touch ID". */
+  /** 用户给定的凭证标签，例如 "MacBook Touch ID"。 */
   name: z.string().min(1).max(80),
 });
 
@@ -58,7 +56,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'verification-failed' }, { status: 400 });
   }
 
-  // Single tx: insert credential row + recompute twoFactorEnabled.
+  // 单个事务：插入凭证行 + 重新计算 twoFactorEnabled。
   const credential = await prisma.$transaction(async (tx) => {
     const created = await tx.webAuthnCredential.create({
       data: {

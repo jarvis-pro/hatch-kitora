@@ -11,10 +11,9 @@ export const dynamic = 'force-dynamic';
 /**
  * RFC 0003 PR-1 — `POST /api/v1/orgs/{slug}/webhooks/{id}/rotate-secret`
  *
- * Returns the plaintext secret exactly once. The old secret is invalidated
- * the moment the row commits — there's intentionally no overlap window.
- * Callers should plan to atomically swap their config the moment they
- * receive the response.
+ * 明文密钥仅返回一次。行提交后旧密钥立即失效 ——
+ * 刻意设计为无重叠窗口期。
+ * 调用方应在收到响应后立即原子性地更新配置。
  */
 export async function POST(
   request: Request,
@@ -39,7 +38,7 @@ export async function POST(
   }
 
   const fresh = generateWebhookSecret();
-  // Existence check up front so we have the id for HKDF before mutating.
+  // 预先做存在性检查，以便在变更前获取 HKDF 所需的 id。
   const existing = await prisma.webhookEndpoint.findFirst({
     where: { id, orgId: gate.orgId },
     select: { id: true },

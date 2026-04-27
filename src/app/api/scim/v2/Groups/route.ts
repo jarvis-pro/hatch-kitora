@@ -8,16 +8,16 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 /**
- * RFC 0004 PR-4 — SCIM Groups list.
+ * RFC 0004 PR-4 — SCIM Groups 列表。
  *
- * We expose three static groups per tenant: `Owners`, `Admins`,
- * `Members`. They're not real Prisma rows — they're a projection over
+ * 我们为每个租户公开三个静态组： `Owners`, `Admins`,
+ * `Members`. 它们不是真正的 Prisma 行 — 它们是对
  * `Membership.role`. IdP connectors still expect group resources to
  * discover, so we synthesise them here.
  *
- * IT can flip a user's role by PATCHing the user (preferred) or by
+ * IT 可以通过 PATCHing 用户（首选）或通过
  * PATCHing the group with `add`/`remove` member ops (handled in the
- * by-id route). OWNER is read-only via SCIM (RFC 0004 §4.4).
+ * by-id route). OWNER 通过 SCIM 是只读的（RFC 0004 §4.4）。
  */
 export async function GET(request: Request) {
   const auth = await authenticateScim(request);

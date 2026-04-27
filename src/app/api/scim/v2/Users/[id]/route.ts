@@ -29,10 +29,10 @@ export const dynamic = 'force-dynamic';
  *     ]
  *   }
  *
- * We only implement what Okta / Azure AD / Google Workspace actually
- * send: `replace` on `active` / `name.givenName` / `name.familyName`,
- * and `replace`/`add` on `groups`. Anything else returns 400 with
- * `scimType: invalidPath` so the IdP backs off cleanly.
+ * 我们只实现 Okta / Azure AD / Google Workspace 实际会发送的操作：
+ * `replace` 作用于 `active` / `name.givenName` / `name.familyName`，
+ * `replace`/`add` 作用于 `groups`。其余操作返回 400 并附
+ * `scimType: invalidPath`，让 IdP 干净地退出。
  */
 
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -115,7 +115,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     const verb = (typeof op.op === 'string' ? op.op : '').toLowerCase();
     const path = typeof op.path === 'string' ? op.path : '';
 
-    // ── active ────────────────────────────────────────────────────────
+    // ── 活跃状态 ────────────────────────────────────────────────────────
     if (path === 'active' && verb === 'replace') {
       if (typeof op.value !== 'boolean') {
         return scimError(400, 'active must be boolean', { scimType: 'invalidValue' });
@@ -124,7 +124,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       continue;
     }
 
-    // ── name.{givenName,familyName} ──────────────────────────────────
+    // ── 名称.{givenName,familyName} ──────────────────────────────────
     if (path === 'name.givenName' && (verb === 'replace' || verb === 'add')) {
       givenName = stringOrNull(op.value);
       nextName = composeName(givenName, familyName);
@@ -136,11 +136,10 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       continue;
     }
 
-    // ── groups ────────────────────────────────────────────────────────
+    // ── 组 ────────────────────────────────────────────────────────
     if (path === 'groups' && (verb === 'replace' || verb === 'add')) {
-      // Pick the LAST group in the array — IdPs sometimes send multiple
-      // for "remove old + add new". The only group we honor is the role
-      // marker; everything else is ignored.
+      // 取数组中最后一个组 —— IdP 有时会发送多个（如"移除旧组 + 添加新组"）。
+      // 我们只处理角色标记组，其余忽略。
       const arr = Array.isArray(op.value) ? op.value : [];
       let targetRole: OrgRole | null = null;
       for (const g of arr) {
@@ -158,13 +157,13 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       continue;
     }
 
-    // Unsupported op → keep the connector alive but make the noise loud
-    // enough that we'd notice if a popular IdP needs another path.
+    // 不支持的操作 → 保持连接器存活，但记录足够响的日志，
+    // 以便在主流 IdP 需要其他路径时能及时察觉。
     logger.warn({ verb, path, providerId: auth.idpId }, 'scim-patch-unsupported-op');
   }
 
-  // Apply — separate name update on the User row, role/active on the
-  // Membership row. Both are short-cut if nothing changed.
+  // 应用变更 —— User 行单独更新 name，Membership 行更新 role/active。
+  // 若无实际变化则均走短路跳过。
   if (nextName !== undefined) {
     await prisma.user.update({
       where: { id: existing.user.id },
@@ -185,7 +184,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     });
   }
 
-  // Return the fresh shape — IdP connectors expect the patched resource.
+  // 返回最新数据 —— IdP 连接器期望拿到已 patch 后的资源。
   const fresh = await prisma.membership.findFirstOrThrow({
     where: { id: existing.id },
     select: {

@@ -8,18 +8,16 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 /**
- * RFC 0004 PR-3 — OIDC redirect URI.
+ * RFC 0004 PR-3 — OIDC 重定向 URI。
  *
- * Jackson is configured with `oidcPath: '/api/auth/sso/oidc/callback'` —
- * the IdP redirects here with `?code&state` after the user authenticates.
- * This route hands the query off to Jackson's `oidcAuthzResponse`, which
- * exchanges the OIDC code for tokens, mints its OWN OAuth code in
- * Jackson's session table, and returns a redirect_url back to the app's
- * registered redirect_uri (= our `/api/auth/sso/callback`).
+ * Jackson 配置了 `oidcPath: '/api/auth/sso/oidc/callback'` —
+ * IdP 在用户身份验证后使用 `?code&state` 重定向到这里。
+ * 此路由将查询交给 Jackson 的 `oidcAuthzResponse`，它
+ * 将 OIDC 代码交换为令牌，在 Jackson 的会话表中铸造它自己的 OAuth 代码，
+ * 并返回重定向 URL 回到应用程序的注册 redirect_uri（= 我们的 `/api/auth/sso/callback`）。
  *
- * After this redirect, the rest of the flow is identical to SAML — the
- * generic `/callback` handler does token exchange, userInfo, JIT, and
- * Auth.js session minting.
+ * 在此重定向之后，流程的其余部分与 SAML 相同 —
+ * 通用 `/callback` 处理程序执行令牌交换、userInfo、JIT 和 Auth.js 会话铸造。
  */
 export async function GET(request: Request) {
   const url = new URL(request.url);

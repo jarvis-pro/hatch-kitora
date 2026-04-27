@@ -1,20 +1,18 @@
-// RFC 0006 PR-3 — WeChat Pay APIv3 async notification endpoint.
+// RFC 0006 PR-3 — 微信支付 APIv3 异步通知端点。
 //
-// Differences vs Alipay route:
-//   * Body is JSON, not form-urlencoded.
-//   * Signature lives in five HTTP headers
+// 与支付宝路由的差异：
+//   * 正文是 JSON，不是 form-urlencoded。
+//   * 签名位于五个 HTTP 标头中
 //       Wechatpay-Signature
 //       Wechatpay-Timestamp
 //       Wechatpay-Nonce
 //       Wechatpay-Serial
-//       Wechatpay-Signature-Type (optional, defaults to WECHATPAY2-SHA256-RSA2048)
-//     Verification needs the WeChat Pay platform certificate, fetched and
-//     cached by the SDK; we delegate.
-//   * The interesting payload is in `resource.ciphertext` (AES-GCM); we
-//     hand it to `decryptWechatNotify` to get the cleartext invoice/order
-//     event.
-//   * Response body is JSON: { code: 'SUCCESS', message: 'OK' } on dedup
-//     hits and successes; { code: 'FAIL', message: '...' } on errors.
+//       Wechatpay-Signature-Type（可选，默认为 WECHATPAY2-SHA256-RSA2048）
+//     验证需要微信支付平台证书，由 SDK 获取和缓存；我们委托。
+//   * 有趣的有效载荷在 `resource.ciphertext`（AES-GCM）中；我们
+//     将其交给 `decryptWechatNotify` 以获得清文发票/订单事件。
+//   * 响应正文是 JSON：去重命中和成功时为 { code: 'SUCCESS', message: 'OK' }；
+//     错误时为 { code: 'FAIL', message: '...' }。
 
 import { headers } from 'next/headers';
 import { NextResponse } from 'next/server';
@@ -85,10 +83,9 @@ export async function POST(request: Request) {
     return fail('missing-signature-headers');
   }
 
-  // Header signature verification is delegated to the SDK (it knows how to
-  // rotate the platform cert). For brevity here we trust the SDK's own
-  // verifySign helper at decrypt time — `decryptWechatNotify` throws if
-  // the underlying SDK refuses the payload.
+  // 标头签名验证被委托给 SDK（它知道如何轮换平台证书）。为简洁起见，
+  // 我们在解密时信任 SDK 自己的 verifySign 助手 — `decryptWechatNotify`
+  // 如果底层 SDK 拒绝有效载荷则抛出。
   let envelope: WechatNotifyEnvelope;
   try {
     envelope = JSON.parse(raw) as WechatNotifyEnvelope;
@@ -96,7 +93,7 @@ export async function POST(request: Request) {
     return fail('invalid-json');
   }
 
-  // Idempotency claim — `envelope.id` is the wechat-side notification id.
+  // 幂等性索取 — `envelope.id` 是微信端通知 id。
   try {
     await prisma.billingEvent.create({
       data: {
@@ -120,8 +117,8 @@ export async function POST(request: Request) {
       decrypted = (await decryptWechatNotify(envelope)) as WechatTransactionResource;
     } catch (error) {
       logger.warn({ err: error, id: envelope.id }, 'wechat-notify-decrypt-failed');
-      // Decrypt failure means signature/key mismatch — don't keep the
-      // dedup row, otherwise a later legitimate retry can't enter.
+      // 解密失败意味着签名/密钥不匹配 — 不要保留去重行，
+      // 否则后来的合法重试无法进入。
       await prisma.billingEvent
         .delete({
           where: {
@@ -151,10 +148,9 @@ async function dispatchWechat(
   eventType: string,
   resource: WechatTransactionResource,
 ): Promise<void> {
-  // v1 cares about successful transactions only; refunds reuse the same
-  // notify channel but flow through a separate handler in a follow-up PR
-  // (RFC 0006 §5.3.3 — refund event still records the BillingEvent so we
-  // don't lose history, but we don't change Subscription state on it).
+  // v1 仅关心成功的交易；退款重新使用相同的通知渠道，
+  // 但在后续 PR 的单独处理程序中流动（RFC 0006 §5.3.3 — 退款事件仍然记录 BillingEvent，
+  // 所以我们不会丢失历史记录，但我们不会在其上更改订阅状态）。
   if (eventType !== 'TRANSACTION.SUCCESS' || resource.trade_state !== 'SUCCESS') {
     logger.info(
       { eventType, tradeState: resource.trade_state, outTradeNo: resource.out_trade_no },
@@ -185,8 +181,7 @@ async function dispatchWechat(
         orgId,
         provider: 'wechat',
         stripePriceId: priceId,
-        // v1 Native pay path — single charge, no agreement number until
-        // 周期扣款 (papay) signing is enabled in a follow-up PR.
+        // v1 本地支付路径 — 单次充值，直到周期扣款（papay）签名在后续 PR 中启用时才有协议号。
         cnAgreementId: null,
         status: 'ACTIVE',
         currentPeriodEnd: periodEnd,

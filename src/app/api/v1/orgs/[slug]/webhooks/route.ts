@@ -131,7 +131,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
       createdAt: true,
     },
   });
-  // Encrypted secret is keyed by row id, so we have to write it after insert.
+  // 加密密钥以行 id 为键，因此必须在插入后再写入。
   await prisma.webhookEndpoint.update({
     where: { id: endpoint.id },
     data: { encSecret: secret.encryptForEndpoint(endpoint.id) },
@@ -159,8 +159,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
 
 // ─── tiny helpers shared with sibling routes ──────────────────────────────
 //
-// Kept local to the file (not in `api-org-gate.ts`) because they're trivial
-// HTTP-shape utilities and don't deserve an import dance.
+// 保留在本文件中（未放入 `api-org-gate.ts`），因为这些只是简单的
+// HTTP 形状工具函数，不值得引入一次额外的导入。
 
 function errorCode(status: number): string {
   if (status === 401) return 'unauthorized';

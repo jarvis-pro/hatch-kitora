@@ -5,9 +5,9 @@ import NextError from 'next/error';
 import { useEffect } from 'react';
 
 /**
- * Top-level error boundary — only triggers when an error escapes every
- * locale-scoped error.tsx, e.g. failures in `[locale]/layout.tsx` itself.
- * Must render its own <html><body> because the failing layout is gone.
+ * 顶级错误边界——仅当错误逃逸每个区域范围的 error.tsx 时
+ * 才会触发，例如 `[locale]/layout.tsx` 本身的失败。
+ * 必须呈现自己的 <html><body>，因为失败的布局已经消失。
  */
 export default function GlobalError({ error }: { error: Error & { digest?: string } }) {
   useEffect(() => {

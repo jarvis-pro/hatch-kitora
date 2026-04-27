@@ -9,14 +9,14 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 /**
- * Public REST endpoint — `GET /api/v1/me`
+ * 公共 REST 端点 — `GET /api/v1/me`
  *
- * Demonstrates the personal API token flow end-to-end:
+ * 演示端到端的个人 API 令牌流程：
  *   curl -H "Authorization: Bearer kitora_..." https://app.kitora.com/api/v1/me
  *
- * Returns the authenticated user's profile + the active org's plan, and a
- * list of every org the user belongs to (with their role in each). 401 on
- * missing / invalid / revoked / expired token; 429 on rate-limit hit.
+ * 返回已认证用户的个人资料 + 活跃组织的计划，以及用户所属的每个组织的列表
+ * （包含他们在每个组织中的角色）。缺少/无效/撤销/过期令牌时返回 401；
+ * 触发速率限制时返回 429。
  */
 export async function GET(request: Request) {
   const principal = await authenticateBearer(request);
@@ -24,7 +24,7 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   }
 
-  // Per-token limiter — much fairer than per-IP for server-to-server callers.
+  // 每个令牌的限制器 — 对于服务器间调用者来说公平得多。
   const { success, remaining, reset } = await apiLimiter.limit(`api:${principal.tokenId}`);
   if (!success) {
     return NextResponse.json(
@@ -63,7 +63,7 @@ export async function GET(request: Request) {
   ]);
 
   if (!user) {
-    // The token outlived its owner — defensive 401 rather than 500.
+    // token 存活期超出了其所有者 —— 防御性返回 401 而非 500。
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   }
 

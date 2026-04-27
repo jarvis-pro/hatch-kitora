@@ -8,7 +8,7 @@ export const metadata: Metadata = {
   title: 'Admin · Overview',
 };
 
-// Always fetch fresh — admin metrics shouldn't be statically cached.
+// 总是获取最新数据——管理员指标不应该被静态缓存。
 export const dynamic = 'force-dynamic';
 
 function formatUsd(cents: number): string {

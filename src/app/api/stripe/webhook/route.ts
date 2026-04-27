@@ -47,8 +47,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ received: true, ignored: true });
   }
 
-  // Idempotency: Stripe retries on 5xx / timeouts. Try to record the event id;
-  // if it already exists, this throws and we return 200 to ack the duplicate.
+  // 幂等性：Stripe 在 5xx / 超时时重试。尝试记录事件 ID；
+  // 如果已存在，这会抛出并返回 200 以确认重复。
   try {
     await prisma.stripeEvent.create({
       data: { id: event.id, type: event.type },
@@ -62,7 +62,7 @@ export async function POST(request: Request) {
     await dispatch(event);
     return NextResponse.json({ received: true });
   } catch (error) {
-    // On handler failure, drop the dedupe row so Stripe's retry can re-enter.
+    // 处理程序失败时，删除去重行，以便 Stripe 的重试可以重新进入。
     await prisma.stripeEvent.delete({ where: { id: event.id } }).catch(() => null);
     logger.error({ err: error, type: event.type, id: event.id }, 'stripe-webhook-handler-failed');
     return NextResponse.json({ error: 'handler-failed' }, { status: 500 });
@@ -74,6 +74,10 @@ async function dispatch(event: Stripe.Event) {
     case 'checkout.session.completed':
       return handleCheckoutCompleted(event.data.object);
 
+    case 'customer.subscription.created':
+    case 'customer.subscription.updated':
+    case 'customer.subscription.deleted':
+      return upsertSubscription(event.data.object, event.type);
     case 'customer.subscription.created':
     case 'customer.subscription.updated':
     case 'customer.subscription.deleted':
@@ -90,7 +94,7 @@ async function dispatch(event: Stripe.Event) {
 }
 
 async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
-  // Subscription mode only: pull the subscription so we get full state.
+  // 仅订阅模式：拉取订阅以获得完整状态。
   if (session.mode !== 'subscription' || !session.subscription) return;
 
   const subId =
@@ -100,12 +104,12 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
 }
 
 async function upsertSubscription(sub: Stripe.Subscription, sourceType: string) {
-  // Resolve owner. After PR-4 the only sources are:
-  //   1. `metadata.orgId` (always set by our checkout route)
-  //   2. Reverse lookup `Organization.stripeCustomerId`
-  // `metadata.userId` and `User.stripeCustomerId` fallbacks are gone with
-  // the schema cleanup; legacy events without orgId are dropped with a
-  // warning so they show up in monitoring.
+  // 解析所有者。在 PR-4 之后，唯一的来源是：
+  // 1. `metadata.orgId`（由我们的结账路由始终设置）
+  // 2. 反向查找 `Organization.stripeCustomerId`
+  // `metadata.userId` 和 `User.stripeCustomerId` 回退已随着
+  // 模式清理而消失；没有 orgId 的旧版事件将被删除并显示
+  // 警告，以便它们显示在监控中。
   const resolved = await resolveOwnership(sub);
   if (!resolved) {
     logger.warn({ id: sub.id }, 'stripe-subscription-missing-owner');
@@ -139,7 +143,7 @@ async function upsertSubscription(sub: Stripe.Subscription, sourceType: string) 
     },
   });
 
-  // Only emit an audit row if something materially changed (or it's brand new).
+  // 只有在某些内容发生重大变化（或全新）时才发出审计行。
   const changed =
     !existing ||
     existing.status !== status ||
@@ -148,7 +152,7 @@ async function upsertSubscription(sub: Stripe.Subscription, sourceType: string) 
 
   if (changed) {
     await recordAudit({
-      actorId: null, // Stripe is the actor
+      actorId: null, // Stripe 是行为者
       orgId,
       action: 'billing.subscription_changed',
       target: ownerUserId,
@@ -161,11 +165,11 @@ async function upsertSubscription(sub: Stripe.Subscription, sourceType: string) 
       },
     });
 
-    // RFC 0003 PR-2 — typed first-class webhook event for subscribers.
-    // We pick the typed name based on the source: `created` from a fresh
-    // checkout, `canceled` from a subscription.deleted Stripe event,
-    // everything else `updated`. Stripe identifier is omitted to keep the
-    // public payload hostable across our prod / staging Stripe accounts.
+    // RFC 0003 PR-2 — 为订阅者提供的类型化一流 webhook 事件。
+    // 我们根据来源选择类型化的名称：`created` 来自新的
+    // 结账，`canceled` 来自 subscription.deleted Stripe 事件，
+    // 其他一切都是 `updated`。省略 Stripe 标识符以保持
+    // 跨我们的生产/暂存 Stripe 账户的可托管公共有效负载。
     const webhookType: WebhookEventType =
       sourceType === 'customer.subscription.deleted'
         ? 'subscription.canceled'
@@ -182,7 +186,7 @@ async function upsertSubscription(sub: Stripe.Subscription, sourceType: string) 
 }
 
 interface Ownership {
-  /** OWNER user — only used for audit metadata; not persisted on Subscription. */
+  /* * OWNER 用户 — 仅用于审计元数据；未在 Subscription 上持久化。 */
   ownerUserId: string | null;
   orgId: string;
 }
@@ -192,8 +196,7 @@ interface Ownership {
  *   1. `metadata.orgId` — set by our checkout route on every new sub.
  *   2. Reverse lookup `Organization.stripeCustomerId`.
  *
- * Returns null when neither resolves — surfaced as a warning so monitoring
- * picks it up.
+ * 两种来源均无法解析时返回 null —— 以 warning 级别上报，便于监控系统捕获。
  */
 async function resolveOwnership(sub: Stripe.Subscription): Promise<Ownership | null> {
   const metaOrgId = typeof sub.metadata?.orgId === 'string' ? sub.metadata.orgId : null;

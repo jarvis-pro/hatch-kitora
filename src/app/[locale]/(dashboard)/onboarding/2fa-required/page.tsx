@@ -11,19 +11,18 @@ export const metadata: Metadata = { title: '2FA required' };
 export const dynamic = 'force-dynamic';
 
 /**
- * RFC 0002 PR-4 — wall page shown to members of an org that has
- * `require2fa = true` whose own 2FA isn't enabled. Pure interstitial:
- * the only action is "go to /settings to enable 2FA". Once they do,
- * the wall lifts on the next request.
+ * RFC 0002 PR-4 — 显示给 `require2fa = true` 的组织成员且其
+ * 自身 2FA 未启用的墙壁页面。纯幕间：唯一的操作是
+ * "去 /settings 启用 2FA"。一旦他们这样做，墙壁在下一个请求时解除。
  *
- * Defensive checks here in case someone navigates directly:
- *   - already has 2FA on → straight to dashboard
- *   - org doesn't actually require 2FA → straight to dashboard
+ * 有人直接导航时的防御性检查：
+ *   - 已经打开 2FA → 直接到仪表板
+ *   - org 实际上不需要 2FA → 直接到仪表板
  */
 export default async function TwoFaRequiredPage() {
   const me = await requireActiveOrg().catch(() => null);
   if (!me) redirect('/login');
-  await requireUser(); // re-asserts an authenticated session
+  await requireUser(); // 重新断言已认证的会话
 
   const [org, user] = await Promise.all([
     prisma.organization.findUniqueOrThrow({

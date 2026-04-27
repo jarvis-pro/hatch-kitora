@@ -14,10 +14,10 @@ export const dynamic = 'force-dynamic';
 /**
  * RFC 0004 PR-1 — `/settings/organization/sso`
  *
- * OWNER / ADMIN only. Personal orgs are bounced (no IdP to integrate with).
- * Detail / edit interactions live in the same page via inline forms — there
- * are at most 2 IdP rows per org so a separate detail route isn't worth the
- * round-trip.
+ * 仅限 OWNER/ADMIN。个人组织被拒绝（没有 IdP 可集成）。
+ * 详情/编辑交互通过内联表单存在于同一页面 —
+ * 每个组织最多有 2 个 IdP 行，因此单独的详情路由不值得
+ * 往返。
  */
 export default async function SsoPage() {
   const me = await requireActiveOrg().catch(() => null);
@@ -42,8 +42,8 @@ export default async function SsoPage() {
       scimTokenPrefix: true,
       oidcIssuer: true,
       oidcClientId: true,
-      // We deliberately do not select samlMetadata here — it's huge and the
-      // list view doesn't need it. Edit form re-fetches when opened.
+      // 我们故意不在此处选择 samlMetadata — 它很大，
+      // 列表视图不需要它。编辑表单打开时重新获取。
       createdAt: true,
       updatedAt: true,
     },

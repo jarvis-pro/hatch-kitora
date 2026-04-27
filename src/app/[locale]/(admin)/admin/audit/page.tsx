@@ -36,9 +36,8 @@ export default async function AdminAuditPage({ searchParams }: PageProps) {
   const action = parseAction(actionRaw);
   const t = await getTranslations('admin.audit');
 
-  // Resolve actor IDs for the email search before querying logs — keeps the
-  // log query simple (no join required) and lets us short-circuit when no
-  // user matches the search term.
+  // 在查询日志前解析电子邮件搜索的 actor ID——保持日志查询简单
+  //（不需要连接）并在没有用户匹配搜索词时让我们短路。
   let actorIds: string[] | undefined;
   if (q) {
     const matches = await prisma.user.findMany({
@@ -65,7 +64,7 @@ export default async function AdminAuditPage({ searchParams }: PageProps) {
     }),
   ]);
 
-  // Bulk-resolve actor emails (single round-trip).
+  // 批量解析 actor 电子邮件（单一往返）。
   const ids = Array.from(new Set(items.map((i) => i.actorId).filter((x): x is string => !!x)));
   const actors = ids.length
     ? await prisma.user.findMany({ where: { id: { in: ids } }, select: { id: true, email: true } })

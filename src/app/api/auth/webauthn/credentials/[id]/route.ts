@@ -1,12 +1,12 @@
 // RFC 0007 PR-2 — PATCH / DELETE /api/auth/webauthn/credentials/:id
 //
-//   PATCH  — rename a credential (user-given label).
-//   DELETE — remove a credential. Same tx recomputes `twoFactorEnabled`
-//            so removing the last passkey may flip it false.
+//   PATCH  — 重命名凭证（用户给定的标签）。
+//   DELETE — 移除凭证。相同的事务重新计算 `twoFactorEnabled`，
+//            所以移除最后一个密钥可能会将其翻转为 false。
 //
-// Both gated on the credential row's `userId == requireUser().id` —
-// users can only manage their own credentials. The `:id` URL parameter
-// is the DB row's cuid, NOT the protocol-level credentialId.
+// 两个都在凭证行的 `userId == requireUser().id` 上进行门控 —
+// 用户只能管理他们自己的凭证。`:id` URL 参数是 DB 行的 cuid，
+// 不是协议级别的 credentialId。
 
 import { NextResponse } from 'next/server';
 

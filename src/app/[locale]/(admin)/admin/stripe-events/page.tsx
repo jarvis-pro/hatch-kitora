@@ -30,7 +30,7 @@ export default async function AdminStripeEventsPage({ searchParams }: PageProps)
 
   const where = type ? { type } : {};
 
-  // Bring back the most-used types so users can filter without typing.
+  // 带回最常用的类型，以便用户可以过滤而无需输入。
   const [total, items, distinctTypes] = await Promise.all([
     prisma.stripeEvent.count({ where }),
     prisma.stripeEvent.findMany({

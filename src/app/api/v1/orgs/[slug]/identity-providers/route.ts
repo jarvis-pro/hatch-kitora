@@ -115,7 +115,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
     return NextResponse.json({ error: 'invalid-name' }, { status: 400 });
   }
 
-  // Resolve caller's role on this org for the OWNER-only enforce flag.
+  // 获取调用方在该组织的角色，用于 OWNER 专属的 enforce 标志校验。
   const callerMembership = await prisma.membership.findFirst({
     where: { userId: gate.principal.userId, orgId: gate.orgId },
     select: { role: true },
@@ -201,7 +201,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
       },
     });
   } catch (err) {
-    // Most likely the @@unique([orgId, protocol]) collision.
+    // 最可能是 @@unique([orgId, protocol]) 唯一约束冲突。
     return NextResponse.json(
       { error: 'protocol-already-exists', message: (err as Error).message.slice(0, 200) },
       { status: 409 },

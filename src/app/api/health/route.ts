@@ -8,9 +8,9 @@ export const dynamic = 'force-dynamic';
 
 interface CheckResult {
   ok: boolean;
-  /** Round-trip in ms; null if the check was skipped or never started. */
+  /** 往返时间（以毫秒为单位）；如果检查被跳过或从未启动，则为 null。*/
   latencyMs: number | null;
-  /** Optional human note (e.g. "skipped — not configured"). */
+  /** 可选的人类注释（例如"跳过——未配置"）。*/
   note?: string;
 }
 
@@ -37,7 +37,7 @@ async function redisCheck(): Promise<CheckResult> {
     const res = await fetch(`${env.UPSTASH_REDIS_REST_URL}/ping`, {
       headers: { authorization: `Bearer ${env.UPSTASH_REDIS_REST_TOKEN}` },
       cache: 'no-store',
-      // 2s tail-cap; load balancers usually time out far longer.
+      // 2 秒尾部上限；负载均衡器通常超时长得多。
       signal: AbortSignal.timeout(2000),
     });
     return { ok: res.ok, latencyMs: Date.now() - start };

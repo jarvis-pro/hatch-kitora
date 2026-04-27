@@ -17,15 +17,14 @@ interface PageProps {
 }
 
 /**
- * RFC 0002 PR-2 — interstitial that runs after sign-in for any user with
- * 2FA enabled. The middleware (`authConfig.callbacks.authorized`) is what
- * funnels users here; this page just protects against direct visits when
- * the user is either not logged in (-> /login) or already verified
- * (-> dashboard or callback).
+ * RFC 0002 PR-2 — 在任何启用 2FA 的用户登录后运行的幕间。
+ * 中间件（`authConfig.callbacks.authorized`）是将用户漏斗到这里的东西；
+ * 此页面只是防止在用户未登录（-> /login）或已验证
+ * （-> 仪表板或回调）时的直接访问。
  *
- * RFC 0007 PR-3 — extended to surface a Passkey tab alongside TOTP when
- * the user has any registered WebAuthn credential. The wrapper component
- * picks the right UI shape based on which factors the user owns.
+ * RFC 0007 PR-3 — 扩展为在用户拥有任何已注册的 WebAuthn 凭据时
+ * 在 TOTP 旁显示密钥标签。包装器组件根据用户拥有的因素
+ * 选择正确的 UI 形状。
  */
 export default async function TwoFactorChallengePage({ searchParams }: PageProps) {
   const session = await auth();
@@ -38,9 +37,9 @@ export default async function TwoFactorChallengePage({ searchParams }: PageProps
   }
   const params = await searchParams;
 
-  // Decide which tabs to surface. `User.twoFactorEnabled` is the boolean
-  // gate; the row-level lookups distinguish "TOTP active" vs "Passkey
-  // present" so the UI can pick an appropriate prompt.
+  // 决定要显示哪些标签。`User.twoFactorEnabled` 是布尔值
+  // 门；行级查找区分"TOTP 活跃"与"密钥
+  // 存在"，以便 UI 可以选择适当的提示。
   const [totpRow, passkeyCount] = await Promise.all([
     prisma.twoFactorSecret.findUnique({
       where: { userId: session.user.id },

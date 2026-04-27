@@ -1,13 +1,12 @@
 // RFC 0007 PR-4 — POST /api/auth/webauthn/authenticate/options (anonymous)
 //
-// Step 1 of the passwordless ("Sign in with a passkey") flow on /login.
-// No session required. Returns the SDK-issued options envelope with
-// `allowCredentials: []` so the browser pops a discoverable picker —
-// the user picks any of their stored passkeys for this RP ID, and we
-// learn the user only at verify time.
+// 登录页面上的无密码（"使用密钥登录"）流程的步骤 1。
+// 不需要会话。返回 SDK 颁发的选项信封，带有 `allowCredentials: []`
+// 所以浏览器弹出可发现的选择器 — 用户为此 RP ID 选择任何存储的密钥，
+// 我们只在验证时了解用户。
 //
-// The challenge is persisted in an httpOnly cookie (5-min TTL); see
-// `src/lib/webauthn/anonymous-challenge.ts` for the rationale.
+// 质询持久化在 httpOnly Cookie 中（5 分钟 TTL）；
+// 有关原理，请参见 `src/lib/webauthn/anonymous-challenge.ts`。
 
 import { NextResponse } from 'next/server';
 
@@ -23,8 +22,7 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 export async function POST() {
-  // Anonymous endpoint — rate-limit by IP. Same budget as the password
-  // login form (RFC 0002 PR-1: authLimiter).
+  // 匿名端点 — 按 IP 限制率。与密码登录表单相同的预算（RFC 0002 PR-1：authLimiter）。
   const ip = await getClientIp();
   const { success } = await authLimiter.limit(`webauthn-options:${ip}`);
   if (!success) {
@@ -33,9 +31,8 @@ export async function POST() {
 
   const options = await generateAuthenticationOptions({
     rpID: getRpId(),
-    // Empty allowCredentials → discoverable / usernameless flow. Browser
-    // shows the OS / password manager picker; user selects which passkey
-    // to use, signature comes back with `userHandle` we can decode.
+    // 空的 allowCredentials → 可发现 / 无用户名流程。浏览器显示 OS / 密码管理器选择器；
+    // 用户选择要使用哪个密钥，签名返回带有我们可以解码的 `userHandle`。
     allowCredentials: [],
     userVerification: 'preferred',
   });

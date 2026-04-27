@@ -18,12 +18,11 @@ const REGION_HOMES: Record<string, { url: string; label: string }> = {
 };
 
 /**
- * RFC 0005 — landing page for cross-region session bounces.
+ * RFC 0005 — 跨 region session 跳转的落地页。
  *
- * Hit when a logged-in session carrying `userRegion=X` lands on a stack
- * serving region `Y`. Should never happen in production (cookies don't
- * cross domains), but we keep a friendly explainer page for debugging
- * and as a defence-in-depth signal that the guard fired.
+ * 当携带 `userRegion=X` 的已登录 session 落地到服务 region `Y` 的实例时触发。
+ * 生产环境下理论上不会发生（Cookie 不跨域），但保留此友好说明页
+ * 用于调试，也作为守卫已触发的深度防御信号。
  */
 export default async function RegionMismatchPage({ searchParams }: Props) {
   const { expected } = await searchParams;

@@ -10,13 +10,13 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 /**
- * RFC 0004 PR-4 — SCIM Group by id.
+ * RFC 0004 PR-4 — SCIM Group by id。
  *
- *   GET   /api/scim/v2/Groups/{id}   — group with expanded `members[]`
- *   PATCH /api/scim/v2/Groups/{id}   — add/remove user → role flip
+ *   GET   /api/scim/v2/Groups/{id}   — 带有扩展 `members[]` 的组
+ *   PATCH /api/scim/v2/Groups/{id}   — 添加/删除用户 → 角色翻转
  *
- * `id` is one of `owner` / `admin` / `member` (case-insensitive). PATCH
- * supports the SCIM canonical "add member to group" / "remove member from
+ * `id` 是 `owner` / `admin` / `member` 之一（不区分大小写）。 PATCH
+ * 支持 SCIM 规范的 "添加成员到组" / "remove member from
  * group" ops:
  *
  *   {
@@ -26,9 +26,9 @@ export const dynamic = 'force-dynamic';
  *     ]
  *   }
  *
- * Adding a member to the `admins` group sets their `Membership.role =
- * ADMIN`. Removing a member from `admins` demotes them back to `MEMBER`.
- * Same idea for `owners`, except OWNER is read-only via SCIM (§4.4).
+ * 将成员添加到 `admins` 组会将其 `Membership.role` 设为
+ * ADMIN`. 从 `admins` 中删除成员会将他们降级回 `MEMBER`。
+ * 同样的想法适用于 `owners`，除了 OWNER 通过 SCIM 是只读的 (§4.4).
  */
 
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -112,7 +112,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       continue;
     }
 
-    // SCIM remove is a path-with-filter form: members[value eq "<id>"]
+    // SCIM 删除是路径带筛选器的形式：members[value eq "<id>"]
     if (verb === 'remove') {
       const m = path.match(/^members\[value eq ['"](.+?)['"]\]$/);
       if (m && m[1]) removes.push(m[1]);
@@ -122,7 +122,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     logger.warn({ verb, path, providerId: auth.idpId }, 'scim-group-patch-unsupported-op');
   }
 
-  // Promote: set role = targetRole on each added membership (scoped to org).
+  // 升级：在每个添加的成员资格上设置 role = targetRole（作用域为 org）。
   if (adds.length > 0) {
     const updated = await prisma.membership.updateMany({
       where: {
@@ -143,7 +143,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     }
   }
 
-  // Demote: anyone removed from `admins` falls back to MEMBER. Removing
+  // 降级：从 `admins` 中移除的任何人都回退到 MEMBER。移除
   // from `members` is a no-op (you can't demote below member; if IT
   // wants the user gone they should DELETE /Users/{id}).
   if (removes.length > 0 && targetRole === OrgRole.ADMIN) {

@@ -66,8 +66,8 @@ export async function GET(
       scimTokenPrefix: true,
       oidcIssuer: true,
       oidcClientId: true,
-      // samlMetadata is selected here because the detail view shows it; it's
-      // public-ish (cert + URL) so safe to surface to authenticated callers.
+      // samlMetadata 在此处被选中，因为详情视图显示它；它是
+      // 半公开的（证书 + URL），因此可以安全地呈现给已认证的调用方。
       samlMetadata: true,
       createdAt: true,
       updatedAt: true,
@@ -112,7 +112,7 @@ export async function PATCH(
   });
   if (!existing) return errResp(404);
 
-  // OWNER gate on enforce flag
+  // 在强制标志上门禁 OWNER
   if (body.enforceForLogin !== undefined) {
     const callerMembership = await prisma.membership.findFirst({
       where: { userId: gate.principal.userId, orgId: gate.orgId },

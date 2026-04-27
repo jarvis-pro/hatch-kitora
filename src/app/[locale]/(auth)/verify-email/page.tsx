@@ -17,7 +17,7 @@ export default async function VerifyEmailPage({ searchParams }: PageProps) {
   const { token } = await searchParams;
   const t = await getTranslations('auth.verifyEmail');
 
-  // Token present → consume server-side and render result.
+  // 令牌存在 → 服务端消费并渲染结果。
   if (token) {
     const result = await verifyEmailAction({ token });
 
@@ -51,7 +51,7 @@ export default async function VerifyEmailPage({ searchParams }: PageProps) {
     );
   }
 
-  // No token → resend flow (e.g. user lost the email).
+  // 没有令牌 → 重新发送流程（例如用户丢失了电子邮件）。
   return (
     <div className="space-y-6">
       <div className="space-y-2 text-center">

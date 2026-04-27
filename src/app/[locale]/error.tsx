@@ -16,8 +16,8 @@ export default function ErrorPage({
   const t = useTranslations('errors.runtime');
 
   useEffect(() => {
-    // Forward to Sentry (no-op when DSN unset) and keep the console line for
-    // local dev where the network panel might not be open.
+    // 转发到 Sentry（当 DSN 未设置时为无操作），并为网络面板可能
+    // 未打开的本地 dev 保留控制台行。
     Sentry.captureException(error);
     console.error('[unhandled-error]', { digest: error.digest, message: error.message });
   }, [error]);

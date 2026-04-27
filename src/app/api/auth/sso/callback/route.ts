@@ -14,19 +14,17 @@ export const dynamic = 'force-dynamic';
 /**
  * RFC 0004 PR-2 — `GET /api/auth/sso/callback`
  *
- * Receives the OAuth-style `?code=...&state=...` redirect minted by Jackson
- * after a successful SAML assertion (or OIDC code exchange in PR-3). We:
+ * 接收 Jackson 在成功的 SAML 断言（或 PR-3 中的 OIDC 代码交换）后生成的 OAuth 风格的 `?code=...&state=...` 重定向。我们：
  *
- *   1. Validate the `state` cookie set by `/api/auth/sso/start`.
- *   2. Exchange `code` → `access_token` via Jackson's `oauthController.token`.
- *   3. Fetch userinfo via `oauthController.userInfo`.
- *   4. Resolve the IdP row by Jackson's tenant claim → orgId + defaultRole.
- *   5. JIT user / membership.
- *   6. Issue an Auth.js session cookie + DeviceSession row.
- *   7. Audit `sso.login_succeeded` and redirect to the post-login URL.
+ *   1. 验证由 `/api/auth/sso/start` 设置的 `state` Cookie。
+ *   2. 通过 Jackson 的 `oauthController.token` 交换 `code` → `access_token`。
+ *   3. 通过 `oauthController.userInfo` 获取用户信息。
+ *   4. 通过 Jackson 的 tenant 声明解析 IdP 行 → orgId + defaultRole。
+ *   5. JIT 用户/成员资格。
+ *   6. 颁发 Auth.js 会话 Cookie + DeviceSession 行。
+ *   7. 审计 `sso.login_succeeded` 并重定向到登录后 URL。
  *
- * Every failure path returns a 302 to `/login?sso_error=...` so the UI can
- * surface a friendly inline message (rather than the raw stack).
+ * 每个失败路径都返回 302 到 `/login?sso_error=...`，以便 UI 可以显示友好的内联消息（而不是原始堆栈）。
  */
 
 const STATE_COOKIE = '__Host-kitora_sso_state';
@@ -50,10 +48,9 @@ export async function GET(request: Request) {
     return failRedirect('missing-code');
   }
 
-  // ── State CSRF check ──────────────────────────────────────────────────
-  // The cookie is `__Host-` prefixed so we know it can only have been set
-  // over HTTPS on this exact host (or HTTP localhost in dev — Next handles
-  // that fall-back automatically when secure=false on /start).
+  // ── State CSRF 检查 ──────────────────────────────────────────────────
+  // Cookie 有 `__Host-` 前缀，所以我们知道它只能在 HTTPS 上在这个确切的主机上设置
+  // （或在开发中 HTTP localhost — 当 /start 上的 secure=false 时 Next 会自动处理该回退）。
   const stateCookie = request.headers
     .get('cookie')
     ?.split(';')
@@ -69,14 +66,14 @@ export async function GET(request: Request) {
     return failRedirect('state-mismatch');
   }
 
-  // ── Token exchange ────────────────────────────────────────────────────
+  // ── 令牌交换 ────────────────────────────────────────────────────
   const oauth = await getOauthController();
   let tokens;
   try {
-    // Jackson's `OAuthTokenReq` is a discriminated union over the auth
-    // method. The "client_secret" branch (used here) requires
-    // `code_verifier` to be omitted; the "PKCE" branch requires it set.
-    // SAML doesn't use PKCE so we send the secret form.
+    // Jackson 的 `OAuthTokenReq` 是对认证方法的判别联合。
+    // "client_secret" 分支（在此处使用）要求省略 `code_verifier`；
+    // "PKCE" 分支要求设置它。
+    // SAML 不使用 PKCE，所以我们发送密钥表单。
     tokens = await oauth.token({
       grant_type: 'authorization_code',
       client_id: 'dummy',
@@ -94,7 +91,7 @@ export async function GET(request: Request) {
     return failRedirect('token-missing');
   }
 
-  // ── Userinfo ──────────────────────────────────────────────────────────
+  // ── 用户信息 ──────────────────────────────────────────────────────────
   let info;
   try {
     info = await oauth.userInfo(tokens.access_token);
@@ -103,9 +100,9 @@ export async function GET(request: Request) {
     return failRedirect('userinfo-failed');
   }
 
-  // Jackson's userInfo response includes `requested.tenant` + `requested.product`
-  // metadata — that's how we map back to our `IdentityProvider` row. Fall back
-  // to id/email-based heuristics if the field shape diverges across versions.
+  // Jackson 的 userInfo 响应包括 `requested.tenant` + `requested.product` 元数据
+  // — 这是我们如何映射回我们的 `IdentityProvider` 行。如果字段形状在不同版本之间偏差，
+  // 则回退到基于 id/email 的启发式方法。
   const tenant =
     (info as { requested?: { tenant?: string } }).requested?.tenant ??
     (tokens as { tenant?: string }).tenant ??
@@ -127,7 +124,7 @@ export async function GET(request: Request) {
     return failRedirect('userinfo-incomplete');
   }
 
-  // ── Resolve IdP row (we own it; Jackson owns the connection) ──────────
+  // ── 解析 IdP 行（我们拥有它；Jackson 拥有连接）──────────
   const idp = await prisma.identityProvider.findFirst({
     where: {
       enabledAt: { not: null },
@@ -145,7 +142,7 @@ export async function GET(request: Request) {
     return failRedirect('idp-not-found');
   }
 
-  // ── JIT user + membership ─────────────────────────────────────────────
+  // ── JIT 用户 + 成员资格 ─────────────────────────────────────────────
   let jit;
   try {
     jit = await provisionSsoUser({
@@ -161,7 +158,7 @@ export async function GET(request: Request) {
     return failRedirect('jit-failed');
   }
 
-  // ── Auth.js session cookie ────────────────────────────────────────────
+  // ── Auth.js 会话 Cookie ────────────────────────────────────────────
   const ip =
     request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ??
     request.headers.get('x-real-ip') ??
@@ -174,10 +171,9 @@ export async function GET(request: Request) {
     return failRedirect('user-gone');
   }
 
-  // ── Final redirect ────────────────────────────────────────────────────
-  // Honor the original callbackUrl cookie (set in /start), defaulting to
-  // /dashboard. Drop the state + callback cookies on the way out — they're
-  // single-use.
+  // ── 最终重定向 ────────────────────────────────────────────────────
+  // 遵守原始 callbackUrl Cookie（在 /start 中设置），默认为 /dashboard。
+  // 在退出时删除 state + callback Cookie — 它们是一次性的。
   const cbCookie = request.headers
     .get('cookie')
     ?.split(';')
@@ -191,7 +187,7 @@ export async function GET(request: Request) {
   res.cookies.delete(STATE_COOKIE);
   res.cookies.delete(CALLBACK_COOKIE);
 
-  // Audit. Best-effort — the login already succeeded, swallow errors.
+  // 审计。尽力而为 — 登录已经成功，忽略错误。
   try {
     await recordAudit({
       actorId: jit.userId,
@@ -218,8 +214,8 @@ function failRedirect(code: string): NextResponse {
 }
 
 /**
- * Whitelist callbackUrl cookies to *our* origin to prevent open-redirect
- * via crafted `callbackUrl` form fields submitted to /start.
+ * 白名单 callbackUrl Cookie 到 *我们的* 源以防止通过提交到 /start 的精心制作的
+ * `callbackUrl` 表单字段进行开放式重定向。
  */
 function safeCallback(cb: string | undefined): string | null {
   if (!cb) return null;

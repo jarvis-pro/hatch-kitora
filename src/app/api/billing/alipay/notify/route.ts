@@ -1,22 +1,21 @@
-// RFC 0006 PR-3 — Alipay async notification endpoint.
+// RFC 0006 PR-3 — 支付宝异步通知端点。
 //
-// Alipay POSTs application/x-www-form-urlencoded notifications to this
-// route after every status change on a payment we initiated. Behaviour:
+// 支付宝在我们发起的付款的每次状态更改后 POST application/x-www-form-urlencoded 通知到此路由。行为：
 //
-//   1. Parse the form body to a flat string-map.
-//   2. Verify the RSA2 signature with the SDK (`verifyAlipayNotify`).
-//      Bad signature → log + 4xx + nothing else.
-//   3. Idempotency dedup on (provider='alipay', notify_id) via the new
-//      `BillingEvent` table. Duplicate → respond `success` immediately.
-//   4. Resolve the originating Org from `passback_params` (round-trips
-//      our { orgId, priceId }) — fail loud if missing.
-//   5. Route by `trade_status`:
-//         TRADE_SUCCESS / TRADE_FINISHED  → upsert Subscription as ACTIVE,
-//                                            emit subscription.created or
-//                                            subscription.updated.
-//         WAIT_BUYER_PAY / TRADE_CLOSED    → noop (no Subscription change).
-//   6. Record an audit row and enqueue the outbound webhook events.
-//   7. Respond with the literal string `success` (Alipay-required).
+//   1. 将表单正文解析为平面字符串映射。
+//   2. 使用 SDK 验证 RSA2 签名（`verifyAlipayNotify`）。
+//      坏签名 → 日志 + 4xx + 没有其他内容。
+//   3. 通过新的 `BillingEvent` 表在 (provider='alipay', notify_id) 上去重幂等性。
+//      重复 → 立即响应 `success`。
+//   4. 从 `passback_params` 解析原始组织（往返我们的 { orgId, priceId }）—
+//      如果缺少，失败大声。
+//   5. 按 `trade_status` 路由：
+//         TRADE_SUCCESS / TRADE_FINISHED  → 将订阅 upsert 为 ACTIVE，
+//                                            发出 subscription.created 或
+//                                            subscription.updated。
+//         WAIT_BUYER_PAY / TRADE_CLOSED    → noop（无订阅更改）。
+//   6. 记录审计行并排队出站 Webhook 事件。
+//   7. 使用字面字符串 `success` 响应（Alipay 必需）。
 
 import { OrgRole, Prisma } from '@prisma/client';
 
@@ -54,8 +53,8 @@ export async function POST(request: Request) {
     return new Response('failure', { status: 400 });
   }
 
-  // Idempotency — try to claim the (provider, notify_id) tuple. Duplicate
-  // hits short-circuit with a 200 + `success` so Alipay stops retrying.
+  // 幂等性 — 尝试索取 (provider, notify_id) 元组。重复命中使用 200 + `success` 短路，
+  // 以便支付宝停止重试。
   try {
     await prisma.billingEvent.create({
       data: {
@@ -77,8 +76,8 @@ export async function POST(request: Request) {
     await dispatchAlipay(params);
     return new Response('success', { status: 200 });
   } catch (error) {
-    // Roll back the dedup row so Alipay's retry can re-enter the dispatch
-    // (otherwise we'd silently swallow an event after a transient DB blip).
+    // 回滚去重行，以便支付宝的重试可以重新进入分发
+    // （否则我们会在临时 DB 故障后无声地吞咽事件）。
     await prisma.billingEvent
       .delete({
         where: {
@@ -97,7 +96,7 @@ export async function POST(request: Request) {
 async function dispatchAlipay(params: Record<string, string>): Promise<void> {
   const status = params.trade_status;
   if (status !== 'TRADE_SUCCESS' && status !== 'TRADE_FINISHED') {
-    // WAIT_BUYER_PAY / TRADE_CLOSED carry no Subscription state change.
+    // WAIT_BUYER_PAY / TRADE_CLOSED 不带订阅状态更改。
     logger.info({ status, outTradeNo: params.out_trade_no }, 'alipay-notify-noop');
     return;
   }
@@ -111,11 +110,11 @@ async function dispatchAlipay(params: Record<string, string>): Promise<void> {
   const orgId = passback.orgId;
   const priceId = passback.priceId;
   const tradeNo = params.trade_no;
-  const agreementNo = params.agreement_no ?? null; // present only on 周期扣款 path
+  const agreementNo = params.agreement_no ?? null; // 仅在周期扣款路径上出现
 
-  // currentPeriodEnd is "now + 30 days" for v1; once 周期扣款 cron runs we
-  // bump it forward on each successful periodic charge. Stripe gives us
-  // the exact period end; Alipay's charge model doesn't, so we compute.
+  // currentPeriodEnd 对于 v1 是"现在 + 30 天"；一旦周期扣款 cron 运行，
+  // 我们在每次成功的周期性费用上将其向前推进。Stripe 给我们确切的周期末；
+  // 支付宝的费用模型没有，所以我们计算。
   const periodEnd = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
 
   const existing = await prisma.subscription.findFirst({
@@ -147,9 +146,8 @@ async function dispatchAlipay(params: Record<string, string>): Promise<void> {
     });
   }
 
-  // Match Stripe pattern: `target` for `billing.subscription_changed` is
-  // the OWNER User ID, not the Subscription ID. Reports / search assume
-  // that shape across providers.
+  // 匹配 Stripe 模式：`billing.subscription_changed` 的 `target` 是
+  // OWNER 用户 ID，不是订阅 ID。报告/搜索假设跨提供商的形状。
   const ownerUserId = await ownerOfOrg(orgId);
 
   await recordAudit({
@@ -175,7 +173,7 @@ async function dispatchAlipay(params: Record<string, string>): Promise<void> {
   });
 }
 
-// ─── Body parsing ──────────────────────────────────────────────────────────
+// ─── 正文解析 ──────────────────────────────────────────────────────────
 
 function parseFormBody(raw: string): Record<string, string> {
   const params = new URLSearchParams(raw);
@@ -185,7 +183,7 @@ function parseFormBody(raw: string): Record<string, string> {
 }
 
 function redactSensitive(params: Record<string, string>): Record<string, string> {
-  // `sign` is the only field we never want in logs.
+  // `sign` 是我们从不想要日志的唯一字段。
   const { sign: _omit, sign_type: _omit2, ...rest } = params;
   void _omit;
   void _omit2;

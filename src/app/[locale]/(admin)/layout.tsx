@@ -5,11 +5,11 @@ import { UserMenu } from '@/components/dashboard/user-menu';
 import { auth } from '@/lib/auth';
 
 /**
- * Admin layout — second layer of defence.
+ * 管理员布局——第二层防御。
  *
- * Middleware already redirects non-admins away from /admin/*, but we re-check
- * the role server-side here so that any future change to the matcher doesn't
- * silently expose admin routes.
+ * 中间件已经将非管理员从 /admin/* 重定向，但我们在这里
+ * 服务端重新检查角色，以便对匹配器的任何未来更改都不会
+ * 静默地暴露管理路由。
  */
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const session = await auth();

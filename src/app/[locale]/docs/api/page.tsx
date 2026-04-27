@@ -3,12 +3,11 @@ import type { Metadata } from 'next';
 import { ApiReferenceClient } from '@/components/docs/api-reference-client';
 
 /**
- * RFC 0003 PR-3 — `/{locale}/docs/api` Scalar API reference page.
+ * RFC 0003 PR-3 — `/{locale}/docs/api` Scalar API 参考页面。
  *
- * Public — no auth, no nav header / footer chrome (Scalar provides its own
- * navigation). The page is a pass-through wrapper so the `'use client'`
- * boundary stays under `<ApiReferenceClient />`, leaving us free to add
- * server-rendered metadata + JSON-LD if SEO ever wants it.
+ * 公开访问，无需认证，无顶部/底部导航（Scalar 自带导航）。
+ * 本页面是直通包装层，使 `'use client'` 边界保持在 `<ApiReferenceClient />` 之下，
+ * 后续如需添加服务端渲染的 metadata + JSON-LD 以满足 SEO 需求也不受影响。
  */
 
 export const metadata: Metadata = {
@@ -25,8 +24,7 @@ export const metadata: Metadata = {
   },
 };
 
-// Scalar fetches the spec at runtime and renders interactively — keep the
-// page dynamic so the route handler isn't statically pre-baked into HTML.
+// Scalar 在运行时动态抓取规范并渲染 —— 保持页面动态，避免路由处理器被静态预烘焙为 HTML。
 export const dynamic = 'force-dynamic';
 
 export default function ApiReferencePage() {

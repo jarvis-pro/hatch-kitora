@@ -21,16 +21,15 @@ export default async function DashboardLayout({ children }: { children: React.Re
     name: m.organization.name,
     role: m.role,
   }));
-  // RFC 0002 PR-4 — show the cancel-deletion banner for users in the
-  // 30-day grace window. The middleware already herds them to /settings,
-  // but the banner needs to appear *here* in the layout so the cancel
-  // CTA is visible the moment they land.
+  // RFC 0002 PR-4 — 为处于 30 天宽限期的用户显示取消删除横幅。
+  // 中间件已经将他们赶到 /settings，但横幅需要显示*这里*
+  // 在布局中，以便当他们到达时取消 CTA 立即可见。
   //
-  // Org-2FA enforcement is intentionally *not* done at this layout level
-  // — the /onboarding/2fa-required wall page lives inside this layout
-  // too, and a layout-level redirect would put it in an infinite loop.
-  // Individual RSC pages call `checkOrg2faCompliance()` to gate their
-  // own access; the wall page renders only when the gate fires upstream.
+  // Org-2FA 强制执行故意*不*在此布局级别完成——
+  // /onboarding/2fa-required 墙壁页面也位于此布局内，
+  // 布局级重定向会将其放在无限循环中。单个 RSC 页面
+  // 调用 `checkOrg2faCompliance()` 以对其自身访问进行把关；
+  // 墙壁页面仅在上游的门触发时才呈现。
   const lifecycle = await prisma.user.findUniqueOrThrow({
     where: { id: me.userId },
     select: { status: true, deletionScheduledAt: true },

@@ -12,17 +12,17 @@ export const dynamic = 'force-dynamic';
 /**
  * RFC 0004 PR-2 — `/api/auth/sso/start`
  *
- * Entry point for SP-initiated SSO. Two shapes accepted:
+ * SP-initiated SSO 的入口点。接受两种形式：
  *
- *   - Form POST with `email=jane@acme.com` (the standard /login form path).
+ *   - Form POST with `email=jane@acme.com` (standard /login form path).
  *   - JSON POST with `{ "email": "jane@acme.com" }` (programmatic).
  *
- * We resolve the email domain to an enabled `IdentityProvider` row, then
- * delegate to Jackson's OAuth-style `authorize` to mint a redirect URL.
+ * 我们将邮箱域名解析到已启用的 `IdentityProvider` 记录，
+ * 再委托给 Jackson 的 OAuth 风格 `authorize` 接口生成重定向 URL。
  *
- * Failure modes that don't reach the IdP — bad domain, no matching IdP,
- * IdP not yet `enabledAt` — return a 302 to `/login?sso_error=...` so the
- * UI can render a useful inline message.
+ * 不到达 IdP 的失败模式 — 坏域、无匹配 IdP、
+ * IdP 尚未 `enabledAt` — 返回 302 到 `/login?sso_error=...`，以便 UI
+ * 可以呈现有用的内联消息。
  */
 
 const STATE_COOKIE = '__Host-kitora_sso_state';
@@ -31,7 +31,7 @@ export async function POST(request: Request) {
   let email: string | null = null;
   let callbackUrl: string | null = null;
 
-  // Accept either form or JSON. Fail closed — anything else is a 400.
+  // 接受表单或 JSON。解析失败时关闭 — 其他任何内容都是 400。
   const ct = request.headers.get('content-type') ?? '';
   try {
     if (ct.includes('application/json')) {
@@ -61,7 +61,7 @@ export async function POST(request: Request) {
   const idp = await prisma.identityProvider.findFirst({
     where: {
       enabledAt: { not: null },
-      // Postgres-array `has` matches any element exactly.
+      // Postgres 数组 `has` 匹配任何元素。
       emailDomains: { has: domain },
     },
     select: {
@@ -77,21 +77,20 @@ export async function POST(request: Request) {
     );
   }
 
-  // Generate a CSRF state value. Jackson echoes it back in the callback;
-  // we double-check that it matches the cookie we just set.
+  // 生成 CSRF state 值。Jackson 在回调中回显它；
+  // 我们双重检查它与我们刚刚设置的 Cookie 匹配。
   const state = randomBase64Url(24);
 
   const oauth = await getOauthController();
   let authorize;
   try {
-    // Jackson's `OAuthReq` is a discriminated union over `client_id`:
-    //   - `OAuthReqBodyWithClientId` — pass the connection-specific clientID
-    //   - `OAuthReqBodyWithTenantProduct` — pass `client_id: 'dummy'` as a
-    //     sentinel + the actual `tenant` + `product` keys
-    // We use the tenant/product form so we don't have to track Jackson's
-    // per-connection `clientID` outside its own DB. SAML doesn't use PKCE,
-    // but the type requires the keys present — empty strings are accepted
-    // on the SAML path.
+    // Jackson 的 `OAuthReq` 是对 `client_id` 的判别联合：
+    //   - `OAuthReqBodyWithClientId` — 传递连接特定的 clientID
+    //   - `OAuthReqBodyWithTenantProduct` — 传递 `client_id: 'dummy'` 作为
+    //     哨兵 + 实际的 `tenant` + `product` 密钥
+    // 我们使用 tenant/product 表单，所以我们不必在其自己的 DB 之外跟踪 Jackson 的
+    // 每个连接的 `clientID`。SAML 不使用 PKCE，但类型要求密钥存在 —
+    // 在 SAML 路径上接受空字符串。
     authorize = await oauth.authorize({
       client_id: 'dummy',
       tenant: idp.organization.slug,
@@ -119,10 +118,9 @@ export async function POST(request: Request) {
   }
 
   const res = NextResponse.redirect(authorize.redirect_url, 302);
-  // CSRF mitigation: bind state to the user's browser. Cookie name uses
-  // the `__Host-` prefix so it can only be set + read over HTTPS on the
-  // exact host (no subdomain leakage). 5-min lifetime — matches Jackson's
-  // session window.
+  // CSRF 缓解：将 state 绑定到用户的浏览器。Cookie 名称使用 `__Host-` 前缀，
+  // 所以它只能在确切的主机上通过 HTTPS 设置 + 读取（无子域泄漏）。
+  // 5 分钟生存期 — 与 Jackson 的会话窗口匹配。
   res.cookies.set(STATE_COOKIE, state, {
     httpOnly: true,
     sameSite: 'lax',
@@ -142,19 +140,19 @@ export async function POST(request: Request) {
   return res;
 }
 
-// Trivial GET → 405 (we only accept POST so the email isn't logged in
-// access logs as a query param).
+// 平凡的 GET → 405（我们只接受 POST，所以电子邮件不会在
+// 访问日志中作为查询参数记录）。
 export function GET() {
   return NextResponse.json({ error: 'method-not-allowed' }, { status: 405 });
 }
 
 function randomBase64Url(bytes: number): string {
-  // Inline rather than reach for `node:crypto` — keeps the route module
-  // graph small. Web Crypto is available everywhere App Router runs.
+  // 内联而不是使用 `node:crypto` — 保持路由模块图较小。
+  // Web Crypto 在 App Router 运行的任何地方都可用。
   const arr = new Uint8Array(bytes);
   crypto.getRandomValues(arr);
-  // Manual base64url; Buffer is Node-only and we already opted into
-  // `runtime = 'nodejs'` but keeping this portable is cheap.
+  // 手动 base64url；Buffer 仅限 Node，我们已经选择了 `runtime = 'nodejs'`
+  // 但保持这个可移植是便宜的。
   let str = '';
   for (const byte of arr) str += String.fromCharCode(byte);
   return globalThis.btoa(str).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');

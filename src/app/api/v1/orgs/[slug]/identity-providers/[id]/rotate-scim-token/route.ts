@@ -11,14 +11,11 @@ export const dynamic = 'force-dynamic';
 /**
  * RFC 0004 PR-1 — `POST /api/v1/orgs/{slug}/identity-providers/{id}/rotate-scim-token`
  *
- * Returns the plaintext SCIM token exactly once. The previous token is
- * invalidated the moment the row commits — no overlap window. Callers
- * should atomically swap their IdP-side configuration the moment they
- * receive the response.
+ * 恰好返回一次纯文本 SCIM 令牌。前一个令牌在行提交时立即失效 —
+ * 没有重叠窗口。调用者应该在收到响应的那一刻原子性地交换其 IdP 端配置。
  *
- * The first call also flips `scimEnabled = true`; rotating later keeps it
- * enabled. To turn SCIM off, hit the regular PATCH endpoint with
- * `scimEnabled: false`.
+ * 第一个调用也会翻转 `scimEnabled = true`；之后轮换保持它启用。
+ * 要关闭 SCIM，使用 `scimEnabled: false` 访问常规 PATCH 端点。
  */
 export async function POST(
   request: Request,

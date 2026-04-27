@@ -37,8 +37,7 @@ export async function GET(
     );
   }
 
-  // Confirm endpoint exists in this org so a stale id doesn't leak the
-  // empty array shape.
+  // 确认端点属于该组织，避免过期 id 泄露空数组的数据形态。
   const endpoint = await prisma.webhookEndpoint.findFirst({
     where: { id, orgId: gate.orgId },
     select: { id: true },
