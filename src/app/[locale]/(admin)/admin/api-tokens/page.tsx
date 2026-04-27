@@ -7,30 +7,56 @@ import { DataPagination } from '@/components/admin/data-pagination';
 import { prisma } from '@/lib/db';
 import { cn } from '@/lib/utils';
 
+/**
+ * API 令牌管理页的元数据。
+ */
 export const metadata: Metadata = {
   title: 'Admin · API Tokens',
 };
 
+// 禁用缓存，每次请求都重新获取最新数据
 export const dynamic = 'force-dynamic';
 
 const PAGE_SIZE = 30;
 
+// 令牌状态筛选选项
 type StatusFilter = 'active' | 'revoked' | 'expired';
 
 interface PageProps {
   searchParams: Promise<{ status?: string; page?: string }>;
 }
 
+/**
+ * 从查询字符串中解析并验证页码。
+ *
+ * @param raw 原始页码参数
+ * @returns 有效的页码（最小值为 1）
+ */
 function parsePage(raw: string | undefined): number {
   const n = Number(raw ?? '1');
   return Number.isFinite(n) && n >= 1 ? Math.floor(n) : 1;
 }
 
+/**
+ * 从查询字符串中解析并验证状态筛选器。
+ *
+ * @param raw 原始状态参数
+ * @returns 有效的状态筛选器或 undefined
+ */
 function parseStatus(raw: string | undefined): StatusFilter | undefined {
   if (raw === 'active' || raw === 'revoked' || raw === 'expired') return raw;
   return undefined;
 }
 
+/**
+ * API 令牌管理页面 - 列表展示与筛选。
+ *
+ * 支持按状态（活跃/已撤销/已过期）筛选和分页。
+ * Server 端渲染，需要管理员权限。采用 i18n 国际化。
+ *
+ * @param searchParams 查询参数，包含 status 和 page
+ * @returns API 令牌管理页面 JSX
+ */
 export default async function AdminApiTokensPage({ searchParams }: PageProps) {
   const { status: statusRaw, page: pageRaw } = await searchParams;
   const page = parsePage(pageRaw);
@@ -38,15 +64,20 @@ export default async function AdminApiTokensPage({ searchParams }: PageProps) {
   const t = await getTranslations('admin.apiTokens');
 
   const now = new Date();
+  // 根据筛选条件构建数据库查询条件
   let where: Prisma.ApiTokenWhereInput = {};
   if (status === 'active') {
+    // 已撤销为 null 且（无过期时间或未过期）
     where = { revokedAt: null, OR: [{ expiresAt: null }, { expiresAt: { gt: now } }] };
   } else if (status === 'revoked') {
+    // 已撤销不为 null
     where = { revokedAt: { not: null } };
   } else if (status === 'expired') {
+    // 未撤销但已过期
     where = { revokedAt: null, expiresAt: { lte: now } };
   }
 
+  // 并行查询总数和分页数据
   const [total, items] = await Promise.all([
     prisma.apiToken.count({ where }),
     prisma.apiToken.findMany({
@@ -63,10 +94,22 @@ export default async function AdminApiTokensPage({ searchParams }: PageProps) {
 
   const baseHref = `/admin/api-tokens${status ? `?status=${status}` : ''}`;
 
+  /**
+   * 生成标签页链接。
+   *
+   * @param s 要链接的状态筛选器，若为 undefined 则清除筛选
+   * @returns 生成的路由 href
+   */
   function tabHref(s?: StatusFilter): string {
     return `/admin/api-tokens${s ? `?status=${s}` : ''}`;
   }
 
+  /**
+   * 根据令牌的撤销和过期时间判断其状态。
+   *
+   * @param row API 令牌记录
+   * @returns 令牌的当前状态
+   */
   function classifyStatus(row: (typeof items)[number]): StatusFilter {
     if (row.revokedAt) return 'revoked';
     if (row.expiresAt && row.expiresAt.getTime() < now.getTime()) return 'expired';

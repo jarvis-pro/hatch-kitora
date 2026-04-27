@@ -4,10 +4,21 @@ import { useTranslations } from 'next-intl';
 import { SignupForm } from '@/components/auth/signup-form';
 import { Link } from '@/i18n/routing';
 
+/**
+ * 注册页的元数据。
+ */
 export const metadata: Metadata = {
   title: 'Create account',
 };
 
+/**
+ * 用户注册页面。
+ *
+ * 允许新用户创建账户。若已登录会被重定向到仪表板。
+ * Client 端渲染，采用 i18n 国际化。
+ *
+ * @returns 注册页面 JSX
+ */
 export default function SignupPage() {
   const t = useTranslations('auth.signup');
 

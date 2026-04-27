@@ -9,10 +9,14 @@ import { SearchForm } from '@/components/admin/search-form';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 
+/**
+ * 用户管理页的元数据。
+ */
 export const metadata: Metadata = {
   title: 'Admin · Users',
 };
 
+// 禁用缓存，每次请求都重新获取最新数据
 export const dynamic = 'force-dynamic';
 
 const PAGE_SIZE = 20;
@@ -21,19 +25,36 @@ interface PageProps {
   searchParams: Promise<{ q?: string; page?: string }>;
 }
 
+/**
+ * 从查询字符串中解析并验证页码。
+ *
+ * @param raw 原始页码参数
+ * @returns 有效的页码（最小值为 1）
+ */
 function parsePage(raw: string | undefined): number {
   const n = Number(raw ?? '1');
   return Number.isFinite(n) && n >= 1 ? Math.floor(n) : 1;
 }
 
+/**
+ * 用户管理页面 - 列表展示与搜索。
+ *
+ * 支持按邮箱或姓名搜索用户，可修改用户角色及重置 2FA。
+ * Server 端渲染，需要管理员权限。采用 i18n 国际化。
+ *
+ * @param searchParams 查询参数，包含搜索关键词 q 和 page
+ * @returns 用户管理页面 JSX
+ */
 export default async function AdminUsersPage({ searchParams }: PageProps) {
   const { q = '', page: pageRaw } = await searchParams;
   const page = parsePage(pageRaw);
   const t = await getTranslations('admin.users');
 
+  // 获取当前登录用户的 ID，用于禁用自己的角色编辑
   const session = await auth();
   const meId = session?.user?.id;
 
+  // 构建搜索条件：邮箱或姓名模糊匹配
   const where: Prisma.UserWhereInput = q
     ? {
         OR: [
@@ -43,6 +64,7 @@ export default async function AdminUsersPage({ searchParams }: PageProps) {
       }
     : {};
 
+  // 并行查询总数和分页用户数据
   const [total, users] = await Promise.all([
     prisma.user.count({ where }),
     prisma.user.findMany({

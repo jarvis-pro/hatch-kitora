@@ -10,21 +10,46 @@ import { Link } from '@/i18n/routing';
 import { requireActiveOrg } from '@/lib/auth/session';
 import { getCurrentBilling } from '@/lib/billing/current';
 
+/**
+ * 计费页的元数据。
+ */
 export const metadata: Metadata = {
   title: 'Billing',
 };
 
+// 禁用缓存，每次请求都重新获取最新订阅数据
 export const dynamic = 'force-dynamic';
 
+/**
+ * 将美分金额格式化为 USD 货币字符串。
+ *
+ * @param cents 金额，单位为美分
+ * @returns 格式化的 USD 字符串，如 "$12.34"
+ */
 function formatUsd(cents: number): string {
   return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(cents / 100);
 }
 
+/**
+ * 将 Date 对象格式化为 ISO 日期字符串。
+ *
+ * @param d Date 实例
+ * @returns ISO 格式的日期字符串，如 "2026-04-27"
+ */
 function formatDate(d: Date): string {
   return d.toISOString().slice(0, 10);
 }
 
+/**
+ * 计费管理页面。
+ *
+ * 显示当前订阅计划、状态和发票信息。需要登录且为活跃组织成员。
+ * Server 端渲染，采用 i18n 国际化。
+ *
+ * @returns 计费页面 JSX
+ */
 export default async function BillingPage() {
+  // 验证用户登录且为活跃组织成员，否则重定向到登录页
   const me = await requireActiveOrg().catch(() => null);
   if (!me) redirect('/login');
 

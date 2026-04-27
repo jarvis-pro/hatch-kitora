@@ -4,6 +4,14 @@ import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/routing';
 import { Button } from '@/components/ui/button';
 
+/**
+ * 营销首页。
+ *
+ * 展示产品特色、行动号召和功能介绍。
+ * Client 端渲染，采用 i18n 国际化。
+ *
+ * @returns 营销首页 JSX
+ */
 export default function HomePage() {
   const t = useTranslations('marketing.home');
 
@@ -51,6 +59,16 @@ export default function HomePage() {
   );
 }
 
+/**
+ * 功能特色卡片组件。
+ *
+ * 显示图标、标题和描述的统一卡片样式。
+ *
+ * @param icon 功能图标元素
+ * @param title 功能标题
+ * @param desc 功能描述
+ * @returns 功能卡片 JSX
+ */
 function FeatureCard({
   icon,
   title,
@@ -62,10 +80,13 @@ function FeatureCard({
 }) {
   return (
     <div className="rounded-xl border bg-card p-6 shadow-sm">
+      {/* 功能图标容器 */}
       <div className="mb-4 flex size-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
         {icon}
       </div>
+      {/* 功能标题 */}
       <h3 className="mb-2 text-lg font-semibold">{title}</h3>
+      {/* 功能描述 */}
       <p className="text-sm text-muted-foreground">{desc}</p>
     </div>
   );

@@ -7,14 +7,19 @@ import { DataPagination } from '@/components/admin/data-pagination';
 import { cn } from '@/lib/utils';
 import { prisma } from '@/lib/db';
 
+/**
+ * 订阅管理页的元数据。
+ */
 export const metadata: Metadata = {
   title: 'Admin · Subscriptions',
 };
 
+// 禁用缓存，每次请求都重新获取最新数据
 export const dynamic = 'force-dynamic';
 
 const PAGE_SIZE = 20;
 
+// 所有可能的订阅状态
 const STATUSES = [
   'ACTIVE',
   'TRIALING',
@@ -25,6 +30,7 @@ const STATUSES = [
   'UNPAID',
 ] as const satisfies readonly SubscriptionStatus[];
 
+// 订阅状态对应的样式类
 const STATUS_BADGE: Record<SubscriptionStatus, string> = {
   ACTIVE: 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400',
   TRIALING: 'bg-sky-500/15 text-sky-700 dark:text-sky-400',
@@ -39,24 +45,47 @@ interface PageProps {
   searchParams: Promise<{ status?: string; page?: string }>;
 }
 
+/**
+ * 从查询字符串中解析并验证页码。
+ *
+ * @param raw 原始页码参数
+ * @returns 有效的页码（最小值为 1）
+ */
 function parsePage(raw: string | undefined): number {
   const n = Number(raw ?? '1');
   return Number.isFinite(n) && n >= 1 ? Math.floor(n) : 1;
 }
 
+/**
+ * 从查询字符串中解析并验证订阅状态。
+ *
+ * @param raw 原始状态参数
+ * @returns 有效的订阅状态或 undefined
+ */
 function parseStatus(raw: string | undefined): SubscriptionStatus | undefined {
   if (!raw) return undefined;
   return (STATUSES as readonly string[]).includes(raw) ? (raw as SubscriptionStatus) : undefined;
 }
 
+/**
+ * 订阅管理页面 - 列表展示与筛选。
+ *
+ * 支持按 Stripe 订阅状态筛选和分页。
+ * Server 端渲染，需要管理员权限。采用 i18n 国际化。
+ *
+ * @param searchParams 查询参数，包含 status 和 page
+ * @returns 订阅管理页面 JSX
+ */
 export default async function AdminSubscriptionsPage({ searchParams }: PageProps) {
   const { status: statusRaw, page: pageRaw } = await searchParams;
   const page = parsePage(pageRaw);
   const status = parseStatus(statusRaw);
   const t = await getTranslations('admin.subscriptions');
 
+  // 构建数据库查询条件
   const where: Prisma.SubscriptionWhereInput = status ? { status } : {};
 
+  // 并行查询总数和分页数据
   const [total, items] = await Promise.all([
     prisma.subscription.count({ where }),
     prisma.subscription.findMany({

@@ -10,17 +10,14 @@ export const metadata: Metadata = {
 };
 
 /**
- * RFC 0006 §3.4 / §8.3 — PIPL §44 right-of-access landing page.
+ * RFC 0006 §3.4 / §8.3 — PIPL §44 数据权利访问登录页。
  *
- * Mainland-China only. PIPL Article 44 names four data rights every
- * processor must surface: query, correct, delete, port. We don't need
- * new machinery to honour them — RFC 0001/0002/0005 already shipped the
- * underlying flows. This page is the single sanctioned entry point that
- * regulators / users can hit to find them in 5 clicks or less, which is
- * how 2024+ MIIT spot-checks score "compliant UX".
+ * 仅限中国大陆。PIPL 第 44 条列举了处理器必须提供的四项数据权利：查询、更正、删除、转移。
+ * 我们无需新增机制来实现它们 —— RFC 0001/0002/0005 已经交付了底层流程。
+ * 此页是单一授权入口点，监管机构/用户可以通过 5 次点击找到这些权利，
+ * 这是 2024+ MIIT 抽查判定"符合 UX"的方式。
  *
- * Returns 404 outside CN region so global deploys don't leak an empty
- * page (mirror of `/icp`).
+ * 在 CN 区域外返回 404，以便全局部署不会泄露空页面（与 `/icp` 相同）。
  */
 export default async function DataRightsPage() {
   if (!isCnRegion()) notFound();

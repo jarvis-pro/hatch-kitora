@@ -4,12 +4,21 @@ import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
 import { Link } from '@/i18n/routing';
 
+// 所有可用的价格计划
 const plans = [
   { id: 'free', priceId: null },
   { id: 'pro', priceId: process.env.STRIPE_PRO_PRICE_ID ?? 'price_pro' },
   { id: 'team', priceId: process.env.STRIPE_TEAM_PRICE_ID ?? 'price_team' },
 ] as const;
 
+/**
+ * 定价页面。
+ *
+ * 展示三种价格计划（免费、专业、团队），支持升级和购买操作。
+ * Client 端渲染，采用 i18n 国际化。
+ *
+ * @returns 定价页面 JSX
+ */
 export default function PricingPage() {
   const t = useTranslations('marketing.pricing');
 

@@ -3,6 +3,14 @@ import { useTranslations } from 'next-intl';
 import { Button } from '@/components/ui/button';
 import { Link } from '@/i18n/routing';
 
+/**
+ * 404 未找到页面。
+ *
+ * 当用户访问不存在的路由时显示。
+ * Client 端渲染，采用 i18n 国际化。
+ *
+ * @returns 404 页面 JSX
+ */
 export default function NotFound() {
   const t = useTranslations('errors.notFound');
 
