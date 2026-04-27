@@ -11,21 +11,21 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 /**
- * RFC 0004 PR-1 — `PATCH /api/v1/orgs/{slug}/identity-providers/{id}` (partial
- * update) and `DELETE`. Reading a single provider also goes here.
+ * RFC 0004 PR-1 — `PATCH /api/v1/orgs/{slug}/identity-providers/{id}`（部分
+ * 更新）和 `DELETE`。读取单个提供者也在这里。
  *
- * PATCH body accepts any subset of:
+ * PATCH body 接受以下任何子集：
  *   - `name`
- *   - `emailDomains`        — re-validated wholesale
+ *   - `emailDomains`        — 重新整体验证
  *   - `defaultRole`
- *   - `enforceForLogin`     — OWNER only
- *   - `enabledAt`           — ISO string to enable, `null` to flip back to draft
- *   - `samlMetadata`        — SAML rows only
- *   - `oidcIssuer` / `oidcClientId` / `oidcClientSecret` — OIDC rows only
- *   - `scimEnabled`         — boolean toggle
+ *   - `enforceForLogin`     — 仅 OWNER
+ *   - `enabledAt`           — ISO 字符串启用，`null` 翻转回草稿
+ *   - `samlMetadata`        — 仅 SAML 行
+ *   - `oidcIssuer` / `oidcClientId` / `oidcClientSecret` — 仅 OIDC 行
+ *   - `scimEnabled`         — 布尔切换
  *
- * DELETE refuses while `enforceForLogin` is on (the deletion would lock the
- * org out of password fallback if there's no other IdP).
+ * DELETE 在 `enforceForLogin` 开启时拒绝（如果没有其他 IdP，删除会锁定
+ * 组织失去密码回退）。
  */
 
 interface PatchBody {
@@ -67,7 +67,7 @@ export async function GET(
       oidcIssuer: true,
       oidcClientId: true,
       // samlMetadata 在此处被选中，因为详情视图显示它；它是
-      // 半公开的（证书 + URL），因此可以安全地呈现给已认证的调用方。
+      // 半公开的（证书 + URL），因此可以安全地返回给已认证的调用方。
       samlMetadata: true,
       createdAt: true,
       updatedAt: true,
@@ -112,7 +112,7 @@ export async function PATCH(
   });
   if (!existing) return errResp(404);
 
-  // 在强制标志上门禁 OWNER
+  // 对 enforce 标志进行 OWNER 检查
   if (body.enforceForLogin !== undefined) {
     const callerMembership = await prisma.membership.findFirst({
       where: { userId: gate.principal.userId, orgId: gate.orgId },
@@ -192,7 +192,7 @@ export async function PATCH(
     data.scimEnabled = body.scimEnabled;
   }
 
-  // Protocol-specific updates
+  // 特定协议的更新
   if (existing.protocol === SsoProtocol.SAML) {
     if (body.samlMetadata !== undefined) {
       if (typeof body.samlMetadata !== 'string' || !body.samlMetadata.includes('<')) {

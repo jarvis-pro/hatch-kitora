@@ -192,9 +192,9 @@ interface Ownership {
 }
 
 /**
- * Resolve `(orgId, ownerUserId)` for a Stripe subscription event. Sources:
- *   1. `metadata.orgId` — set by our checkout route on every new sub.
- *   2. Reverse lookup `Organization.stripeCustomerId`.
+ * 为 Stripe 订阅事件解析 `(orgId, ownerUserId)`。数据源：
+ *   1. `metadata.orgId` —— 由我们的结账路由在每个新订阅上设置。
+ *   2. 反向查找 `Organization.stripeCustomerId`。
  *
  * 两种来源均无法解析时返回 null —— 以 warning 级别上报，便于监控系统捕获。
  */

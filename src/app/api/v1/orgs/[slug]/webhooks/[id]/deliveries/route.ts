@@ -10,10 +10,9 @@ export const dynamic = 'force-dynamic';
 /**
  * RFC 0003 PR-1 — `GET /api/v1/orgs/{slug}/webhooks/{id}/deliveries`
  *
- * Most-recent 50 deliveries for the endpoint. PR-1 doesn't yet generate
- * any rows (no cron consumer wired); the route exists so integrators can
- * lock against a stable shape from day one and so the UI page renders
- * empty state without 404'ing.
+ * 端点的最近 50 次交付。PR-1 尚未生成任何行（没有连接 cron consumer）；
+ * 该路由存在是为了让集成方从第一天就能锁定稳定的形状，以及 UI 页面能呈现
+ * 空状态而不返回 404。
  */
 export async function GET(
   request: Request,
@@ -37,7 +36,7 @@ export async function GET(
     );
   }
 
-  // 确认端点属于该组织，避免过期 id 泄露空数组的数据形态。
+  // 确认端点属于该组织，避免过期 id 泄露空数组这样的数据形状。
   const endpoint = await prisma.webhookEndpoint.findFirst({
     where: { id, orgId: gate.orgId },
     select: { id: true },

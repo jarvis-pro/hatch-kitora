@@ -10,14 +10,13 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 /**
- * RFC 0004 PR-4 — SCIM Group by id。
+ * RFC 0004 PR-4 — 按 id 的 SCIM 组。
  *
- *   GET   /api/scim/v2/Groups/{id}   — 带有扩展 `members[]` 的组
- *   PATCH /api/scim/v2/Groups/{id}   — 添加/删除用户 → 角色翻转
+ *   GET   /api/scim/v2/Groups/{id}   — 具有扩展 `members[]` 的组
+ *   PATCH /api/scim/v2/Groups/{id}   — 添加/删除用户 → 角色转换
  *
  * `id` 是 `owner` / `admin` / `member` 之一（不区分大小写）。 PATCH
- * 支持 SCIM 规范的 "添加成员到组" / "remove member from
- * group" ops:
+ * 支持 SCIM 规范的"将成员添加到组" / "从组中删除成员"操作：
  *
  *   {
  *     "Operations": [
@@ -26,9 +25,9 @@ export const dynamic = 'force-dynamic';
  *     ]
  *   }
  *
- * 将成员添加到 `admins` 组会将其 `Membership.role` 设为
- * ADMIN`. 从 `admins` 中删除成员会将他们降级回 `MEMBER`。
- * 同样的想法适用于 `owners`，除了 OWNER 通过 SCIM 是只读的 (§4.4).
+ * 将成员添加到 `admins` 组会将其 `Membership.role` 设为 `ADMIN`。
+ * 从 `admins` 中删除成员会将他们降级回 `MEMBER`。
+ * 同样的逻辑适用于 `owners`，除了 OWNER 通过 SCIM 是只读的（§4.4）。
  */
 
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -112,7 +111,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       continue;
     }
 
-    // SCIM 删除是路径带筛选器的形式：members[value eq "<id>"]
+    // SCIM 删除是带有筛选器的路径形式：members[value eq "<id>"]
     if (verb === 'remove') {
       const m = path.match(/^members\[value eq ['"](.+?)['"]\]$/);
       if (m && m[1]) removes.push(m[1]);
@@ -122,7 +121,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     logger.warn({ verb, path, providerId: auth.idpId }, 'scim-group-patch-unsupported-op');
   }
 
-  // 升级：在每个添加的成员资格上设置 role = targetRole（作用域为 org）。
+  // 升级：在每个添加的成员资格上设置 role = targetRole（按组织作用域）。
   if (adds.length > 0) {
     const updated = await prisma.membership.updateMany({
       where: {
@@ -143,9 +142,8 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     }
   }
 
-  // 降级：从 `admins` 中移除的任何人都回退到 MEMBER。移除
-  // from `members` is a no-op (you can't demote below member; if IT
-  // wants the user gone they should DELETE /Users/{id}).
+  // 降级：从 `admins` 中删除的任何人都回退到 MEMBER。从 `members` 中删除
+  // 是无操作的（不能降级到 member 以下；如果 IT 想移除用户，应该 DELETE /Users/{id}）。
   if (removes.length > 0 && targetRole === OrgRole.ADMIN) {
     const updated = await prisma.membership.updateMany({
       where: { id: { in: removes }, orgId: auth.orgId, role: OrgRole.ADMIN },
@@ -162,7 +160,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     }
   }
 
-  // Re-fetch and return the fresh group representation.
+  // 重新获取并返回最新的组表示。
   const members = await prisma.membership.findMany({
     where: { orgId: auth.orgId, role: targetRole, deletedAt: null },
     select: { id: true, user: { select: { email: true } } },

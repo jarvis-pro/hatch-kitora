@@ -10,16 +10,16 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 /**
- * RFC 0004 PR-4 — SCIM User by id.
+ * RFC 0004 PR-4 — 按 id 的 SCIM 用户。
  *
- *   GET    /api/scim/v2/Users/{id}   — single User shape
- *   PATCH  /api/scim/v2/Users/{id}   — `active`, `name`, `groups` ops
- *   DELETE /api/scim/v2/Users/{id}   — hard delete the Membership row
+ *   GET    /api/scim/v2/Users/{id}   — 单个用户形状
+ *   PATCH  /api/scim/v2/Users/{id}   — `active`、`name`、`groups` 操作
+ *   DELETE /api/scim/v2/Users/{id}   — 硬删除 Membership 行
  *
- * `id` is the Membership row id, not the User id (RFC 0004 §4.3 — same
- * person can be in multiple orgs; SCIM scope is per-tenant).
+ * `id` 是 Membership 行 id，不是 User id（RFC 0004 §4.3 —— 同一个人可以在多个组织；
+ * SCIM 范围是按租户）。
  *
- * PATCH body shape per SCIM 2.0 §3.5.2:
+ * PATCH body 形状遵循 SCIM 2.0 §3.5.2：
  *   {
  *     "schemas": ["urn:ietf:params:scim:api:messages:2.0:PatchOp"],
  *     "Operations": [
@@ -115,7 +115,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     const verb = (typeof op.op === 'string' ? op.op : '').toLowerCase();
     const path = typeof op.path === 'string' ? op.path : '';
 
-    // ── 活跃状态 ────────────────────────────────────────────────────────
+    // ── 活跃状态 ──────────────────────────────────────────────────────────
     if (path === 'active' && verb === 'replace') {
       if (typeof op.value !== 'boolean') {
         return scimError(400, 'active must be boolean', { scimType: 'invalidValue' });
@@ -124,7 +124,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       continue;
     }
 
-    // ── 名称.{givenName,familyName} ──────────────────────────────────
+    // ── 名称.{givenName,familyName} ────────────────────────────────────
     if (path === 'name.givenName' && (verb === 'replace' || verb === 'add')) {
       givenName = stringOrNull(op.value);
       nextName = composeName(givenName, familyName);
@@ -136,9 +136,9 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       continue;
     }
 
-    // ── 组 ────────────────────────────────────────────────────────
+    // ── 组 ──────────────────────────────────────────────────────────────
     if (path === 'groups' && (verb === 'replace' || verb === 'add')) {
-      // 取数组中最后一个组 —— IdP 有时会发送多个（如"移除旧组 + 添加新组"）。
+      // 取数组中最后一个组 —— IdP 有时会发送多个（如"删除旧组 + 添加新组"）。
       // 我们只处理角色标记组，其余忽略。
       const arr = Array.isArray(op.value) ? op.value : [];
       let targetRole: OrgRole | null = null;
@@ -157,13 +157,13 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       continue;
     }
 
-    // 不支持的操作 → 保持连接器存活，但记录足够响的日志，
+    // 不支持的操作 → 保持连接器存活，但记录足够详细的日志，
     // 以便在主流 IdP 需要其他路径时能及时察觉。
     logger.warn({ verb, path, providerId: auth.idpId }, 'scim-patch-unsupported-op');
   }
 
   // 应用变更 —— User 行单独更新 name，Membership 行更新 role/active。
-  // 若无实际变化则均走短路跳过。
+  // 如果没有实际变化，则均走短路跳过。
   if (nextName !== undefined) {
     await prisma.user.update({
       where: { id: existing.user.id },
@@ -184,7 +184,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     });
   }
 
-  // 返回最新数据 —— IdP 连接器期望拿到已 patch 后的资源。
+  // 返回最新数据 —— IdP 连接器期望得到已 patch 后的资源。
   const fresh = await prisma.membership.findFirstOrThrow({
     where: { id: existing.id },
     select: {
@@ -239,7 +239,7 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
   return new Response(null, { status: 204 });
 }
 
-// ─── helpers ────────────────────────────────────────────────────────────────
+// ─── 帮助函数 ──────────────────────────────────────────────────────────────
 
 function stringOrNull(v: unknown): string | null {
   if (typeof v !== 'string') return null;

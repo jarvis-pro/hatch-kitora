@@ -11,7 +11,7 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 /**
- * RFC 0004 PR-1 — `GET /api/v1/orgs/{slug}/identity-providers` and `POST` to create.
+ * RFC 0004 PR-1 — `GET /api/v1/orgs/{slug}/identity-providers` 和 `POST` 创建。
  *
  *   curl -H "Authorization: Bearer kitora_..." \
  *        https://app.kitora.com/api/v1/orgs/acme/identity-providers
@@ -21,10 +21,9 @@ export const dynamic = 'force-dynamic';
  *        -d '{"protocol":"SAML","name":"Okta","samlMetadata":"<...>","emailDomains":["acme.com"]}' \
  *        https://app.kitora.com/api/v1/orgs/acme/identity-providers
  *
- * Token must be bound to the named org (RFC 0001 §9) and belong to a user
- * with OWNER or ADMIN role. POST never returns secrets — OIDC client
- * secret is write-only, SCIM token is generated separately via the
- * rotate-scim-token endpoint.
+ * Token 必须绑定到指定的组织（RFC 0001 §9），并属于一个拥有 OWNER 或 ADMIN 角色的用户。
+ * POST 不会返回密钥 —— OIDC 客户端密钥是只读的，SCIM token 通过单独的
+ * rotate-scim-token 端点生成。
  */
 
 export async function GET(request: Request, { params }: { params: Promise<{ slug: string }> }) {
@@ -115,7 +114,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
     return NextResponse.json({ error: 'invalid-name' }, { status: 400 });
   }
 
-  // 获取调用方在该组织的角色，用于 OWNER 专属的 enforce 标志校验。
+  // 获取调用方在该组织的角色，用于 OWNER 专属的 enforce 标志验证。
   const callerMembership = await prisma.membership.findFirst({
     where: { userId: gate.principal.userId, orgId: gate.orgId },
     select: { role: true },
@@ -127,7 +126,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
     return NextResponse.json({ error: 'enforce-owner-only' }, { status: 403 });
   }
 
-  // emailDomains validation
+  // emailDomains 验证
   const rawDomains = Array.isArray(body.emailDomains) ? body.emailDomains : [];
   const emailDomains: string[] = [];
   for (const d of rawDomains) {
@@ -146,7 +145,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
       ? (body.defaultRole as OrgRole)
       : OrgRole.MEMBER;
 
-  // Protocol-specific validation
+  // 特定协议的验证
   if (protocol === SsoProtocol.SAML) {
     if (typeof body.samlMetadata !== 'string' || !body.samlMetadata.includes('<')) {
       return NextResponse.json({ error: 'saml-metadata-required' }, { status: 400 });
@@ -168,8 +167,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
     }
   }
 
-  // Two-step write: insert to allocate the row id, then update with the
-  // HKDF-derived OIDC client secret ciphertext (same pattern as RFC 0003 PR-2).
+  // 两步写入：先插入以分配行 id，然后用 HKDF 派生的 OIDC 客户端密钥密文更新
+  // （模式与 RFC 0003 PR-2 相同）。
   let created;
   try {
     created = await prisma.identityProvider.create({
@@ -201,7 +200,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
       },
     });
   } catch (err) {
-    // 最可能是 @@unique([orgId, protocol]) 唯一约束冲突。
+    // 最可能是 @@unique([orgId, protocol]) 唯一约束违规。
     return NextResponse.json(
       { error: 'protocol-already-exists', message: (err as Error).message.slice(0, 200) },
       { status: 409 },
@@ -239,7 +238,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
   );
 }
 
-// ─── shared helpers ─────────────────────────────────────────────────────────
+// ─── 共享帮助函数 ─────────────────────────────────────────────────────────
 
 function errorCode(status: number): string {
   if (status === 401) return 'unauthorized';

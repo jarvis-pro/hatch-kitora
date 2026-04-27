@@ -11,7 +11,7 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 /**
- * RFC 0003 PR-1 — `GET /api/v1/orgs/{slug}/webhooks` and `POST` to create.
+ * RFC 0003 PR-1 — `GET /api/v1/orgs/{slug}/webhooks` 和 `POST` 创建。
  *
  *   curl -H "Authorization: Bearer kitora_..." \
  *        https://app.kitora.com/api/v1/orgs/acme/webhooks
@@ -21,8 +21,8 @@ export const dynamic = 'force-dynamic';
  *        -d '{"url":"https://example.com/hooks","enabledEvents":["subscription.created"]}' \
  *        https://app.kitora.com/api/v1/orgs/acme/webhooks
  *
- * Token must be bound to the named org (RFC 0001 §9) and belong to a user
- * with OWNER or ADMIN role. POST returns the plaintext secret exactly once.
+ * Token 必须绑定到指定的组织（RFC 0001 §9），并属于一个拥有 OWNER 或 ADMIN 角色的用户。
+ * POST 返回明文密钥恰好一次。
  */
 
 export async function GET(request: Request, { params }: { params: Promise<{ slug: string }> }) {
@@ -131,7 +131,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
       createdAt: true,
     },
   });
-  // 加密密钥以行 id 为键，因此必须在插入后再写入。
+  // 加密密钥以行 id 为键，因此必须在行插入后才能写入。
   await prisma.webhookEndpoint.update({
     where: { id: endpoint.id },
     data: { encSecret: secret.encryptForEndpoint(endpoint.id) },
@@ -157,10 +157,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
   );
 }
 
-// ─── tiny helpers shared with sibling routes ──────────────────────────────
+// ─── 与兄弟路由共享的小帮助函数 ────────────────────────────────────────────
 //
 // 保留在本文件中（未放入 `api-org-gate.ts`），因为这些只是简单的
-// HTTP 形状工具函数，不值得引入一次额外的导入。
+// HTTP 形状工具函数，不值得额外引入一次。
 
 function errorCode(status: number): string {
   if (status === 401) return 'unauthorized';

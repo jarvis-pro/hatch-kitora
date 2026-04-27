@@ -8,16 +8,15 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 /**
- * RFC 0004 PR-4 — SCIM Groups 列表。
+ * RFC 0004 PR-4 — SCIM 组列表。
  *
- * 我们为每个租户公开三个静态组： `Owners`, `Admins`,
- * `Members`. 它们不是真正的 Prisma 行 — 它们是对
- * `Membership.role`. IdP connectors still expect group resources to
- * discover, so we synthesise them here.
+ * 我们为每个租户公开三个静态组：`Owners`、`Admins`、`Members`。
+ * 它们不是真正的 Prisma 行 —— 它们是对 `Membership.role` 的投影。
+ * IdP 连接器仍然期望发现组资源，所以我们在这里合成它们。
  *
- * IT 可以通过 PATCHing 用户（首选）或通过
- * PATCHing the group with `add`/`remove` member ops (handled in the
- * by-id route). OWNER 通过 SCIM 是只读的（RFC 0004 §4.4）。
+ * IT 可以通过 PATCH 用户（首选）或通过 PATCH 组并使用
+ * `add`/`remove` 成员操作（在 by-id 路由中处理）来更新角色。
+ * OWNER 通过 SCIM 是只读的（RFC 0004 §4.4）。
  */
 export async function GET(request: Request) {
   const auth = await authenticateScim(request);
@@ -40,8 +39,8 @@ export async function GET(request: Request) {
       resourceType: 'Group',
       location: `/api/scim/v2/Groups/${groupIdForRole(role)}`,
     },
-    // Don't expand `members` on the list endpoint — the SCIM convention
-    // is to keep it skinny and let IdP pull /Groups/{id} for the full set.
+    // 不在列表端点展开 `members` —— SCIM 约定是保持精简，
+    // 让 IdP pull /Groups/{id} 来获取完整集合。
     members: [],
     'urn:kitora:scim:1.0:tenant': {
       orgSlug: auth.orgSlug,
