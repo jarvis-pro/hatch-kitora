@@ -15,16 +15,16 @@ interface EmailLayoutProps {
   preview: string;
   heading: string;
   children: React.ReactNode;
-  /** Footer note above the legal line — typically a "if you didn't … ignore" disclaimer. */
+  /** 法律行上方的页脚注释 — 通常是 "如果你没有……忽略" 免责声明。 */
   footerNote?: string;
-  /** Brand name shown in the masthead and footer. */
+  /** 在页眉和页脚中显示的品牌名称。 */
   brand?: string;
 }
 
 /**
- * Shared chrome for every transactional email — masthead, container width,
- * footer disclaimer + brand line. Individual templates only need to drop in
- * their preview, heading and body content.
+ * 每个交易电子邮件的共享框架 — 页眉、容器宽度、
+ * 页脚免责声明 + 品牌行。个人模板只需要放入
+ * 他们的预览、标题和正文内容。
  */
 export function EmailLayout({
   preview,

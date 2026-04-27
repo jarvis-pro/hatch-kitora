@@ -18,7 +18,7 @@ export function SessionsCard() {
       if (!result.ok) {
         toast.error(t('errors.generic'));
       }
-      // On success the action triggers signOut → redirect to /login.
+      // 成功后 action 触发 signOut → 重定向到 /login。
     });
   };
 

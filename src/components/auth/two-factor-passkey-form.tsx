@@ -18,12 +18,12 @@ interface Props {
 }
 
 /**
- * RFC 0007 PR-3 — Passkey-based 2FA challenge form.
+ * RFC 0007 PR-3 — 基于通行密钥的 2FA 挑战表单。
  *
- * Single button: click → server action mints challenge → browser
- * `startAuthentication()` → server action verifies + flips
- * tfa_pending. Symmetric with the TOTP form's submit path; the only
- * difference is no manual code entry.
+ * 单个按钮：点击 → 服务器操作铸造挑战 → 浏览器
+ * `startAuthentication()` → 服务器操作验证 + 翻转
+ * tfa_pending。与 TOTP 表单的提交路径对称；唯一
+ * 不同的是没有手动代码输入。
  */
 export function TwoFactorPasskeyForm({ callbackUrl }: Props) {
   const t = useTranslations('auth.twoFactorChallenge.passkey');
@@ -56,7 +56,7 @@ export function TwoFactorPasskeyForm({ callbackUrl }: Props) {
         router.refresh();
       } catch (error) {
         const msg = error instanceof Error ? error.message : 'unknown';
-        // User-aborted ceremony → soft fail.
+        // 用户中止的仪式 → 软失败。
         if (msg.includes('NotAllowedError') || msg.includes('cancelled')) return;
         toast.error(t('errors.generic'));
       }

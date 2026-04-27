@@ -31,9 +31,9 @@ interface Props {
 }
 
 /**
- * RFC 0003 PR-1 — webhook endpoint list + create form + reveal-once
- * secret modal. Detail page (separate file) handles edit / rotate / delete
- * + the deliveries table that lights up in PR-2.
+ * RFC 0003 PR-1 — webhook 端点列表 + 创建表单 + 一次性显示
+ * 秘密模态框。详情页（单独文件）处理编辑 / 轮换 / 删除
+ * + 在 PR-2 中点亮的交付表。
  */
 export function WebhookEndpoints({ orgSlug, endpoints }: Props) {
   const t = useTranslations('orgs.webhooks');
@@ -110,13 +110,13 @@ export function WebhookEndpoints({ orgSlug, endpoints }: Props) {
       await navigator.clipboard.writeText(raw);
       toast.success(t('secretRevealed.copy'));
     } catch {
-      // Clipboard may fail silently on some Safari/HTTP combos — non-fatal.
+      // 剪贴板在某些 Safari/HTTP 组合中可能以静默方式失败 — 无关紧要。
     }
   };
 
   return (
     <div className="space-y-6">
-      {/* Create form */}
+      {/* 创建表单 */}
       <div className="space-y-3 rounded-md border p-4">
         <div className="space-y-2">
           <Label htmlFor="webhook-url">{t('fields.url')}</Label>
@@ -157,7 +157,7 @@ export function WebhookEndpoints({ orgSlug, endpoints }: Props) {
         </Button>
       </div>
 
-      {/* One-time reveal */}
+      {/* 一次性显示 */}
       {revealed ? (
         <div className="space-y-2 rounded-md border border-amber-500/40 bg-amber-500/10 p-4">
           <p className="text-sm font-medium text-amber-700 dark:text-amber-400">
@@ -180,7 +180,7 @@ export function WebhookEndpoints({ orgSlug, endpoints }: Props) {
         </div>
       ) : null}
 
-      {/* Endpoint list */}
+      {/* 端点列表 */}
       {endpoints.length === 0 ? (
         <p className="text-sm text-muted-foreground">{t('empty')}</p>
       ) : (

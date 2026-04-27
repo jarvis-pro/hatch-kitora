@@ -4,8 +4,8 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
 interface DataPaginationProps {
-  /** Base href without page query (e.g. "/admin/users?q=foo&"). The component
-   *  appends `page=N`. */
+  /** 不含分页查询的基础 href（例如 "/admin/users?q=foo&"）。组件
+   *  会追加 `page=N`。 */
   baseHref: string;
   page: number;
   pageSize: number;
@@ -13,8 +13,8 @@ interface DataPaginationProps {
 }
 
 /**
- * Server-component pagination — uses plain `next/link` (NOT the i18n `Link`)
- * because the URL contains query params we want preserved verbatim.
+ * 服务器组件分页 — 使用普通 `next/link`（非 i18n 的 `Link`）
+ * 因为 URL 包含查询参数，我们想逐字保留。
  */
 export function DataPagination({ baseHref, page, pageSize, total }: DataPaginationProps) {
   const totalPages = Math.max(1, Math.ceil(total / pageSize));

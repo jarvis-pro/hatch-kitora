@@ -7,15 +7,15 @@ interface Props {
   appUrl?: string;
   downloadUrl: string;
   scope: 'USER' | 'ORG';
-  /** Display copy of the storage expiry — e.g. "in 7 days". */
+  /** 存储过期副本的显示 — 例如 "在 7 天内"。 */
   expiresIn?: string;
 }
 
 /**
- * RFC 0002 PR-3 — sent by the cron worker when a data export finishes.
- * The link is auth-gated (the recipient must be signed in to download)
- * and the file expires server-side, so this is safe to email even though
- * the URL itself isn't single-use.
+ * RFC 0002 PR-3 — 当数据导出完成时由 cron 工作线程发送。
+ * 链接受身份验证保护（收件人必须登录才能下载）
+ * 和文件在服务器端过期，所以即使 URL 本身不是单次使用，
+ * 这也可以安全地通过电子邮件发送。
  */
 export default function DataExportReadyEmail({
   name = 'there',

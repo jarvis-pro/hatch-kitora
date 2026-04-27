@@ -3,26 +3,25 @@ import { Section, Text } from '@react-email/components';
 import { EmailLayout } from './_layout';
 
 interface Props {
-  /** Recipient's display name (defaults to "there" if we don't have one). */
+  /** 收件人的显示名称（如果我们没有，默认为 "there"）。 */
   name?: string;
   appUrl?: string;
-  /** Endpoint URL that just got auto-disabled. */
+  /** 刚刚被自动禁用的端点 URL。 */
   endpointUrl: string;
-  /** Slug of the org the endpoint lives in — for the deep link. */
+  /** 端点所在的组织的 slug — 用于深层链接。 */
   orgSlug: string;
-  /** Endpoint id — used for the deep link. */
+  /** 端点 id — 用于深层链接。 */
   endpointId: string;
-  /** How many consecutive failures triggered the auto-disable (informational). */
+  /** 触发自动禁用的连续失败次数（信息性）。 */
   consecutiveFailures: number;
 }
 
 /**
- * RFC 0003 PR-4 — sent to OWNER + ADMIN of an org whenever the cron worker
- * trips an endpoint's auto-disable threshold (default: 8 consecutive
- * failures, ≈ 2 days of attempts).
+ * RFC 0003 PR-4 — 每当 cron 工作线程触发端点的自动禁用阈值时，
+ * 发送给组织的 OWNER + ADMIN（默认：8 次连续失败，≈ 2 天的尝试）。
  *
- * Tone: actionable, not alarmist — the endpoint is paused, not deleted, and
- * the receiving team usually just needs to fix their service and re-enable.
+ * 语气：可操作的，而不是耸人听闻的 — 端点已暂停，未删除，
+ * 接收团队通常只需要修复其服务并重新启用。
  */
 export default function WebhookAutoDisabledEmail({
   name = 'there',

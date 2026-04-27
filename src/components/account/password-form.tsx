@@ -47,8 +47,8 @@ export function PasswordForm() {
         newPassword: values.newPassword,
       });
       if (result.ok) {
-        // Server action already triggers signOut → redirect; we never get here
-        // unless the redirect is intercepted in dev. Reset just in case.
+        // 服务器操作已经触发 signOut → redirect；除非重定向在开发中被拦截，
+        // 否则我们永远不会到达这里。以防万一重置。
         reset();
         toast.success(t('saved'));
         return;

@@ -14,11 +14,10 @@ interface Props {
 }
 
 /**
- * RFC 0002 PR-4 — OWNER-only switch to enforce 2FA on every member.
+ * RFC 0002 PR-4 — 仅限 OWNER 的开关，用于对每个成员强制执行 2FA。
  *
- * The "you must have 2FA yourself before turning it on" check is in the
- * server action; this UI surfaces the resulting `caller-needs-2fa` error
- * with a tailored toast.
+ * "你必须先拥有 2FA 才能启用它" 的检查在服务器操作中；
+ * 此 UI 使用裁定的 `caller-needs-2fa` 错误显示提示。
  */
 export function OrgRequire2faToggle({ orgSlug, enabled }: Props) {
   const t = useTranslations('orgs.require2fa');

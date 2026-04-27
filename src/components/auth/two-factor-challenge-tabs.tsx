@@ -16,18 +16,18 @@ interface Props {
 type Tab = 'passkey' | 'totp';
 
 /**
- * RFC 0007 PR-3 — wrapper that decides which 2FA factors to surface on
- * `/login/2fa` based on the user's enrolled methods.
+ * RFC 0007 PR-3 — 包装器，根据用户注册的方法
+ * 决定在 `/login/2fa` 上显示哪些 2FA 因素。
  *
- *   Passkey only       → passkey form (no tabs)
- *   TOTP only          → existing TOTP form (no tabs)
- *   Both               → tabs, default to Passkey (better UX, fewer keystrokes)
- *   Neither            → impossible by route construction; middleware
- *                        wouldn't have routed here.
+ *   仅通行密钥       → 通行密钥表单（无选项卡）
+ *   仅 TOTP          → 现有 TOTP 表单（无选项卡）
+ *   两者               → 选项卡，默认为通行密钥（更好的 UX，更少的击键）
+ *   两者都不          → 通过路由构造不可能；中间件
+ *                        不会在这里路由。
  */
 export function TwoFactorChallengeTabs({ callbackUrl, hasTotp, hasPasskey }: Props) {
   const t = useTranslations('auth.twoFactorChallenge');
-  // Default tab — Passkey wins when present; falls back to TOTP otherwise.
+  // 默认选项卡 — 通行密钥当存在时获胜；否则回退到 TOTP。
   const [active, setActive] = useState<Tab>(hasPasskey ? 'passkey' : 'totp');
 
   if (hasPasskey && !hasTotp) {
@@ -37,7 +37,7 @@ export function TwoFactorChallengeTabs({ callbackUrl, hasTotp, hasPasskey }: Pro
     return <TwoFactorChallengeForm callbackUrl={callbackUrl} />;
   }
 
-  // Both enrolled — render tabs.
+  // 两者都注册 — 呈现选项卡。
   return (
     <div className="space-y-4">
       <div className="flex gap-1 rounded-md bg-muted p-1">

@@ -22,10 +22,9 @@ interface Props {
 }
 
 /**
- * Best-effort UA → human label. We deliberately avoid pulling in a UA parser
- * lib for one card; the heuristics below cover the vast majority of real
- * traffic (Chrome/Firefox/Safari/Edge on macOS/Windows/Linux/iOS/Android).
- * Anything else falls through to `unknownDevice` from i18n.
+ * 尽力将 UA 转换为人类可读标签。我们刻意避免引入 UA 解析库来处理一张卡片；
+ * 下面的启发式方法覆盖了绝大多数真实流量（Chrome/Firefox/Safari/Edge 在
+ * macOS/Windows/Linux/iOS/Android 上）。其他情况下回退到 i18n 中的 `unknownDevice`。
  */
 function describeUserAgent(ua: string | null, fallback: string): string {
   if (!ua) return fallback;

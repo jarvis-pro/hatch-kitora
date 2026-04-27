@@ -22,10 +22,9 @@ interface Props {
 }
 
 /**
- * RFC 0007 PR-2 — list of registered passkeys with rename + remove
- * controls. Server data flows in via the RSC parent (settings page).
- * Each action calls the API + router.refresh() so the list re-renders
- * without local state plumbing.
+ * RFC 0007 PR-2 — 已注册的通行密钥列表，支持重命名和移除控件。
+ * 服务器数据通过 RSC 父级（设置页面）流入。每个操作都调用 API +
+ * router.refresh()，以便列表重新呈现，无需本地状态管道。
  */
 export function PasskeyList({ credentials }: Props) {
   const t = useTranslations('account.passkeys');

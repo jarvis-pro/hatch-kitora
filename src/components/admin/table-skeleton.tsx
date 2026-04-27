@@ -3,13 +3,13 @@ import { Skeleton } from '@/components/ui/skeleton';
 interface Props {
   rows?: number;
   cols?: number;
-  /** Whether to render the search bar / filter chip area at the top. */
+  /** 是否在顶部渲染搜索栏 / 过滤芯片区域。 */
   withFilters?: boolean;
 }
 
 /**
- * Reusable loading skeleton for admin tables. Mirrors the page layout closely
- * enough to avoid layout shift when the real content arrives.
+ * 可重用的管理表加载骨架。镜像页面布局足够接近
+ * 以避免在真实内容到达时布局移位。
  */
 export function TableSkeleton({ rows = 8, cols = 5, withFilters = true }: Props) {
   return (

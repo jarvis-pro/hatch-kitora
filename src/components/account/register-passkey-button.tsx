@@ -12,14 +12,14 @@ import { Label } from '@/components/ui/label';
 import { useRouter } from '@/i18n/routing';
 
 /**
- * RFC 0007 PR-2 — "Add a passkey" CTA on `/settings/security/passkeys`.
+ * RFC 0007 PR-2 — `/settings/security/passkeys` 页面上的 "添加通行密钥" CTA。
  *
- * Two-stage UI:
- *   1. Click "Add a passkey" → reveal name input + confirm.
- *   2. Submit name → POST /options → startRegistration() → POST /verify
- *      → router.refresh() so the RSC list picks up the new row.
+ * 两阶段 UI：
+ *   1. 点击 "添加通行密钥" → 显示名称输入框 + 确认。
+ *   2. 提交名称 → POST /options → startRegistration() → POST /verify
+ *      → router.refresh()，使 RSC 列表获取新行。
  *
- * No QR / device-picker UI here — the OS / browser owns that step.
+ * 此处没有二维码 / 设备选择器 UI — OS / 浏览器拥有该步骤。
  */
 export function RegisterPasskeyButton() {
   const t = useTranslations('account.passkeys');
@@ -42,7 +42,7 @@ export function RegisterPasskeyButton() {
         }
         const options = await optionsRes.json();
 
-        // Browser ceremony — user touches sensor / inserts key.
+        // 浏览器仪式 — 用户触摸传感器 / 插入密钥。
         const attestation = await startRegistration({ optionsJSON: options });
 
         const verifyRes = await fetch('/api/auth/webauthn/register/verify', {
@@ -62,7 +62,7 @@ export function RegisterPasskeyButton() {
         router.refresh();
       } catch (error) {
         const msg = error instanceof Error ? error.message : 'unknown';
-        // User-aborted ceremonies throw `NotAllowedError` — soft-fail.
+        // 用户中止的仪式抛出 `NotAllowedError` — 软失败。
         if (msg.includes('NotAllowedError') || msg.includes('cancelled')) return;
         toast.error(t('errors.unknown'));
       }

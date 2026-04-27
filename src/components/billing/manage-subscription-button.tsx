@@ -12,8 +12,8 @@ interface Props {
 }
 
 /**
- * POSTs to /api/stripe/portal and redirects the browser to the returned URL.
- * Stripe handles plan changes / cancellation / invoices on the hosted portal.
+ * POST 到 /api/stripe/portal 并重定向浏览器到返回的 URL。
+ * Stripe 在托管门户中处理计划更改 / 取消 / 发票。
  */
 export function ManageSubscriptionButton({ variant = 'default', className }: Props) {
   const t = useTranslations('billing');

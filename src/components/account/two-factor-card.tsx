@@ -16,7 +16,7 @@ import { Label } from '@/components/ui/label';
 import { useRouter } from '@/i18n/routing';
 
 interface Props {
-  /** Whether 2FA is currently active on the account (User.twoFactorEnabled). */
+  /** 2FA 是否在账户上处于活跃状态（User.twoFactorEnabled）。 */
   enabled: boolean;
 }
 
@@ -28,16 +28,15 @@ interface PendingEnrollment {
 }
 
 /**
- * RFC 0002 PR-2 — three-state UI for /settings:
+ * RFC 0002 PR-2 — /settings 的三状态 UI：
  *
- *   disabled                     → "Enable 2FA" CTA
- *   enrolling (pending state)    → secret + backup codes + 6-digit confirm
- *   enabled                      → Disable 2FA · Regenerate backup codes
+ *   disabled                     → "启用 2FA" CTA
+ *   enrolling (pending state)    → secret + backup codes + 6 位确认码
+ *   enabled                      → 禁用 2FA · 重新生成备份码
  *
- * QR rendering is deliberately out of scope for v1 — adding `qrcode` as a
- * dep is on the PR-2.x polish list. Authenticator apps all support pasting
- * the otpauth URI or entering the base32 secret manually, so this is no
- * blocker for going live.
+ * 二维码渲染在 v1 范围之外被刻意忽略 — 添加 `qrcode` 作为依赖在 PR-2.x
+ * 打磨列表上。身份验证器应用都支持粘贴 otpauth URI 或手动输入 base32 secret，
+ * 所以这对正式上线而言不是阻碍。
  */
 export function TwoFactorCard({ enabled }: Props) {
   const t = useTranslations('account.twoFactor');
@@ -125,11 +124,11 @@ export function TwoFactorCard({ enabled }: Props) {
       await navigator.clipboard.writeText(text);
       toast.success(t('copied'));
     } catch {
-      // Clipboard can fail on http or Safari without focus — non-fatal.
+      // 剪贴板可能在 http 或 Safari 无焦点时失败 — 无关紧要。
     }
   };
 
-  // ── State 1: not enrolled ─────────────────────────────────────────────
+  // ── 状态 1：未注册 ─────────────────────────────────────────────
   if (!enabled && !enrollment) {
     return (
       <div className="space-y-3">
@@ -141,7 +140,7 @@ export function TwoFactorCard({ enabled }: Props) {
     );
   }
 
-  // ── State 2: enrolling ────────────────────────────────────────────────
+  // ── 状态 2：正在注册 ────────────────────────────────────────────
   if (enrollment) {
     return (
       <div className="space-y-5">
@@ -214,7 +213,7 @@ export function TwoFactorCard({ enabled }: Props) {
     );
   }
 
-  // ── State 3: enabled ──────────────────────────────────────────────────
+  // ── 状态 3：已启用 ──────────────────────────────────────────────
   return (
     <div className="space-y-5">
       <p className="text-sm text-muted-foreground">{t('descriptionEnabled')}</p>

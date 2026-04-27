@@ -13,9 +13,9 @@ interface Props {
 }
 
 /**
- * RFC 0002 PR-4 — top-of-page banner shown to users in PENDING_DELETION
- * across the dashboard layout (mounted once in the dashboard layout).
- * Single CTA: "Cancel deletion" → flips status back to ACTIVE.
+ * RFC 0002 PR-4 — 显示在仪表板布局顶部的横幅，对处于 PENDING_DELETION
+ * 状态的用户显示（在仪表板布局中挂载一次）。
+ * 单个 CTA："取消删除" → 将状态改回 ACTIVE。
  */
 export function DeletionBanner({ scheduledAt }: Props) {
   const t = useTranslations('account.deletion.banner');

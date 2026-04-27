@@ -2,7 +2,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
 interface SearchFormProps {
-  /** Path the form GETs to (e.g. "/admin/users"). */
+  /** 表单 GET 到的路径（例如 "/admin/users"）。 */
   action: string;
   defaultValue?: string;
   placeholder: string;
@@ -10,8 +10,8 @@ interface SearchFormProps {
 }
 
 /**
- * Plain HTML form — submits as GET so the query lands in the URL and the
- * server component re-renders with the new searchParams. No JS needed.
+ * 普通 HTML 表单 — 作为 GET 提交以便查询降落在 URL 中，
+ * 服务器组件使用新 searchParams 重新渲染。无需 JS。
  */
 export function SearchForm({ action, defaultValue, placeholder, submitLabel }: SearchFormProps) {
   return (

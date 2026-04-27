@@ -56,7 +56,7 @@ export function ConnectedAccounts({ available, linked, hasPassword }: Props) {
     <ul className="divide-y rounded-md border">
       {available.map((p) => {
         const isLinked = linkedSet.has(p.id);
-        // Block unlink when removing this row would leave no login method.
+        // 当移除此行会导致没有登录方法时阻止取消链接。
         const wouldStrand = !hasPassword && linkedCount <= 1 && isLinked;
         return (
           <li key={p.id} className="flex items-center justify-between gap-3 px-4 py-3">
@@ -78,7 +78,7 @@ export function ConnectedAccounts({ available, linked, hasPassword }: Props) {
               </Button>
             ) : (
               <Button asChild variant="outline" size="sm">
-                {/* OAuth sign-in URL — Auth.js handles the redirect dance. */}
+                {/* OAuth 登录 URL — Auth.js 处理重定向舞蹈。 */}
                 <a href={`/api/auth/signin/${p.id}`}>{t('connect')}</a>
               </Button>
             )}

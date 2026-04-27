@@ -21,19 +21,18 @@ const schema = z.object({
 type Values = z.infer<typeof schema>;
 
 /**
- * RFC 0004 PR-2 — login form with three modes:
+ * RFC 0004 PR-2 — 具有三种模式的登录表单：
  *
- *   - `password`  (default) — email + password fields.
- *   - `sso-only`  — only the email field; submitting POSTs to
- *                    `/api/auth/sso/start`. Triggered when the user's email
- *                    domain matches an org with `enforceForLogin = true`,
- *                    or when they explicitly clicked "Continue with SSO".
- *   - `sso-suggested` — same shape as `sso-only` but with a back-arrow that
- *                       restores the password fields. Triggered manually.
+ *   - `password`  (默认) — 电子邮件 + 密码字段。
+ *   - `sso-only`  — 仅电子邮件字段；提交 POST 到
+ *                    `/api/auth/sso/start`。当用户的电子邮件
+ *                    域匹配具有 `enforceForLogin = true` 的组织时触发，
+ *                    或当他们明确点击 "使用 SSO 继续" 时。
+ *   - `sso-suggested` — 与 `sso-only` 相同形状，但有一个后退箭头
+ *                       恢复密码字段。手动触发。
  *
- * The `sso_error` query param (set by /api/auth/sso/start + /callback) is
- * surfaced as an inline alert. Codes are mapped to friendly strings via the
- * `auth.login.sso.errors.*` i18n table.
+ * `sso_error` 查询参数（由 /api/auth/sso/start + /callback 设置）
+ * 显示为内联警报。代码通过 `auth.login.sso.errors.*` i18n 表映射到友好字符串。
  */
 export function LoginForm() {
   const t = useTranslations('auth.login');
@@ -44,8 +43,8 @@ export function LoginForm() {
   const [ssoEmail, setSsoEmail] = useState('');
   const [ssoErrorBanner, setSsoErrorBanner] = useState<string | null>(null);
 
-  // Pick up `?sso_error=...` from /start or /callback. URLSearchParams is
-  // safe in `'use client'`; we don't depend on it during SSR.
+  // 从 /start 或 /callback 拾取 `?sso_error=...`。URLSearchParams 在
+  // `'use client'` 中是安全的；我们在 SSR 期间不依赖它。
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const params = new URLSearchParams(window.location.search);
@@ -67,9 +66,9 @@ export function LoginForm() {
         router.refresh();
         return;
       }
-      // RFC 0004 PR-2 — the user's org has flipped on `enforceForLogin`.
-      // Switch the form to SSO-only with the email pre-filled instead of
-      // showing the generic "invalid credentials" toast.
+      // RFC 0004 PR-2 — 用户的组织已打开 `enforceForLogin`。
+      // 将表单切换为仅 SSO，以电子邮件预填而不是
+      // 显示通用 "凭证无效" 提示。
       if (result.error === 'sso-required') {
         setSsoEmail(result.email ?? values.email);
         setMode('sso-only');
@@ -146,10 +145,10 @@ export function LoginForm() {
 }
 
 /**
- * The SSO-only rail. Submits a native form POST to `/api/auth/sso/start`
- * (rather than fetch) so the cookie set on the response actually lands —
- * the redirect chain ending at the IdP needs the cookie attached to the
- * pre-redirect navigation.
+ * SSO 专用轨道。提交本地表单 POST 到 `/api/auth/sso/start`
+ * （而不是 fetch）以便响应上设置的 cookie 实际上下载 —
+ * 以 IdP 结尾的重定向链需要 cookie 附加到
+ * 预重定向导航。
  */
 function SsoEmailRail({
   email,
@@ -158,9 +157,9 @@ function SsoEmailRail({
   lockedNotice,
 }: {
   email: string;
-  /** True when the form is showing because the org enforces SSO. Disables the email field. */
+  /** 当表单显示是因为组织强制 SSO 时为真。禁用电子邮件字段。 */
   locked: boolean;
-  /** Provided when the user can switch back to password mode. */
+  /** 当用户可以切换回密码模式时提供。 */
   onBack: (() => void) | null;
   lockedNotice: string | null;
 }) {
@@ -170,8 +169,8 @@ function SsoEmailRail({
       method="POST"
       action="/api/auth/sso/start"
       className="space-y-4"
-      // Surface the email value as default — readonly when locked.
-      key={email /* re-render the input on locked-flip */}
+      // 将电子邮件值显示为默认值 — 锁定时只读。
+      key={email /* 在锁定翻转时重新渲染输入 */}
     >
       {lockedNotice ? (
         <div className="rounded-md border border-blue-500/30 bg-blue-500/5 p-3 text-sm text-blue-700 dark:text-blue-400">
@@ -203,8 +202,8 @@ function SsoEmailRail({
 }
 
 function mapSsoError(t: ReturnType<typeof useTranslations>, code: string): string {
-  // Normalize `invalid-domain:reason` into the generic invalid-domain bucket
-  // — the user doesn't need to see the validator's internal reason here.
+  // 将 `invalid-domain:reason` 归一化为通用 invalid-domain 存储桶
+  // — 用户不需要在这里看到验证器的内部原因。
   const head = code.split(':')[0] ?? code;
   const knownKeys = new Set([
     'email-required',

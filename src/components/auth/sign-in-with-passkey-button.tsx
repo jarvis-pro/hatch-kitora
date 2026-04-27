@@ -9,27 +9,27 @@ import { browserSupportsWebAuthn, startAuthentication } from '@simplewebauthn/br
 import { Button } from '@/components/ui/button';
 
 interface Props {
-  /** Optional callback URL (typically `?callbackUrl=` from /login). */
+  /** 可选回调 URL（通常来自 /login 的 `?callbackUrl=`）。 */
   callbackUrl?: string;
 }
 
 /**
- * RFC 0007 PR-4 — "Sign in with a passkey" button on /login.
+ * RFC 0007 PR-4 — /login 上的 "使用通行密钥登录" 按钮。
  *
- * Discoverable / usernameless flow:
- *   1. POST /api/auth/webauthn/authenticate/options (anonymous)
- *      — server stashes challenge in httpOnly cookie, returns options
- *        with `allowCredentials: []`.
- *   2. `navigator.credentials.get()` via SimpleWebAuthn — browser opens
- *      OS / password-manager picker.
- *   3. POST /api/auth/webauthn/authenticate/verify with the assertion —
- *      server reverse-looks-up the credential, mints session cookie,
- *      responds with `{ redirectTo }`.
- *   4. Browser navigates to `redirectTo` — middleware honours the fresh
- *      cookie immediately.
+ * 可发现 / 无用户名流：
+ *   1. POST /api/auth/webauthn/authenticate/options (匿名)
+ *      — 服务器在 httpOnly cookie 中隐藏挑战，返回选项
+ *        具有 `allowCredentials: []`。
+ *   2. 通过 SimpleWebAuthn 的 `navigator.credentials.get()` — 浏览器打开
+ *      OS / 密码管理器选择器。
+ *   3. POST /api/auth/webauthn/authenticate/verify 和声称 —
+ *      服务器反向查找凭证，铸造会话 cookie，
+ *      响应 `{ redirectTo }`。
+ *   4. 浏览器导航到 `redirectTo` — 中间件立即尊重新鲜
+ *      cookie。
  *
- * The button is hidden when the browser doesn't support WebAuthn (RFC
- * 0007 §1 "降级先于扩展"). Soft-fails on user cancellation.
+ * 当浏览器不支持 WebAuthn 时隐藏该按钮（RFC
+ * 0007 §1 "降级先于扩展"）。在用户取消时软失败。
  */
 export function SignInWithPasskeyButton({ callbackUrl }: Props) {
   const t = useTranslations('auth.login.passkey');
@@ -71,13 +71,13 @@ export function SignInWithPasskeyButton({ callbackUrl }: Props) {
           return;
         }
 
-        // Hard navigate so middleware sees the freshly-set cookie on the
-        // next request. router.replace would skip the cookie roundtrip.
+        // 硬导航以便中间件在下一个请求时看到新设置的 cookie。
+        // router.replace 会跳过 cookie 往返。
         window.location.assign(result.redirectTo ?? '/dashboard');
       } catch (error) {
         const msg = error instanceof Error ? error.message : 'unknown';
-        // User-aborted ceremonies throw NotAllowedError — soft-fail, the
-        // user clearly chose not to authenticate.
+        // 用户中止的仪式抛出 NotAllowedError — 软失败，
+        // 用户显然选择了不进行身份验证。
         if (msg.includes('NotAllowedError') || msg.includes('cancelled')) return;
         toast.error(t('errors.generic'));
       }

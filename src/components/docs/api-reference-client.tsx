@@ -4,17 +4,16 @@ import { ApiReferenceReact } from '@scalar/api-reference-react';
 import '@scalar/api-reference-react/style.css';
 
 /**
- * RFC 0003 PR-3 — Scalar reference renderer.
+ * RFC 0003 PR-3 — Scalar 参考渲染器。
  *
- * Scalar's React component isn't SSR-safe (touches `window` during render),
- * so we hide it behind a `'use client'` boundary and let it fetch the spec
- * from `/api/openapi/v1.yaml` on mount. That route is `force-static` with
- * an hourly revalidate, so the cost amortizes to near-zero in production.
+ * Scalar 的 React 组件不是 SSR 安全的（在渲染期间触及 `window`），
+ * 所以我们将其隐藏在 `'use client'` 边界后面，让它在挂载时从
+ * `/api/openapi/v1.yaml` 获取规范。该路由是 `force-static` 的，
+ * 具有每小时重新验证，因此成本在生产中摊销到接近零。
  *
- * The `theme: 'default'` + `layout: 'modern'` combo is intentionally close
- * to Scalar's homepage demo — looks polished without bespoke CSS, dark
- * mode follows the site theme via the `.dark` class their stylesheet keys
- * off of.
+ * `theme: 'default'` + `layout: 'modern'` 组合有意接近
+ * Scalar 的主页演示 — 看起来光泽，无需定制 CSS，暗色
+ * 模式通过其样式表键入的 `.dark` 类跟随网站主题。
  */
 export function ApiReferenceClient() {
   return (

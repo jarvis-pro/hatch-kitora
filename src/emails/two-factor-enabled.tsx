@@ -8,10 +8,10 @@ interface Props {
 }
 
 /**
- * RFC 0002 PR-2 — sent right after a successful 2FA enrollment confirmation.
- * The point of this email is *not* to celebrate; it's to alert the account
- * owner if someone *else* just turned 2FA on (e.g. a hijacked session). If
- * the recipient didn't enable 2FA, they should sign in and disable it.
+ * RFC 0002 PR-2 — 在成功 2FA 注册确认后立即发送。
+ * 此电子邮件的重点不是庆祝；而是如果 *其他人* 刚刚打开 2FA，
+ * 则警告账户所有者（例如，会话被劫持）。如果
+ * 收件人没有启用 2FA，他们应该登录并禁用它。
  */
 export default function TwoFactorEnabledEmail({
   name = 'there',

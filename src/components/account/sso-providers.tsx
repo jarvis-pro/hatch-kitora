@@ -36,17 +36,16 @@ export interface SsoProviderRow {
 
 interface Props {
   orgSlug: string;
-  /** OWNER can flip enforceForLogin; ADMIN cannot. */
+  /** OWNER 可以切换 enforceForLogin；ADMIN 不能。 */
   isOwner: boolean;
   providers: SsoProviderRow[];
 }
 
 /**
- * RFC 0004 PR-1 — IdP list + add form + per-row inline edit + SCIM token
- * reveal-once modal. Hard cap of 2 rows per org (1 SAML + 1 OIDC) is
- * enforced server-side via the `@@unique([orgId, protocol])` constraint;
- * the UI just hides the "Add" button for the protocol that's already
- * configured.
+ * RFC 0004 PR-1 — IdP 列表 + 添加表单 + 每行内联编辑 + SCIM 令牌
+ * 一次性显示模态框。硬性限制每个组织 2 行（1 个 SAML + 1 个 OIDC），
+ * 通过 `@@unique([orgId, protocol])` 约束在服务器端强制执行；
+ * UI 只是为已配置的协议隐藏 "添加" 按钮。
  */
 export function SsoProviders({ orgSlug, isOwner, providers }: Props) {
   const t = useTranslations('orgs.sso');
@@ -57,7 +56,7 @@ export function SsoProviders({ orgSlug, isOwner, providers }: Props) {
   const haveSaml = providers.some((p) => p.protocol === 'SAML');
   const haveOidc = providers.some((p) => p.protocol === 'OIDC');
 
-  // ─── Add form state ──────────────────────────────────────────────────────
+  // ─── 添加表单状态 ──────────────────────────────────────────────────────
   const [addProtocol, setAddProtocol] = useState<Protocol | null>(null);
   const [name, setName] = useState('');
   const [domains, setDomains] = useState('');
@@ -67,7 +66,7 @@ export function SsoProviders({ orgSlug, isOwner, providers }: Props) {
   const [oidcClientSecret, setOidcClientSecret] = useState('');
   const [enforce, setEnforce] = useState(false);
 
-  // ─── SCIM reveal modal ───────────────────────────────────────────────────
+  // ─── SCIM 显示模态框 ───────────────────────────────────────────────────
   const [revealed, setRevealed] = useState<{ token: string } | null>(null);
 
   const reset = () => {
@@ -174,13 +173,13 @@ export function SsoProviders({ orgSlug, isOwner, providers }: Props) {
       await navigator.clipboard.writeText(raw);
       toast.success(t('scim.revealed.copy'));
     } catch {
-      // Clipboard may fail silently in some contexts — non-fatal.
+      // 剪贴板在某些环境中可能会以静默方式失败 — 无关紧要。
     }
   };
 
   return (
     <div className="space-y-6">
-      {/* SCIM token reveal-once banner */}
+      {/* SCIM 令牌一次性显示横幅 */}
       {revealed ? (
         <div className="space-y-2 rounded-md border border-amber-500/40 bg-amber-500/10 p-4">
           <p className="text-sm font-medium text-amber-700 dark:text-amber-400">
@@ -203,7 +202,7 @@ export function SsoProviders({ orgSlug, isOwner, providers }: Props) {
         </div>
       ) : null}
 
-      {/* Provider list */}
+      {/* 提供者列表 */}
       {providers.length === 0 ? (
         <p className="text-sm text-muted-foreground">{t('empty')}</p>
       ) : (
@@ -292,7 +291,7 @@ export function SsoProviders({ orgSlug, isOwner, providers }: Props) {
         </ul>
       )}
 
-      {/* Add provider section */}
+      {/* 添加提供者部分 */}
       <div className="space-y-3 rounded-md border p-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h3 className="text-sm font-semibold">{t('add.title')}</h3>

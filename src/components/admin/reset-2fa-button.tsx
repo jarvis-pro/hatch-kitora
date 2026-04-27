@@ -14,9 +14,9 @@ interface Props {
 }
 
 /**
- * Platform-admin "Reset 2FA" — used during the recovery path when a user
- * has lost both their authenticator and all backup codes. Confirmed via
- * native confirm() to avoid an accidental click.
+ * 平台管理员 "重置 2FA" — 在恢复路径中使用，当用户
+ * 同时丢失了身份验证器和所有备份码。通过原生 confirm() 确认
+ * 以避免意外点击。
  */
 export function Reset2faButton({ userId, enabled }: Props) {
   const t = useTranslations('admin.users.reset2fa');
