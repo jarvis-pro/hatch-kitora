@@ -2,12 +2,11 @@ import { prisma } from './fixtures/db';
 import { expect, test } from './fixtures/test';
 
 /**
- * RFC 0002 PR-1 — Active Sessions e2e.
+ * RFC 0002 PR-1 — 活跃会话 e2e。
  *
- * Two browser contexts == two independent JWT cookies == two DeviceSession
- * rows. We sign in twice, assert the list shows two rows, revoke the "other"
- * one from the first context, and verify the second context is hard-logged
- * out on the next request (jwt() callback returns null).
+ * 两个浏览器上下文 == 两个独立的 JWT cookie == 两行 DeviceSession。
+ * 登录两次，断言列表显示两行，从第一个上下文撤销「另一个」，
+ * 然后验证第二个上下文在下次请求时被强制登出（jwt() 回调返回 null）。
  */
 test.describe('active sessions', () => {
   test('two devices appear, revoking one logs that device out', async ({

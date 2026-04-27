@@ -2,11 +2,11 @@ import { prisma } from './fixtures/db';
 import { expect, test } from './fixtures/test';
 
 /**
- * RFC 0002 PR-2 — 2FA enrollment + login challenge e2e.
+ * RFC 0002 PR-2 — 2FA 注册 + 登录挑战 e2e。
  *
- * The challenge page asks for a real TOTP code, so we need to compute one on
- * the fly. We import the pure base32 / TOTP helpers (the encryption parts
- * live next door behind `server-only`, which would refuse to load here).
+ * 挑战页面需要真实的 TOTP 码，因此需要实时计算。我们导入纯粹的
+ * base32 / TOTP 辅助函数（加密部分隐藏在 `server-only` 后面，
+ * 在这里会拒绝加载）。
  */
 import { base32Decode, base32Encode, totpNow } from '../../src/lib/auth/2fa-totp';
 

@@ -10,17 +10,17 @@ import {
 } from '../../src/lib/sso/secret';
 
 /**
- * RFC 0004 PR-1 — IdP CRUD + SCIM token e2e.
+ * RFC 0004 PR-1 — IdP CRUD + SCIM token e2e。
  *
- * Two slices:
+ * 两个切片：
  *
- *   1. Pure unit-style assertions over the secret + domain helpers.
- *      Fast feedback for HKDF / hash regressions.
- *   2. UI flow: OWNER navigates to /settings/organization/sso, adds a SAML
- *      provider, generates a SCIM token (revealed once), then deletes.
+ *   1. 对 secret + domain 辅助函数的纯单元风格断言。
+ *      为 HKDF / 哈希回归提供快速反馈。
+ *   2. UI 流程：OWNER 导航到 /settings/organization/sso，添加 SAML
+ *      provider，生成 SCIM token（仅展示一次），然后删除。
  *
- * Mirrors webhooks.spec.ts in shape so you can lift the cookie-set / sign-in
- * pattern directly when adding more SSO scenarios.
+ * 结构与 webhooks.spec.ts 保持一致，方便添加更多 SSO 场景时
+ * 直接复用 cookie 设置 / 登录模式。
  */
 
 test.describe('sso config (PR-1: IdP CRUD)', () => {

@@ -3,11 +3,11 @@ import { test as base, expect, type Page } from '@playwright/test';
 import { createTestUser, deleteUser, type CreateTestUserOptions, type TestUser } from './db';
 
 interface Fixtures {
-  /** A fresh user per test, automatically cleaned up afterwards. */
+  /** 每个 test 独享的新用户，测试结束后自动清理。 */
   testUser: TestUser;
-  /** Same as testUser but with role=ADMIN. */
+  /** 与 testUser 相同，但 role=ADMIN。 */
   adminUser: TestUser;
-  /** Helper that signs the given user in via the public /login form. */
+  /** 通过公开的 /login 表单为指定用户执行登录的辅助函数。 */
   signIn: (page: Page, user: TestUser) => Promise<void>;
 }
 
@@ -44,7 +44,7 @@ export const test = base.extend<Fixtures>({
 
 export { expect };
 
-/** Convenience for tests that want a one-off user without the lifecycle hook. */
+/** 供需要临时用户但不想使用生命周期钩子的 test 直接使用。 */
 export async function createDisposableUser(opts?: CreateTestUserOptions): Promise<TestUser> {
   return createTestUser(opts);
 }

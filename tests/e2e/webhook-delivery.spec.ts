@@ -10,13 +10,12 @@ import { decryptSecret, encryptSecret, generateWebhookSecret } from '../../src/l
 import { signWebhookPayload, verifyWebhookSignature } from '../../src/lib/webhooks/sign';
 
 /**
- * RFC 0003 PR-2 — outbound delivery + HMAC e2e.
+ * RFC 0003 PR-2 — 出站投递 + HMAC e2e。
  *
- * Spins up a local http server that captures the body + headers, asks the
- * deliverWebhook helper to POST to it, then asserts the receiver got a
- * valid signature + the right headers. Bypasses the cron + DB (those are
- * Prisma-codegen-dependent and unit-tested elsewhere) — this slice
- * exercises the actual fetch + signing path against a real socket.
+ * 启动一个本地 http 服务器捕获请求体和请求头，让 deliverWebhook
+ * 辅助函数向其 POST，然后断言接收方拿到了有效签名和正确的请求头。
+ * 绕过 cron + DB（它们依赖 Prisma codegen，在别处做了单测）——
+ * 本 slice 测试真实 socket 上的实际 fetch + 签名路径。
  */
 
 interface Captured {

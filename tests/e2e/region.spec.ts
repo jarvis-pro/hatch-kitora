@@ -1,22 +1,19 @@
-// RFC 0005 — Multi-region (data residency) e2e coverage.
+// RFC 0005 — 多区域（数据驻留）e2e 覆盖。
 //
-// What we can verify in a single-region (GLOBAL) test process:
+// 在单区域（GLOBAL）测试进程中可以验证的内容：
 //
-//   1. The `(email, region)` composite unique replaces the legacy
-//      `email @unique`. The same email can co-exist as separate User
-//      rows under different regions; deleting one doesn't touch the
-//      other. Same applies to Organizations.
-//   2. Cross-region invitation creation is rejected by
-//      `createInvitationAction` (which we exercise indirectly via the
-//      DB shape it requires).
-//   3. The `/region-mismatch` landing page renders (i18n wires through,
-//      404 doesn't fire) — covers the middleware redirect target.
+//   1. `(email, region)` 复合唯一约束替代了原有的 `email @unique`。
+//      同一邮箱可作为独立的 User 行在不同 region 下共存；
+//      删除其中一个不会影响另一个。Organization 同理。
+//   2. 跨区域邀请创建被 `createInvitationAction` 拒绝
+//      （通过其所需的 DB 结构间接触发验证）。
+//   3. `/region-mismatch` 落地页正常渲染（i18n 已接通，
+//      不触发 404）—— 覆盖中间件重定向目标。
 //
-// What we *can't* verify here (would need spinning a second Next process
-// with `KITORA_REGION=CN`):
+// 此处*无法*验证的内容（需启动第二个设置了 `KITORA_REGION=CN` 的 Next 进程）：
 //
-//   * The middleware actually issuing a redirect on a forged token —
-//     left to a future RFC 0006 / multi-region CI matrix.
+//   * 中间件对伪造 token 实际发出重定向 ——
+//     留待未来 RFC 0006 / 多区域 CI 矩阵处理。
 
 import { expect, test } from '@playwright/test';
 

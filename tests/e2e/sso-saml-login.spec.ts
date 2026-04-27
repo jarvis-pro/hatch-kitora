@@ -5,27 +5,24 @@ import { issueSsoSession } from '../../src/lib/sso/issue-session';
 import { provisionSsoUser } from '../../src/lib/sso/jit';
 
 /**
- * RFC 0004 PR-2 — SAML login flow e2e.
+ * RFC 0004 PR-2 — SAML 登录流程 e2e。
  *
- * The full SAML round-trip (IdP-side XML signing, ACS validation, OAuth
- * code → token) is jackson's responsibility and is unit-tested in their
- * repo against real X509 fixtures. We don't reproduce that here — building
- * a self-signed cert + crafting a signed AuthnResponse at e2e time is
- * brittle and tests the wrong thing.
+ * 完整的 SAML 往返（IdP 侧 XML 签名、ACS 验证、OAuth code → token）
+ * 是 jackson 的职责，并已在其仓库中针对真实 X509 fixture 进行单元测试。
+ * 我们不在此重复 —— 在 e2e 阶段自签证书 + 手工构造已签名的 AuthnResponse
+ * 既脆弱，又测试了错误的东西。
  *
- * Instead this spec covers the two ends of the chain that ARE ours:
+ * 本 spec 改为覆盖链路中属于我们的两端：
  *
- *   1. `/api/auth/sso/start` — email parsing, domain → IdP lookup, error
- *      branches. We don't follow the redirect into jackson because that
- *      requires a real IdP connection.
+ *   1. `/api/auth/sso/start` —— 邮箱解析、域名 → IdP 查找、错误分支。
+ *      我们不跟随重定向进入 jackson，因为那需要真实的 IdP 连接。
  *
- *   2. JIT user/membership creation + session cookie minting. We call the
- *      library helpers directly with the same shape the SAML callback
- *      would, then prove the resulting cookie unlocks /dashboard.
+ *   2. JIT 用户/成员资格创建 + session cookie 铸造。我们直接以
+ *      SAML 回调相同的数据格式调用库辅助函数，然后验证生成的 cookie
+ *      能解锁 /dashboard。
  *
- * Together these guard the contract Auth.js cares about: a valid SSO
- * session lands on the dashboard with the expected user identity, and the
- * routing layer rejects nonsense before it hits jackson.
+ * 两者共同守护 Auth.js 所关心的契约：有效的 SSO session 落地于
+ * dashboard 并携带预期的用户身份，路由层在进入 jackson 之前拒绝无效请求。
  */
 
 test.describe('sso saml login (PR-2)', () => {

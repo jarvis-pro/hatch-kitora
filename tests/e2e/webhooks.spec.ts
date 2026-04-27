@@ -4,11 +4,10 @@ import { expect, test } from './fixtures/test';
 import { validateWebhookUrl } from '../../src/lib/webhooks/url-guard';
 
 /**
- * RFC 0003 PR-1 — webhook endpoint CRUD e2e.
+ * RFC 0003 PR-1 — Webhook 端点 CRUD e2e。
  *
- * UI flow: create endpoint via the form → secret revealed once → list shows
- * the row → rotate secret → delete. Plus pure unit-style tests over the
- * SSRF guard (cheap, catch obvious regressions).
+ * UI 流程：通过表单创建端点 → 密钥一次性展示 → 列表显示该行
+ * → 轮换密钥 → 删除。另附对 SSRF 防护的纯单元风格测试（成本低，捕获明显回归）。
  */
 test.describe('webhooks (PR-1: CRUD)', () => {
   test('SSRF guard rejects private addresses + bad protocols', () => {

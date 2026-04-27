@@ -4,31 +4,28 @@ import { prisma } from './fixtures/db';
 import { expect, test } from './fixtures/test';
 
 /**
- * RFC 0007 PR-5 — Passkey e2e.
+ * RFC 0007 PR-5 — Passkey e2e。
  *
- * WebAuthn ceremonies need a real authenticator. We can't ship a hardware
- * key into CI, so we use Chrome DevTools Protocol's `WebAuthn` domain to
- * attach a *virtual* authenticator: the CDP layer signs registration /
- * authentication challenges entirely in-process, with no native UI.
+ * WebAuthn 认证流程需要真实的认证器。由于无法在 CI 中接入硬件密钥，
+ * 我们使用 Chrome DevTools Protocol 的 `WebAuthn` 域挂载一个*虚拟*认证器：
+ * CDP 层在进程内完成注册/认证挑战的签名，无需任何原生 UI。
  *
- *   1. `WebAuthn.enable` on a CDPSession bound to the page.
- *   2. `WebAuthn.addVirtualAuthenticator` — choose `internal` transport
- *      and `ctap2` protocol so the resulting credential reports
- *      `deviceType = singleDevice` (not "synced"); deterministic for
- *      assertions.
- *   3. From here `navigator.credentials.create / get` Just Works™ and our
- *      SimpleWebAuthn-driven flow signs / verifies normally.
+ *   1. 在绑定到页面的 CDPSession 上调用 `WebAuthn.enable`。
+ *   2. `WebAuthn.addVirtualAuthenticator` —— 选择 `internal` 传输方式
+ *      和 `ctap2` 协议，使生成的凭据报告 `deviceType = singleDevice`
+ *      （非"已同步"），确保断言的确定性。
+ *   3. 此后 `navigator.credentials.create / get` 即可正常工作，我们的
+ *      SimpleWebAuthn 驱动流程也能正常完成签名/验证。
  *
- * RFC §6 calls for 5 cases:
- *   - register a passkey from /settings/security/passkeys
- *   - the freshly-registered passkey shows up in the list
- *   - delete a passkey via the row's Remove control
- *   - login: `2FA` page accepts a passkey for an enrolled user
- *   - login: `/login` page accepts a passkey via the passwordless button
+ * RFC §6 要求覆盖 5 个场景：
+ *   - 在 /settings/security/passkeys 注册 passkey
+ *   - 刚注册的 passkey 出现在列表中
+ *   - 通过行内的"移除"控件删除 passkey
+ *   - 登录：`2FA` 页面接受已注册用户的 passkey
+ *   - 登录：`/login` 页面通过无密码按钮接受 passkey
  *
- * Each scenario builds its own user + virtual authenticator, so they're
- * independent. The whole spec is in one file so the CDP boilerplate is
- * declared once.
+ * 每个场景独立构建自己的用户 + 虚拟认证器，相互隔离。
+ * 整个 spec 集中在一个文件中，CDP 样板代码只需声明一次。
  */
 
 interface VirtualAuthenticator {

@@ -1,15 +1,14 @@
 import { expect, test } from '@playwright/test';
 
 /**
- * RFC 0003 PR-3 — OpenAPI doc site smoke tests.
+ * RFC 0003 PR-3 — OpenAPI 文档站冒烟测试。
  *
- * These don't try to assert Scalar's full UI (it's a heavy 3rd-party
- * component, prone to selector churn across versions) — instead they
- * cover the contract:
+ * 不尝试断言 Scalar 的完整 UI（它是重量级第三方组件，跨版本选择器
+ * 容易漂移）—— 而是验证以下契约：
  *
- *   1. The raw spec endpoint serves valid YAML with the right headers.
- *   2. The /docs/api page mounts without 4xx and embeds the Scalar root.
- *   3. The page is publicly accessible — no login redirect.
+ *   1. 原始规范端点以正确的请求头返回合法 YAML。
+ *   2. /docs/api 页面挂载时无 4xx，且嵌入了 Scalar 根节点。
+ *   3. 该页面可公开访问 —— 不触发登录重定向。
  */
 
 test.describe('OpenAPI docs', () => {

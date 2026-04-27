@@ -5,13 +5,11 @@ import { PrismaClient, type User } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 
 /**
- * Tests share a single Prisma client. Use the same `DATABASE_URL` the app
- * uses — *but ideally point at a dedicated test DB* by exporting
- * `DATABASE_URL` for a throwaway schema before invoking `pnpm test:e2e`.
+ * 所有 test 共享同一个 Prisma 客户端。使用与应用相同的 `DATABASE_URL` ——
+ * 但强烈建议在运行 `pnpm test:e2e` 前导出一个独立的测试 DB 连接串。
  *
- * Tests are responsible for cleaning up their own rows; we don't truncate
- * tables wholesale because that would clobber dev data if someone wires
- * the wrong URL.
+ * 每个 test 负责清理自己写入的行；不做全表 truncate，
+ * 因为误用了错误 URL 时那会清掉开发数据。
  */
 export const prisma = new PrismaClient();
 
@@ -24,7 +22,7 @@ export interface CreateTestUserOptions {
 }
 
 export interface TestUser extends User {
-  /** Plaintext password (only available to tests because we set it). */
+  /** 明文密码（仅测试可用，因为是我们自己设置的）。 */
   rawPassword: string;
 }
 
@@ -47,12 +45,12 @@ export async function createTestUser(opts: CreateTestUserOptions = {}): Promise<
   return Object.assign(user, { rawPassword: password });
 }
 
-/** Cascading delete via the FK chain — works for the User row only. */
+/** 通过外键级联删除 User 行及其所有关联数据。 */
 export async function deleteUser(id: string) {
   try {
     await prisma.user.delete({ where: { id } });
   } catch {
-    // Already gone — fine for cleanup paths.
+    // 行已不存在 —— 清理路径下正常忽略。
   }
 }
 
@@ -60,8 +58,10 @@ export function hashRawToken(raw: string): string {
   return createHash('sha256').update(raw).digest('hex');
 }
 
-/** Issue a raw token + persist its hash. Returns the raw — caller will plant
- *  it in the URL the test visits. */
+/**
+ * 签发一个原始 token 并持久化其哈希。返回原始值 ——
+ * 调用方会把它植入测试访问的 URL 中。
+ */
 export async function issuePasswordResetToken(userId: string): Promise<string> {
   const raw = randomBytes(32).toString('base64url');
   await prisma.passwordResetToken.create({
@@ -87,7 +87,7 @@ export async function issueEmailVerificationToken(userId: string): Promise<strin
 }
 
 // ---------------------------------------------------------------------------
-// Org test helpers (RFC-0001)
+// 组织测试辅助函数（RFC-0001）
 // ---------------------------------------------------------------------------
 
 export interface CreateOrgOptions {
@@ -96,7 +96,7 @@ export interface CreateOrgOptions {
   ownerId: string;
 }
 
-/** Create a non-personal org and OWNER membership for `ownerId`. */
+/** 创建一个非 personal 的 org，并为 `ownerId` 建立 OWNER membership。 */
 export async function createOrgWithOwner(opts: CreateOrgOptions) {
   const slug = opts.slug ?? `acme-${randomBytes(4).toString('hex')}`;
   const org = await prisma.organization.create({
@@ -112,11 +112,11 @@ export async function deleteOrg(id: string) {
   try {
     await prisma.organization.delete({ where: { id } });
   } catch {
-    // Already gone — cleanup-safe.
+    // 行已不存在 —— 清理路径下正常忽略。
   }
 }
 
-/** Issue an org-invitation directly. Returns the raw token for the URL. */
+/** 直接签发一个 org 邀请。返回原始 token，用于构造邀请 URL。 */
 export async function issueOrgInvitationToken(opts: {
   orgId: string;
   email: string;

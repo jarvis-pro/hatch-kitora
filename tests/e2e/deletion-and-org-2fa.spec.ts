@@ -2,19 +2,17 @@ import { prisma } from './fixtures/db';
 import { expect, test } from './fixtures/test';
 
 /**
- * RFC 0002 PR-4 — deletion grace period + org-level 2FA enforcement.
+ * RFC 0002 PR-4 — 删除宽限期 + 组织级 2FA 强制执行。
  *
- * Two flavours of test, kept together because they both touch core user /
- * org lifecycle:
+ * 两类测试放在一起，因为都涉及核心用户 / 组织生命周期：
  *
- *   1. Deletion: schedule → DB row flips → cancel → DB row reverts.
- *   2. Org 2FA toggle: caller-without-2fa is rejected, second flip with
- *      a 2FA-enabled user succeeds.
+ *   1. 删除：触发 → DB 行翻转 → 取消 → DB 行回滚。
+ *   2. 组织 2FA 开关：未启用 2FA 的调用方被拒绝，启用了 2FA 的
+ *      用户第二次切换成功。
  *
- * The deletion test deliberately stays at the DB layer rather than
- * exercising the full UI (toast → banner → cancel) — the schedule action
- * signs the user out so we'd need to log back in mid-test, which doubles
- * the runtime for marginal coverage.
+ * 删除测试刻意停在 DB 层而非走完整 UI（toast → banner → cancel）——
+ * schedule action 会将用户登出，否则需要在测试中途重新登录，
+ * 对边际覆盖率来说代价翻倍。
  */
 test.describe('account deletion grace period', () => {
   test('schedule sets PENDING_DELETION + scheduledAt; cancel reverts to ACTIVE', async ({

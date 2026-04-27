@@ -7,23 +7,22 @@ import { expect, test } from './fixtures/test';
 
 import { buildUserExport } from '../../src/lib/data-export/builder';
 import { makeZip } from '../../src/lib/data-export/zip';
-// Static import — Playwright's TS loader transpiles these but doesn't
-// resolve dynamic `import()` calls against `.ts` files (you'd get a raw
-// SyntaxError because the transpiler treats the resolved file as CJS).
+// 静态导入 —— Playwright 的 TS loader 会转译这些文件，但不会
+// 将动态 `import()` 调用解析为 `.ts` 文件（否则转译器将解析后的文件
+// 视为 CJS，导致 SyntaxError）。
 import { LocalFsProvider } from '../../src/lib/storage/local-fs';
 
 /**
- * RFC 0002 PR-3 — Data export e2e + unit checks.
+ * RFC 0002 PR-3 — 数据导出 e2e + 单元检查。
  *
- * Three flavours of test, kept in one file because they share the prisma
- * fixture lifecycle:
+ * 三类测试共用同一 prisma fixture 生命周期，放在同一文件中：
  *
- *   1. Pure-unit zip round-trip — sanity check on the hand-rolled writer.
- *   2. Pure-builder check — calls `buildUserExport()` directly against a
- *      throwaway DB user and asserts the manifest + safe-payload guarantee.
- *   3. UI flow — clicks "Request export" and asserts the row reaches
- *      PENDING; we don't run the cron from inside Playwright (process
- *      isolation), so this stops at "queued" rather than "downloaded".
+ *   1. 纯单元 zip 往返 —— 对手写 writer 的基本校验。
+ *   2. 纯 builder 检查 —— 直接对临时 DB 用户调用 `buildUserExport()`，
+ *      断言 manifest + safe-payload 保证。
+ *   3. UI 流程 —— 点击「请求导出」并断言行进入 PENDING；我们不在
+ *      Playwright 内部运行 cron（进程隔离），因此止步于「已排队」
+ *      而非「已下载」。
  */
 test.describe('data export', () => {
   test('zip writer round-trips through `unzip` semantics (header parse)', () => {

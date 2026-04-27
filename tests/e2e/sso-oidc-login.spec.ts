@@ -4,18 +4,17 @@ import { expect, test } from '@playwright/test';
 import { encryptOidcSecret } from '../../src/lib/sso/secret';
 
 /**
- * RFC 0004 PR-3 — OIDC start-endpoint smoke.
+ * RFC 0004 PR-3 — OIDC start 端点冒烟测试。
  *
- * Like the SAML spec, we don't try to stand up a real OIDC IdP at e2e
- * time — that would mean running a `oidc-provider` instance with a real
- * RSA keypair, generating discovery + JWKS responses, etc. The contract
- * we *can* verify: a draft OIDC IdP row is reachable from `/start`, and
- * the routing logic doesn't accidentally treat OIDC as SAML (or vice
- * versa).
+ * 与 SAML spec 一样，我们不在 e2e 时搭建真实的 OIDC IdP ——
+ * 那意味着要运行带真实 RSA 密钥对的 `oidc-provider` 实例、
+ * 生成 discovery + JWKS 响应等。我们能验证的契约：draft OIDC IdP
+ * 行可通过 `/start` 访问，且路由逻辑不会把 OIDC 误当 SAML 处理
+ *（反之亦然）。
  *
- * The full code → token → userInfo round-trip is covered by jackson's
- * own integration tests; our `/oidc/callback` route is a thin pipe to
- * `oauthController.oidcAuthzResponse`.
+ * 完整的 code → token → userInfo 往返由 jackson 自身的集成测试覆盖；
+ * 我们的 `/oidc/callback` 路由只是通往 `oauthController.oidcAuthzResponse`
+ * 的薄管道。
  */
 
 test.describe('sso oidc login (PR-3)', () => {

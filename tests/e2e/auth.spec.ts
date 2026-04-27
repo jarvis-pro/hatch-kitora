@@ -15,9 +15,9 @@ test.describe('auth', () => {
     await page.waitForURL(/\/dashboard/);
     await expect(page.getByRole('heading', { level: 1 })).toContainText(/welcome/i);
 
-    // Cleanup. RFC 0005 — `email` alone is no longer unique; the test
-    // process always serves the GLOBAL region (default `KITORA_REGION`),
-    // so look up by the (email, region) composite key.
+    // 清理。RFC 0005 — `email` 单独不再唯一；测试进程
+    // 始终运行在 GLOBAL region（默认 `KITORA_REGION`），
+    // 因此通过 (email, region) 复合键查找。
     const user = await prisma.user.findUnique({
       where: { email_region: { email, region: 'GLOBAL' } },
     });

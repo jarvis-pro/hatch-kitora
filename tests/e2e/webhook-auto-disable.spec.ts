@@ -8,18 +8,17 @@ import { runWebhookCronTick } from '../../src/lib/webhooks/cron';
 import { generateWebhookSecret } from '../../src/lib/webhooks/secret';
 
 /**
- * RFC 0003 PR-4 — auto-disable + sweep e2e.
+ * RFC 0003 PR-4 — 自动禁用 + sweep e2e。
  *
- * Drives the threshold deterministically by pre-seeding `consecutiveFailures
- * = THRESHOLD - 1` and routing a delivery at a 502 receiver. After the cron
- * tick we expect:
+ * 通过预置 `consecutiveFailures = THRESHOLD - 1` 并将一次投递路由到
+ * 502 接收方，确定性地触发阈值。cron tick 后预期：
  *
- *   - endpoint.disabledAt set
- *   - audit row with `webhook.endpoint_auto_disabled` (actor null)
- *   - delivery row in DEAD_LETTER (the 8th attempt is the cap)
+ *   - endpoint.disabledAt 已设置
+ *   - 审计行携带 `webhook.endpoint_auto_disabled`（actor 为 null）
+ *   - 投递行进入 DEAD_LETTER（第 8 次是上限）
  *
- * Email send is wrapped in try/catch upstream, so even without Resend
- * configured the test passes — we just don't assert on the email.
+ * 邮件发送在上游被 try/catch 包裹，因此即使没有配置 Resend，
+ * 测试也能通过 —— 我们只是不对邮件做断言。
  */
 
 const THRESHOLD = 8; // mirror cron.ts AUTO_DISABLE_THRESHOLD

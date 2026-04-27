@@ -4,17 +4,17 @@ import { expect, test } from '@playwright/test';
 import { generateScimToken } from '../../src/lib/sso/secret';
 
 /**
- * RFC 0004 PR-4 — SCIM e2e.
+ * RFC 0004 PR-4 — SCIM e2e。
  *
- * Covers the slice of SCIM 2.0 that real IdP connectors actually drive:
+ * 覆盖真实 IdP 连接器实际驱动的 SCIM 2.0 子集：
  *
- *   1. Auth — Bearer + scim_<…> roundtrip.
- *   2. ServiceProviderConfig + Schemas discovery (IdP onboarding).
- *   3. Users CRUD — POST → GET filter → PATCH active → DELETE.
- *   4. Groups — list + PATCH-add member (role flip) + OWNER refusal.
+ *   1. 鉴权 —— Bearer + scim_<…> 往返。
+ *   2. ServiceProviderConfig + Schemas 发现（IdP 接入）。
+ *   3. Users CRUD —— POST → GET filter → PATCH active → DELETE。
+ *   4. Groups —— list + PATCH-add member（角色翻转）+ OWNER 拒绝。
  *
- * We skip Schemas/{id} and ResourceTypes/{id} discovery routes — most
- * IdPs only ever read the collection responses.
+ * 跳过 Schemas/{id} 和 ResourceTypes/{id} 发现路由 ——
+ * 大多数 IdP 只读取集合响应。
  */
 
 test.describe('scim v2 (RFC 0004 PR-4)', () => {
