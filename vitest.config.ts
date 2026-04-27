@@ -27,6 +27,16 @@ export default defineConfig({
     globals: false,
     // 默认 forks pool 隔离每个 test file，方便清理 module-level singleton（如 JobRegistry）。
     pool: 'forks',
+    // 进程启动时加载 .env + env 兜底；避免任何 transitively 命中 `@/lib/logger`
+    // → `@/env` 的 test 在 t3-env 校验阶段炸 `DATABASE_URL` / `AUTH_SECRET` Required。
+    setupFiles: ['./vitest.setup.ts'],
+  },
+  // tsconfig.json 是 `jsx: "preserve"`（Next.js 在生产 build 自己接管 JSX），但
+  // Vitest 走 esbuild transform，preserve 语义 → esbuild 默认回落 classic
+  // runtime，src/emails/*.tsx 没 `import React` 就会跑出 "React is not defined"。
+  // 这里强制 automatic runtime，让 esbuild 注入 `react/jsx-runtime`。
+  esbuild: {
+    jsx: 'automatic',
   },
   resolve: {
     alias: {
