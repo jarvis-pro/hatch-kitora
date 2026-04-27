@@ -152,6 +152,24 @@ test.describe('sso saml login (PR-2)', () => {
       // redirect to /login proves the JWT decoded with the right `sub` /
       // `id` / `sessionVersion` shape.
       const res = await page.goto('/dashboard');
+
+      // Failure-mode diagnostic. When the assertion below trips, the
+      // common causes are (a) cookie name / salt mismatch between test
+      // process and dev server (env divergence), (b) AUTH_SECRET diff,
+      // (c) DeviceSession row racing the request. Dump enough state
+      // to tell which one without rerunning. Cheap on the happy path.
+      if (!page.url().includes('/dashboard')) {
+        // eslint-disable-next-line no-console
+        console.error('SSO test diagnostics:', {
+          plantedCookieName: cookie.name,
+          plantedCookieSecure: cookie.options.secure,
+          contextCookies: await page.context().cookies(),
+          finalUrl: page.url(),
+          finalStatus: res?.status(),
+          finalHeaders: res?.headers(),
+        });
+      }
+
       expect(res?.status()).toBeLessThan(400);
       expect(page.url()).toContain('/dashboard');
 
