@@ -1,15 +1,10 @@
-# Deploy — GLOBAL region (kitora.io)
+# 部署 — GLOBAL 区域 (kitora.io)
 
-> **Status**: production runbook — this is what currently powers
-> kitora.io. Mirror this page exactly when standing up a fresh GLOBAL
-> environment (staging, on-prem demo, or a green-field replacement).
+> **状态**: 生产运维手册 —— 这是当前驱动 kitora.io 的配置。搭建新的 GLOBAL 环境（预发、私有化演示或全新替换）时请严格对照此文档。
 
-The GLOBAL stack is the catch-all for any customer outside mainland
-China and the EU residency cohort. It's the only region that ships in
-v0.6 — the CN stack waits on RFC 0006 (and ICP filings); EU is a
-placeholder until a paying customer asks for it.
+GLOBAL 栈覆盖中国大陆和 EU 数据驻留客户之外的所有用户。它是 v0.6 唯一正式上线的区域 —— CN 栈等待 RFC 0006 落地（及 ICP 备案）；EU 目前是占位符，有付费客户需求时再激活。
 
-## Topology
+## 拓扑结构
 
 ```
                 ┌───────────────────────────────────────┐
@@ -27,145 +22,91 @@ placeholder until a paying customer asks for it.
                 └───────────────────────────────────────┘
 ```
 
-Every backing service is GLOBAL-scoped. The CN stack runs the same
-Docker image with `KITORA_REGION=CN` and a wholly separate set of
-backing services (Aliyun-side; see `docs/deploy/cn.md`). Nothing
-crosses between the two — the codebase is share-nothing by design (RFC
-0005 §2).
+所有后端服务均属于 GLOBAL 范围。CN 栈使用相同的 Docker 镜像，但以 `KITORA_REGION=CN` 启动，并连接一套完全独立的阿里云侧后端服务（参见 `docs/deploy/cn.md`）。两个区域之间没有任何数据流动 —— 代码库在设计上是共享无状态的（RFC 0005 §2）。
 
-## Prerequisites
+## 前置条件
 
-- Postgres 15+ database, ideally with a connection pooler. Set
-  `DATABASE_URL` to the pooled URL and `DIRECT_URL` to the direct one
-  (Prisma uses it for migrations).
-- Redis (Upstash REST or self-hosted). Set
-  `UPSTASH_REDIS_REST_URL` + `UPSTASH_REDIS_REST_TOKEN`.
-- S3 bucket, region `us-east-1` recommended. Set
-  `DATA_EXPORT_S3_BUCKET`, `DATA_EXPORT_S3_REGION`,
-  `DATA_EXPORT_S3_ACCESS_KEY_ID`, `DATA_EXPORT_S3_SECRET_ACCESS_KEY`.
-  Set `DATA_EXPORT_STORAGE=s3` to flip the storage facade off
-  local-FS.
-- Stripe account in live mode. Set `STRIPE_SECRET_KEY`,
-  `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRO_PRICE_ID`,
-  `STRIPE_TEAM_PRICE_ID`.
-- Resend account + verified sender domain. Set `RESEND_API_KEY` and
-  `EMAIL_FROM`.
-- `AUTH_SECRET` — `openssl rand -base64 32`. Rotate by bumping
-  `User.sessionVersion` (RFC 0002 PR-1) in lockstep so existing JWTs
-  invalidate.
-- Sentry project (optional). Set `NEXT_PUBLIC_SENTRY_DSN` +
-  `SENTRY_AUTH_TOKEN` + `SENTRY_ORG` + `SENTRY_PROJECT` to upload
-  source maps from CI.
+- Postgres 15+ 数据库，建议搭配连接池。将连接池 URL 设置为 `DATABASE_URL`，将直连 URL 设置为 `DIRECT_URL`（Prisma 执行迁移时使用直连）。
+- Redis（Upstash REST 或自托管）。设置 `UPSTASH_REDIS_REST_URL` 和 `UPSTASH_REDIS_REST_TOKEN`。
+- S3 存储桶，推荐区域 `us-east-1`。设置 `DATA_EXPORT_S3_BUCKET`、`DATA_EXPORT_S3_REGION`、`DATA_EXPORT_S3_ACCESS_KEY_ID`、`DATA_EXPORT_S3_SECRET_ACCESS_KEY`。将 `DATA_EXPORT_STORAGE=s3` 切换存储层，不再使用本地文件系统。
+- Stripe 账户（生产模式）。设置 `STRIPE_SECRET_KEY`、`STRIPE_WEBHOOK_SECRET`、`STRIPE_PRO_PRICE_ID`、`STRIPE_TEAM_PRICE_ID`。
+- Resend 账户及已验证的发件人域名。设置 `RESEND_API_KEY` 和 `EMAIL_FROM`。
+- `AUTH_SECRET` —— 用 `openssl rand -base64 32` 生成。轮换时需同步递增 `User.sessionVersion`（RFC 0002 PR-1），确保已有 JWT 同步失效。
+- Sentry 项目（可选）。设置 `NEXT_PUBLIC_SENTRY_DSN`、`SENTRY_AUTH_TOKEN`、`SENTRY_ORG`、`SENTRY_PROJECT` 以在 CI 中上传 Source Map。
 
-## Region wiring
+## 区域配置
 
-The single most important variable for this RFC:
+本 RFC 最重要的一个环境变量：
 
 ```env
 KITORA_REGION=GLOBAL
 ```
 
-Set it in:
+需在以下位置同时设置：
 
-- the Docker image build (`--build-arg KITORA_REGION=GLOBAL`, baked
-  into the image at build time so the runtime can't drift);
-- the runtime environment (Vercel project env, Fly secret, k8s
-  configmap — pick your platform);
-- CI deploy pipelines (so staging + production agree).
+- Docker 镜像构建时（`--build-arg KITORA_REGION=GLOBAL`，在构建阶段烘焙进镜像，避免运行时偏差）；
+- 运行时环境（Vercel 项目环境变量、Fly secret、k8s configmap —— 视平台而定）；
+- CI 部署流水线（确保预发和生产保持一致）。
 
-Anything reads region through `currentRegion()` in `src/lib/region.ts`
-— never `process.env.KITORA_REGION` directly. The middleware shim in
-`src/middleware.ts` is the only exception (edge runtime can't import
-the Node-only helper).
+任何地方读取区域信息都应通过 `src/lib/region.ts` 中的 `currentRegion()`，而非直接访问 `process.env.KITORA_REGION`。`src/middleware.ts` 中的中间件垫片是唯一例外（edge runtime 无法导入仅限 Node 的工具函数）。
 
-The startup hook in `src/instrumentation.ts` calls
-`assertRegionMatchesDatabase()` — if the DB has any `Organization` rows
-whose region doesn't match the env var, the process exits 1 instead of
-silently writing rows into the wrong residency. Watch for the log line
-`region-startup-mismatch` if a deploy refuses to come up.
+`src/instrumentation.ts` 中的启动钩子会调用 `assertRegionMatchesDatabase()` —— 如果数据库中存在任何 `Organization` 行的区域与环境变量不匹配，进程会以退出码 1 终止，而不是悄悄将数据写入错误的数据驻留区。如果部署后服务无法启动，请关注日志中的 `region-startup-mismatch`。
 
-## First-time rollout
+## 首次上线流程
 
-1. Apply Prisma migrations against the production DB:
+1. 对生产数据库执行 Prisma 迁移：
    ```sh
    pnpm prisma migrate deploy
    ```
-   The `20260427000000_add_region_columns` migration backfills every
-   pre-RFC-0005 row to `region = GLOBAL`. This is correct for the
-   existing kitora.io data — there's no historical CN/EU data to
-   stamp differently.
-2. Build + push the image with `KITORA_REGION=GLOBAL` baked in:
+   `20260427000000_add_region_columns` 迁移会将所有 RFC 0005 之前的行回填为 `region = GLOBAL`。这对现有的 kitora.io 数据是正确的 —— 历史上不存在需要区别标记的 CN/EU 数据。
+2. 构建并推送带有 `KITORA_REGION=GLOBAL` 烘焙值的镜像：
    ```sh
    docker build --build-arg KITORA_REGION=GLOBAL -t kitora:global .
    ```
-3. Roll out. The app comes up, hits the startup region check, logs
-   `region-startup-check-ok`, and starts serving.
+3. 上线部署。应用启动后会触发启动区域检查，日志输出 `region-startup-check-ok`，随后开始正常服务。
 
-## Post-deploy sanity checks
+## 部署后健康检查
 
-- `curl https://kitora.io/api/health` returns 200.
-- Pick any `Organization` row and confirm `region = 'GLOBAL'` in the
-  DB.
-- Sign up a brand-new test account; the `User.region` and the new
-  `Organization.region` both come out `GLOBAL` (and the `(email,
-region)` composite unique fires when retrying the same email).
-- `audit_log` writes from that signup carry `region = 'GLOBAL'` —
-  query `select region, count(*) from "AuditLog" group by region;`.
-- Outgoing emails / Stripe checkouts work end-to-end (provider
-  factory in `src/lib/region/providers.ts` resolves to Resend / S3 /
-  Stripe).
+- `curl https://kitora.io/api/health` 返回 200。
+- 随机抽取一行 `Organization`，确认数据库中 `region = 'GLOBAL'`。
+- 注册一个全新测试账户，确认 `User.region` 和新建的 `Organization.region` 均为 `GLOBAL`（用相同邮箱重试注册时，`(email, region)` 复合唯一约束会触发）。
+- 该次注册产生的 `audit_log` 写入记录携带 `region = 'GLOBAL'` —— 可用以下语句验证：`select region, count(*) from "AuditLog" group by region;`。
+- 出站邮件和 Stripe 结账端到端可用（`src/lib/region/providers.ts` 中的 provider 工厂会解析为 Resend / S3 / Stripe）。
 
-## Background jobs cron (RFC 0008)
+## 后台任务定时调度（RFC 0008）
 
-The `BackgroundJob` table runs through a single cron entry per stack.
+`BackgroundJob` 表通过每个栈一个 cron 条目驱动。
 
-**Vercel** (recommended for GLOBAL):
+**Vercel**（GLOBAL 的推荐方式）：
 
-1. `vercel.json` already declares
-   `{ "crons": [{ "path": "/api/jobs/tick", "schedule": "* * * * *" }] }`.
-   Vercel auto-discovers it on deploy.
-2. Set `CRON_SECRET` in the Vercel project env (Settings → Environment
-   Variables) to a 32+ char random string:
+1. `vercel.json` 已声明
+   `{ "crons": [{ "path": "/api/jobs/tick", "schedule": "* * * * *" }] }`。
+   Vercel 在部署时会自动识别该配置。
+2. 在 Vercel 项目环境变量（Settings → Environment Variables）中将 `CRON_SECRET` 设置为一个 32 位以上的随机字符串：
 
    ```sh
    openssl rand -base64 32
    ```
 
-   Vercel injects this into the `Authorization: Bearer …` header for every
-   cron call; the route returns 401 to anything else (probes, external
-   traffic). Without `CRON_SECRET` set, the route short-circuits to 503
-   `cron-not-configured` so the cron silently no-ops instead of running an
-   unauth'd sweep — also the dev / preview default.
+   Vercel 会在每次 cron 请求中自动注入 `Authorization: Bearer …` 头；路由对其他来源的请求一律返回 401（探针、外部流量等）。若未设置 `CRON_SECRET`，路由会直接返回 503 `cron-not-configured`，cron 静默空转而不执行任何扫描 —— 这也是开发/预览环境的默认行为。
 
-3. **Plan note**: `/api/jobs/tick` declares `maxDuration = 60`. Hobby caps
-   at 10 s — production should run on Pro for headroom. If you must run
-   on Hobby (demo / preview), pass a tighter budget at the route layer:
+3. **套餐说明**：`/api/jobs/tick` 声明了 `maxDuration = 60`。Hobby 套餐上限为 10 秒 —— 生产环境应使用 Pro 套餐以获得足够余量。如果必须在 Hobby 套餐上运行（演示/预览），可在路由层传入更严格的预算：
 
    ```ts
-   // src/app/api/jobs/tick/route.ts — override only when on Hobby
+   // src/app/api/jobs/tick/route.ts —— 仅在 Hobby 套餐时覆盖
    await runWorkerTick(workerId, { budgetMs: 8_000, batchSize: 1 });
    ```
 
-**Self-hosted alternative**: `pnpm tsx scripts/run-jobs.ts` is a CLI entry
-that does the same thing — point any external cron (cron, systemd timer,
-GitHub Actions schedule, …) at it. The legacy `run-webhook-cron.ts` /
-`run-export-jobs.ts` / `run-deletion-cron.ts` shims are still around for
-one minor and call into the same lib, so existing deploys can migrate at
-their own pace.
+**自托管替代方案**：`pnpm tsx scripts/run-jobs.ts` 是一个 CLI 入口，效果完全相同 —— 任何外部 cron（cron、systemd timer、GitHub Actions schedule 等）均可调用。旧版 `run-webhook-cron.ts` / `run-export-jobs.ts` / `run-deletion-cron.ts` 兼容垫片仍然保留，并已内部对接至同一库，现有部署可按自己的节奏迁移。
 
-The `BackgroundJob` table holds schedule and ad-hoc job rows. The admin
-view at `/admin/jobs` shows per-type stats, recent rows, and a
-DEAD_LETTER tab with manual retry / cancel buttons.
+`BackgroundJob` 表同时存放定时任务和临时任务行。管理后台 `/admin/jobs` 展示各类型统计、最近记录，以及带有手动重试/取消按钮的 DEAD_LETTER 标签页。
 
-## Rollback
+## 回滚
 
-The RFC 0005 schema migration is additive. To roll back:
+RFC 0005 的 schema 迁移是纯增量的。如需回滚：
 
 ```sh
 pnpm prisma migrate resolve --rolled-back 20260427000000_add_region_columns
 ```
 
-Then drop the columns + indexes added in the migration manually (see
-the migration SQL for the exact list). Application code referencing
-`region` will fall back to the column's default (`GLOBAL`) under the
-old binary, so a forward + back rollout doesn't lose data.
+然后根据迁移 SQL 手动删除该迁移新增的列和索引（详见迁移文件中的完整列表）。旧版二进制中引用 `region` 的应用代码会回退到列的默认值（`GLOBAL`），因此滚动发布时前进和回退不会造成数据丢失。
