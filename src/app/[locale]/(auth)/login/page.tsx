@@ -30,10 +30,9 @@ function LoginPageContent({ callbackUrl }: { callbackUrl?: string }) {
         <p className="text-sm text-muted-foreground">{t('subtitle')}</p>
       </div>
       <LoginForm />
-      {/* RFC 0007 PR-4 — passwordless entry. Renders only when the browser
-          supports WebAuthn (component self-gates). The visual divider is
-          intentionally muted so the password form remains the primary CTA
-          for users who haven't enrolled a passkey yet. */}
+      {/* RFC 0007 PR-4 — 无密码入口。仅当浏览器支持 WebAuthn
+          时呈现（组件自己把关）。视觉分隔符被刻意柔和，
+          以便密码表单对尚未注册密钥的用户保持主要 CTA。*/}
       <div className="relative">
         <div aria-hidden className="absolute inset-0 flex items-center">
           <span className="w-full border-t" />
