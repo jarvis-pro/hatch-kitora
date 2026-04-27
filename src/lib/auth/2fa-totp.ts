@@ -1,15 +1,14 @@
 import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
 
 /**
- * RFC 0002 PR-2 — pure TOTP / base32 helpers.
+ * RFC 0002 PR-2 — 纯 TOTP / base32 帮助程序。
  *
- * Split out of `2fa-crypto.ts` because the encryption parts of that module
- * depend on `env.AUTH_SECRET` (server-only), but tests need to compute
- * codes against a known secret without yanking in the whole module graph.
- * Nothing in here touches the DB or env vars.
+ * 从 `2fa-crypto.ts` 分出，因为该模块的加密部分依赖 `env.AUTH_SECRET`
+ * （仅服务器），但测试需要对照已知秘密计算码而无需拉入整个模块图。
+ * 这里的任何内容都不触及数据库或环境变量。
  */
 
-// ─── Base32 (RFC 4648) ──────────────────────────────────────────────────────
+// ─── Base32（RFC 4648）──────────────────────────────────────────────────────
 
 const B32 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
 
@@ -49,23 +48,23 @@ export function base32Decode(s: string): Buffer {
   return Buffer.from(bytes);
 }
 
-// ─── TOTP (RFC 6238 / RFC 4226) ─────────────────────────────────────────────
+// ─── TOTP（RFC 6238 / RFC 4226）────────────────────────────────────────────
 
 const TOTP_DIGITS = 6;
-const TOTP_PERIOD = 30; // seconds
+const TOTP_PERIOD = 30; // 秒
 
-/** Generate a fresh 20-byte TOTP secret. */
+/** 生成新的 20 字节 TOTP 秘密。 */
 export function generateTotpSecret(): Buffer {
   return randomBytes(20);
 }
 
-/** Compute the TOTP code for a given counter (used for verify and tests). */
+/** 计算给定计数器的 TOTP 码（用于验证和测试）。 */
 function hotp(secret: Buffer, counter: bigint): string {
   const counterBuf = Buffer.alloc(8);
   counterBuf.writeBigUInt64BE(counter);
   const mac = createHmac('sha1', secret).update(counterBuf).digest();
-  // SHA-1 digest is always 20 bytes — these accesses are in-bounds; assert
-  // to satisfy noUncheckedIndexedAccess.
+  // SHA-1 摘要总是 20 字节 — 这些访问在范围内；断言
+  // 以满足 noUncheckedIndexedAccess。
   const offset = mac[mac.length - 1]! & 0x0f;
   const truncated =
     ((mac[offset]! & 0x7f) << 24) |
@@ -76,15 +75,15 @@ function hotp(secret: Buffer, counter: bigint): string {
   return code.toString().padStart(TOTP_DIGITS, '0');
 }
 
-/** Compute the current TOTP for a secret. Useful for tests / dev tooling. */
+/** 计算秘密的当前 TOTP。对测试 / 开发工具有用。 */
 export function totpNow(secret: Buffer, now = Date.now()): string {
   const counter = BigInt(Math.floor(now / 1000 / TOTP_PERIOD));
   return hotp(secret, counter);
 }
 
 /**
- * Verify a 6-digit TOTP code with a ±1-step window. Returns true on match.
- * Constant-time string compare per step to avoid leaking which step matched.
+ * 用 ±1 步窗口验证 6 位 TOTP 码。匹配时返回 true。
+ * 按步进行恒定时间字符串比较以避免泄露哪个步匹配。
  */
 export function verifyTotp(secret: Buffer, code: string, now = Date.now()): boolean {
   if (!/^\d{6}$/.test(code)) return false;
@@ -101,19 +100,29 @@ export function verifyTotp(secret: Buffer, code: string, now = Date.now()): bool
 }
 
 /**
- * Build the otpauth:// URI users paste / scan into their authenticator.
- * Per Google Authenticator's spec; the issuer ends up labeled in the app.
+ * 为验证者 URI 构建标签（otpauth://totp/label）。
+ * 格式：accountLabel（`user@example.com`）或 accountLabel（发行者）。
+ */
+function buildLabel(accountLabel: string, issuer?: string): string {
+  if (issuer) {
+    return `${issuer}:${accountLabel}`;
+  }
+  return accountLabel;
+}
+
+/**
+ * 生成 otpauth:// URI（用于二维码或手动输入）。
+ * 格式符合 RFC 6238（带有可选的 issuer 参数）。
  */
 export function buildOtpauthUri(opts: {
   secret: Buffer;
-  accountLabel: string; // typically the user's email
-  issuer: string; // app name, e.g. "Kitora"
+  accountLabel: string;
+  issuer?: string;
 }): string {
-  const secret = base32Encode(opts.secret);
-  const label = encodeURIComponent(`${opts.issuer}:${opts.accountLabel}`);
+  const label = buildLabel(opts.accountLabel, opts.issuer);
   const params = new URLSearchParams({
-    secret,
-    issuer: opts.issuer,
+    secret: base32Encode(opts.secret),
+    issuer: opts.issuer || '',
     algorithm: 'SHA1',
     digits: String(TOTP_DIGITS),
     period: String(TOTP_PERIOD),

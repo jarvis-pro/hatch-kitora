@@ -1,36 +1,36 @@
 /**
- * RFC 0003 PR-1 — canonical event-type registry.
+ * RFC 0003 PR-1 — 规范事件类型注册表。
  *
- * Pure module (no `'server-only'`) so the OpenAPI spec generator and tests
- * can both import the list. Adding an event = appending here + a JSDoc
- * payload sketch + bumping the spec under `openapi/v1.yaml` in PR-3.
+ * 纯模块（没有 `'server-only'`），以便 OpenAPI spec 生成器和测试
+ * 都可以导入列表。添加事件 = 在此处追加 + JSDoc
+ * 有效载荷草图 + 在 PR-3 中的 `openapi/v1.yaml` 下提升规范。
  */
 
 export const WEBHOOK_EVENTS = [
-  // ── Billing ──────────────────────────────────────────────────────────
-  /** Stripe `customer.subscription.created` mirror — first paid subscription on the org. */
+  // ── 计费 ──────────────────────────────────────────────────────────
+  /** Stripe `customer.subscription.created` 镜像——组织的第一个付费订阅。*/
   'subscription.created',
-  /** Plan / quantity / status change. Fired alongside the AuditLog `billing.subscription_changed`. */
+  /** 计划 / 数量 / 状态更改。与 AuditLog `billing.subscription_changed` 一起触发。*/
   'subscription.updated',
-  /** Subscription terminated (immediate or end-of-period). */
+  /** 订阅已终止（立即或期末）。*/
   'subscription.canceled',
-  // ── Membership ───────────────────────────────────────────────────────
-  /** New `Membership` row created — typically via accepted invitation. */
+  // ── 成员资格 ───────────────────────────────────────────────────────
+  /** 创建新的 `Membership` 行——通常通过接受邀请。*/
   'member.added',
-  /** Membership row deleted — by removal or by the member leaving. */
+  /** 成员资格行已删除——通过移除或成员离开。*/
   'member.removed',
-  /** Existing membership's `role` changed (e.g. MEMBER → ADMIN). */
+  /** 现有成员资格的 `role` 已更改（例如 MEMBER → ADMIN）。*/
   'member.role_changed',
-  // ── Audit catch-all ──────────────────────────────────────────────────
+  // ── 审计 catch-all ──────────────────────────────────────────────────
   /**
-   * Fired alongside every `recordAudit()` call (subject to the endpoint's
-   * `enabledEvents` whitelist). Lets integrators react to actions we
-   * haven't promoted to a first-class event yet.
+   * 在每个 `recordAudit()` 调用旁触发（受端点的
+   * `enabledEvents` 白名单限制）。让集成商对我们
+   * 还没有提升为一流事件的操作做出反应。
    */
   'audit.recorded',
 ] as const;
 
 export type WebhookEventType = (typeof WEBHOOK_EVENTS)[number];
 
-/** Set form for O(1) `is-known-event` checks at the API boundary. */
+/** 设置形式以在 API 边界处进行 O(1) `is-known-event` 检查。*/
 export const WEBHOOK_EVENTS_SET: ReadonlySet<string> = new Set(WEBHOOK_EVENTS);

@@ -1,29 +1,28 @@
-// NOTE: deliberately *not* `'server-only'` here — the Playwright e2e suite
-// round-trips `encryptSecret` / `decryptSecret` against a real endpoint id
-// to guard against a recurring "ciphertext is lossy" regression. The
-// transitive `@/env` import is itself server-gated (validates at boot
-// against `process.env`), so accidental client bundling still fails loudly
-// even without the explicit marker.
+// 注意：这里故意*不*是 `'server-only'` ——Playwright e2e 套件
+// 针对真实端点 ID 往返 `encryptSecret` / `decryptSecret`
+// 以防止经常出现的"密文是有损的"回归。传递的 `@/env` 导入
+// 本身是服务器把守的（在启动时对 `process.env` 进行验证），
+// 所以即使没有显式标记，意外的客户端捆绑仍然会失败。
 import { createCipheriv, createDecipheriv, createHash, hkdfSync, randomBytes } from 'node:crypto';
 
 import { env } from '@/env';
 
 /**
- * RFC 0003 PR-1 / PR-2 — webhook secret helpers.
+ * RFC 0003 PR-1 / PR-2 — webhook 秘密助手。
  *
- * Format: `whsec_<base64url(32 bytes)>` — same naming as Stripe / GitHub
- * so integrators recognise the shape at a glance.
+ * 格式：`whsec_<base64url(32 bytes)>` ——与 Stripe / GitHub
+ * 相同的命名约定，以便集成商一目了然地识别形状。
  *
- * Two pieces of bookkeeping per secret:
+ * 每个秘密的两条簿记：
  *
- *   1. `secretHash` — sha256 of plaintext. Used as a fingerprint and a
- *      legacy lookup (PR-1 wrote rows with only this field).
- *   2. `encSecret`  — AES-256-GCM ciphertext of plaintext, key derived
- *      from AUTH_SECRET + endpoint id via HKDF. The cron decrypts this
- *      to compute outgoing HMACs (PR-2 added it).
+ *   1. `secretHash` — 明文的 sha256。用作指纹和
+ *      遗留查找（PR-1 只用此字段写行）。
+ *   2. `encSecret`  — 明文的 AES-256-GCM 密文，密钥派生
+ *      自 AUTH_SECRET + 端点 ID 通过 HKDF。cron 解密此
+ *      以计算出站 HMAC（PR-2 添加它）。
  *
- * `secretPrefix` is the first 8 chars of the base64url body (after the
- * `whsec_` prefix) — safe to display in the UI.
+ * `secretPrefix` 是 base64url 正文的前 8 个字符（在
+ * `whsec_` 前缀之后）——在 UI 中显示是安全的。
  */
 
 const PREFIX = 'whsec_';
@@ -34,16 +33,16 @@ const IV_LEN = 12;
 const TAG_LEN = 16;
 
 export interface FreshSecret {
-  /** The plaintext to hand back to the user (one-time). */
+  /** 返回给用户的明文（一次性）。*/
   plain: string;
-  /** sha256 hex of plaintext — fingerprint / backwards-compat. */
+  /** 明文的 sha256 十六进制——指纹 / 向后兼容。*/
   hash: string;
-  /** First 8 chars of the base64url body — safe to display. */
+  /** base64url 正文的前 8 个字符——在 UI 中显示是安全的。*/
   prefix: string;
   /**
-   * Encryption helper closure — call with the freshly-created endpoint id
-   * to produce the ciphertext we persist. We split into two steps because
-   * the id is only known after the row insert.
+   * 加密助手闭包——使用新创建的端点 ID 调用
+   * 以生成我们持久化的密文。我们分成两步，因为
+   * ID 仅在行插入后才知道。
    */
   encryptForEndpoint: (endpointId: string) => Buffer;
 }
@@ -63,7 +62,7 @@ export function hashWebhookSecret(plain: string): string {
   return createHash('sha256').update(plain).digest('hex');
 }
 
-// ─── HKDF-derived per-endpoint key ──────────────────────────────────────────
+// ─── 通过 HKDF 派生的每端点密钥 ──────────────────────────────────────────────
 
 function deriveKey(endpointId: string): Buffer {
   return Buffer.from(hkdfSync('sha256', env.AUTH_SECRET, endpointId, KEY_INFO, KEY_LEN));

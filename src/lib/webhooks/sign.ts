@@ -1,36 +1,36 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
 
 /**
- * RFC 0003 PR-2 — webhook payload signing (HMAC-SHA256 over `<ts>.<body>`).
+ * RFC 0003 PR-2 — webhook 有效载荷签名（HMAC-SHA256 超过 `<ts>.<body>`）。
  *
- * Compatible with Stripe / GitHub-style "schemed signature" header. Lives
- * in a no-`server-only` module so the e2e suite (and integrators reading
- * the docs) can lift the verify function verbatim.
+ * 与 Stripe / GitHub 风格的"方案签名"头兼容。在无 `server-only`
+ * 模块中，以便 e2e 套件（和阅读文档的集成商）可以逐字提升
+ * 验证函数。
  *
- * Outbound header shape:
+ * 出站头形状：
  *   X-Kitora-Signature: t=1745723404,v1=<hex sha256>
  *
- * Verify steps the receiver must do:
- *   1. Parse `t` and `v1` from the header.
- *   2. Reject if `abs(now - t) > MAX_AGE_SECONDS` (replay window).
- *   3. Recompute `HMAC_SHA256(secret, t + "." + rawBody)` and constant-time
- *      compare with the `v1` value.
+ * 接收者必须执行的验证步骤：
+ *   1. 从头中解析 `t` 和 `v1`。
+ *   2. 如果 `abs(now - t) > MAX_AGE_SECONDS`，拒绝（重放窗口）。
+ *   3. 重新计算 `HMAC_SHA256(secret, t + "." + rawBody)` 并常数时间
+ *      与 `v1` 值比较。
  */
 
-const MAX_AGE_SECONDS = 300; // 5 minutes — RFC 0003 §2.3
+const MAX_AGE_SECONDS = 300; // 5 分钟 — RFC 0003 §2.3
 
 interface SignOpts {
   secret: string;
-  /** Raw (already-stringified) body. Caller must pass the *exact* bytes the receiver will see. */
+  /** 原始（已字符串化的）body。调用者必须传递接收者将看到的*精确*字节。*/
   body: string;
-  /** Optional injection for tests; defaults to current epoch seconds. */
+  /** 可选的测试注入；默认为当前纪元秒。*/
   timestamp?: number;
 }
 
 export interface SignedHeaders {
-  /** The `X-Kitora-Signature` value (e.g. `t=...,v1=...`). */
+  /** `X-Kitora-Signature` 值（例如 `t=...,v1=...`）。*/
   signature: string;
-  /** Epoch seconds — already encoded into `signature`, but exposed for separate `X-Kitora-Timestamp` header. */
+  /** 纪元秒——已编码到 `signature` 中，但为单独的 `X-Kitora-Timestamp` 头公开。*/
   timestamp: number;
 }
 
@@ -46,13 +46,13 @@ export function signWebhookPayload(opts: SignOpts): SignedHeaders {
 
 interface VerifyOpts {
   secret: string;
-  /** Raw bytes the receiver got — must NOT be re-stringified. */
+  /** 接收者获得的原始字节——不能重新字符串化。*/
   body: string;
-  /** Header value to verify, e.g. `t=...,v1=...`. */
+  /** 要验证的头值，例如 `t=...,v1=...`。*/
   header: string;
-  /** Override max replay window (seconds). Default 300. */
+  /** 覆盖最大重放窗口（秒）。默认 300。*/
   maxAgeSeconds?: number;
-  /** Override "now" for tests. Defaults to current epoch seconds. */
+  /** 为测试覆盖"现在"。默认为当前纪元秒。*/
   now?: number;
 }
 
@@ -61,8 +61,8 @@ export type VerifyVerdict =
   | { ok: false; reason: 'malformed-header' | 'expired' | 'bad-signature' };
 
 /**
- * Pure-function verifier integrators can drop straight into their handlers.
- * Mirrored verbatim in the docs site so the snippet stays in sync.
+ * 纯函数验证器，集成商可以直接放入其处理程序。
+ * 在文档网站中逐字镜像，以便片段保持同步。
  */
 export function verifyWebhookSignature(opts: VerifyOpts): VerifyVerdict {
   const parts = opts.header.split(',').map((p) => p.trim());
@@ -87,8 +87,8 @@ export function verifyWebhookSignature(opts: VerifyOpts): VerifyVerdict {
   }
 
   const expected = createHmac('sha256', opts.secret).update(`${t}.${opts.body}`).digest('hex');
-  // Constant-time compare per Buffer; lengths must match before timingSafeEqual,
-  // hence the explicit length check.
+  // 按 Buffer 进行常数时间比较；在 timingSafeEqual 前长度必须匹配，
+  // 因此进行显式长度检查。
   const a = Buffer.from(expected, 'hex');
   const b = Buffer.from(v1, 'hex');
   if (a.length !== b.length || !timingSafeEqual(a, b)) {

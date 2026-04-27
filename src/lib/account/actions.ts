@@ -60,7 +60,7 @@ export async function changePasswordAction(input: z.infer<typeof passwordSchema>
 
   const user = await prisma.user.findUnique({ where: { id: me.userId } });
   if (!user?.passwordHash) {
-    // Pure OAuth account — no password to change.
+    // 纯 OAuth 账户 — 没有密码可修改。
     return { ok: false as const, error: 'no-password' as const };
   }
 
@@ -74,12 +74,12 @@ export async function changePasswordAction(input: z.infer<typeof passwordSchema>
     where: { id: me.userId },
     data: {
       passwordHash: newHash,
-      // A successful password change invalidates every other JWT.
+      // 成功改密会使其他所有 JWT 失效。
       sessionVersion: { increment: 1 },
     },
   });
-  // Also flip every DeviceSession row to revoked so the active-sessions
-  // list reflects the truth (not just "JWT now invalid").
+  // 同时将所有 DeviceSession 行标记为已吊销，这样活跃会话列表
+  // 会反映真实状态（而不仅仅是"JWT 现在无效"）。
   await revokeAllDeviceSessions(me.userId);
 
   logger.info({ userId: me.userId }, 'password-changed');
@@ -89,8 +89,8 @@ export async function changePasswordAction(input: z.infer<typeof passwordSchema>
     action: 'account.password_changed',
     target: me.userId,
   });
-  // The current session's JWT carries the old sessionVersion → it's now
-  // invalid too. Sign the user out so the UI redirects cleanly.
+  // 当前会话的 JWT 携带旧的 sessionVersion → 它现在也失效了。
+  // 让用户登出，这样 UI 可以干净地跳转。
   await signOut({ redirectTo: '/login' });
   return { ok: true as const };
 }
@@ -101,9 +101,8 @@ export async function signOutEverywhereAction() {
     where: { id: me.userId },
     data: { sessionVersion: { increment: 1 } },
   });
-  // Same rationale as in `changePasswordAction`: revoke all DeviceSession
-  // rows so the UI sessions list goes empty in lockstep with the JWT
-  // invalidation. The two paths together give consistent semantics.
+  // 与 `changePasswordAction` 的逻辑相同：吊销所有 DeviceSession 行，
+  // 使 UI 会话列表与 JWT 失效同步清空。这两个路径一起提供一致的语义。
   await revokeAllDeviceSessions(me.userId);
   logger.info({ userId: me.userId }, 'sign-out-everywhere');
   await recordAudit({
@@ -112,9 +111,8 @@ export async function signOutEverywhereAction() {
     action: 'account.sign_out_everywhere',
     target: me.userId,
   });
-  // This call also invalidates the current session — which is consistent with
-  // "sign out everywhere" since Edge middleware can't distinguish "current"
-  // from "other" device when only the JWT is available.
+  // 这个调用也会使当前会话失效 — 这与"处处登出"一致，因为边界中间件
+  // 在只有 JWT 可用时无法区分"当前"和"其他"设备。
   await signOut({ redirectTo: '/login' });
   return { ok: true as const };
 }
@@ -135,7 +133,7 @@ export async function unlinkProviderAction(input: z.infer<typeof unlinkProviderS
   }
 
   const otherProviders = user.accounts.filter((a) => a.provider !== parsed.data.provider);
-  // Refuse if removing this would leave the user with no way to log in.
+  // 拒绝移除会导致用户没有登录方式的情况。
   if (!user.passwordHash && otherProviders.length === 0) {
     return { ok: false as const, error: 'last-login-method' as const };
   }
@@ -152,16 +150,14 @@ export async function unlinkProviderAction(input: z.infer<typeof unlinkProviderS
 }
 
 /**
- * RFC 0002 PR-4 — schedule (not immediately execute) account deletion.
+ * RFC 0002 PR-4 — 调度（而非立即执行）账户删除。
  *
- * State transition: ACTIVE → PENDING_DELETION with `deletionScheduledAt =
- * now + 30d`. The user can still sign in (so they can cancel), but the
- * middleware will route them to /settings/account/* and nothing else.
- * Hard-delete happens via the daily cron `scripts/run-deletion-cron.ts`.
+ * 状态转换：ACTIVE → PENDING_DELETION，`deletionScheduledAt =
+ * now + 30d`。用户仍可登录（以便取消删除），但中间件会将他们路由到 /settings/account/*
+ * 且无其他访问权限。硬删除通过日常 cron `scripts/run-deletion-cron.ts` 执行。
  *
- * We bump `sessionVersion` and revoke every DeviceSession in the same
- * transaction — the user must re-authenticate after scheduling, which
- * also makes "fire-and-forget on a stolen laptop" much harder.
+ * 我们在同一事务中提升 `sessionVersion` 并吊销每个 DeviceSession —
+ * 用户必须在调度后重新认证，这也使得"在被盗笔记本上设置后不管"变得困难得多。
  */
 export async function deleteAccountAction(input: z.infer<typeof deleteSchema>) {
   const me = await requireActiveOrg();
@@ -201,9 +197,8 @@ export async function deleteAccountAction(input: z.infer<typeof deleteSchema>) {
       status: 'PENDING_DELETION',
       deletionScheduledAt: scheduledAt,
       deletionRequestedFromIp: ip,
-      // Bump so every other JWT (and every other session row) becomes
-      // invalid — a "scheduled-for-delete" account should not stay live
-      // anywhere it was logged in.
+      // 提升以使其他所有 JWT（及所有会话行）失效 —
+      // 一个"计划删除"的账户不应该在登录过的任何地方仍保持活跃。
       sessionVersion: { increment: 1 },
     },
   });
@@ -228,16 +223,14 @@ export async function deleteAccountAction(input: z.infer<typeof deleteSchema>) {
     );
   }
 
-  // signOut here too — the next page should be /login, where the user
-  // signs back in to land on the cancellation banner.
+  // 同样登出 — 下一个页面应该是 /login，用户重新登录后会看到取消横幅。
   await signOut({ redirectTo: '/login' });
   return { ok: true as const };
 }
 
 /**
- * RFC 0002 PR-4 — undo a scheduled deletion. Allowed any time before
- * `deletionScheduledAt` lapses, idempotent (calling on an already-ACTIVE
- * account just returns ok). Surfaced via the dashboard banner.
+ * RFC 0002 PR-4 — 撤销已调度的删除。允许在 `deletionScheduledAt` 到期前任何时间调用，
+ * 幂等（对已是 ACTIVE 的账户调用只返回 ok）。通过仪表板横幅提示。
  */
 export async function cancelAccountDeletionAction() {
   const me = await requireUser();

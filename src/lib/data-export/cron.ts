@@ -1,14 +1,14 @@
-// NOTE: deliberately *not* `'server-only'` here — RFC 0008 PR-2 wraps this
-// `runExportJobsTick()` into the `export.tick` background job, which can be
-// driven from `scripts/run-jobs.ts` (tsx CLI) on Fly / Aliyun ACK or from the
-// `/api/jobs/tick` Vercel Cron route. The transitive `@/lib/db` (prisma) +
-// `@/env` deps still gate accidental client bundling.
+// 注意：这里故意*没有* `'server-only'` — RFC 0008 PR-2 将此
+// `runExportJobsTick()` 包装到 `export.tick` 后台工作，
+// 可从 Fly / Aliyun ACK 上的 `scripts/run-jobs.ts` (tsx CLI)
+// 或 `/api/jobs/tick` Vercel Cron 路由驱动。
+// 传递的 `@/lib/db` (prisma) + `@/env` 依赖项仍然限制意外的客户端打包。
 //
-// Library form of the data-export sweep. Migrated unchanged from
-// `scripts/run-export-jobs.ts` — RFC 0008 §4.6 / §2「借坡下驴, 不重写历史」:
-// the export domain state machine (PENDING → RUNNING → COMPLETED / FAILED /
-// EXPIRED) is preserved verbatim; this file only relocates the logic so the
-// new `export.tick` wrapper job can call it.
+// 数据导出扫描的库形式。从 `scripts/run-export-jobs.ts` 未改变迁移 —
+// RFC 0008 §4.6 / §2「借坡下驴, 不重写历史」：
+// 导出域状态机（PENDING → RUNNING → COMPLETED / FAILED / EXPIRED）
+// 被逐字保留；此文件仅重新定位逻辑，以便新的 `export.tick`
+// 包装工作可以调用它。
 
 import { logger } from '@/lib/logger';
 import { prisma } from '@/lib/db';
@@ -20,19 +20,18 @@ const STUCK_RUNNING_MS = 15 * 60 * 1000;
 const DOWNLOAD_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
 /**
- * RFC 0002 PR-3 / RFC 0008 PR-2 — data export cron tick.
+ * RFC 0002 PR-3 / RFC 0008 PR-2 — 数据导出 cron 滴答。
  *
- * Three phases per invocation:
+ * 每次调用的三个阶段：
  *
- *   1. Recover stuck jobs — RUNNING > 15min ago → flip back to PENDING so
- *      a crashed previous worker doesn't strand a request indefinitely.
- *   2. Claim one PENDING row via optimistic `updateMany` and process it.
- *   3. Sweep — `expiresAt < now()` rows: delete the file, flip EXPIRED.
+ *   1. 恢复卡住的工作 — RUNNING > 15 分钟前 → 翻转回 PENDING，
+ *      以便崩溃的前一个工作者不会无限期地搁置请求。
+ *   2. 通过乐观的 `updateMany` 声明一行 PENDING 并处理它。
+ *   3. 扫描 — `expiresAt < now()` 行：删除文件，翻转为 EXPIRED。
  *
- * The "claim one row at a time" pattern is intentional: every cron tick
- * processes at most one export, so a flood of concurrent requests gets
- * smoothed over many minutes. With expected volume (≤ 1 export / user /
- * 24h) this is plenty.
+ * "一次声明一行"模式是有意的：每个 cron 滴答最多处理一个导出，
+ * 所以并发请求的洪泛在许多分钟内得到平滑处理。
+ * 对于预期的量（≤ 1 导出 / 用户 / 24h），这已足够。
  */
 export async function runExportJobsTick(): Promise<void> {
   await recoverStuckJobs();
@@ -52,8 +51,8 @@ async function recoverStuckJobs() {
 }
 
 async function claimAndRun() {
-  // Pick the oldest PENDING row by createdAt. updateMany with the row's
-  // unique id is the optimistic-claim lever — only one worker wins.
+  // 按 createdAt 选择最旧的 PENDING 行。使用行的唯一 id
+  // 进行 updateMany 是乐观声明杠杆 — 只有一个工作者赢。
   const candidate = await prisma.dataExportJob.findFirst({
     where: { status: 'PENDING' },
     orderBy: { createdAt: 'asc' },
@@ -66,7 +65,7 @@ async function claimAndRun() {
     data: { status: 'RUNNING', startedAt: new Date() },
   });
   if (claim.count === 0) {
-    // Another worker beat us; that's fine.
+    // 另一个工作者领先我们；没关系。
     return;
   }
 
@@ -97,9 +96,8 @@ async function claimAndRun() {
       },
     });
 
-    // Notify the requestor by email so they can grab the link without
-    // checking the UI. Fire-and-forget — failures are logged in the
-    // sender, not thrown back.
+    // 通过电子邮件通知请求者，以便他们可以在不检查 UI 的情况下
+    // 获取链接。异步发送 — 失败在发送者中记录，不被抛回。
     const actor = await prisma.user.findUnique({
       where: { id: job.userId },
       select: { email: true, name: true },

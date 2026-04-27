@@ -6,18 +6,17 @@ import { type ApiTokenPrincipal, authenticateBearer } from '@/lib/api-auth';
 import { prisma } from '@/lib/db';
 
 /**
- * RFC 0003 PR-1 — bearer-auth + org-membership gate for /api/v1/orgs/[slug]/*.
+ * RFC 0003 PR-1 — 对 /api/v1/orgs/[slug]/* 的持有者认证 + org 成员资格门控。
  *
- * Three checks in one helper because every webhook endpoint route does
- * the same thing:
+ * 三个检查在一个帮助程序中，因为每个 webhook 端点路由执行相同操作：
  *
- *   1. Authenticate the Bearer token (delegates to `authenticateBearer`).
- *   2. Resolve the org by `slug` (404 if unknown).
- *   3. Confirm the *token's bound org* matches the requested slug AND
- *      that token's user has the required role (OWNER/ADMIN by default).
+ *   1. 认证持有者令牌（委托给 `authenticateBearer`）。
+ *   2. 通过 `slug` 解析 org（未知则 404）。
+ *   3. 确认*令牌的绑定 org*与请求的 slug 匹配，且该令牌的用户具有所需角色
+ *      （默认 OWNER/ADMIN）。
  *
- * The "token's bound org must match requested slug" rule is RFC 0001 §9
- * — one token, one org. Cross-org access requires a separate token.
+ * "令牌的绑定 org 必须与请求的 slug 匹配"规则是 RFC 0001 §9
+ * — 一个令牌，一个 org。跨 org 访问需要单独的令牌。
  */
 
 export type ApiOrgGateResult =
@@ -27,7 +26,7 @@ export type ApiOrgGateResult =
 interface Options {
   request: Request;
   orgSlug: string;
-  /** Allowed roles. Defaults to [OWNER, ADMIN] — the typical "manager" gate. */
+  /** 允许的角色。默认为 [OWNER, ADMIN] — 典型的"经理"门控。 */
   roles?: readonly OrgRole[];
 }
 
@@ -43,7 +42,7 @@ export async function gateOrgApi(opts: Options): Promise<ApiOrgGateResult> {
   });
   if (!org) return { ok: false, status: 404 };
 
-  // The token must be bound to *this* org. RFC 0001 §9.
+  // 令牌必须绑定到*这个* org。RFC 0001 §9。
   if (principal.orgId !== org.id) return { ok: false, status: 403 };
 
   const membership = await prisma.membership.findFirst({

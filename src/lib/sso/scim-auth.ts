@@ -1,16 +1,15 @@
-// NOTE: deliberately *not* `'server-only'` here — every SCIM route + e2e
-// suite consumes this. Transitive `@/lib/db` (prisma) gates accidental
-// client bundling.
+// 注意：这里刻意*不*设置 'server-only' — 每个 SCIM 路由 + e2e
+// 套件都使用这个。可传递 `@/lib/db`（prisma）把守意外的
+// 客户端打包。
 //
-// SCIM Bearer authentication helper. Tokens are issued via
-// `rotateScimTokenAction` (RFC 0004 PR-1) and live in
-// `IdentityProvider.scimTokenHash` as `sha256(plaintext)`. We never store
-// the plaintext; on every SCIM request the caller's `Authorization:
-// Bearer scim_…` header is hashed and looked up against that index.
+// SCIM Bearer 认证助手。Token 通过 `rotateScimTokenAction`（RFC 0004 PR-1）
+// 发出并存在于 `IdentityProvider.scimTokenHash` 中作为 `sha256(plaintext)`。
+// 我们永不存储明文；在每个 SCIM 请求上调用者的
+// `Authorization: Bearer scim_…` 头被哈希并针对该索引查询。
 //
-// Returns the resolved `(idpId, orgId)` so the route handler can scope
-// reads + writes to the same tenant — a token issued for one org can
-// never accidentally provision into another.
+// 返回已解析的 `(idpId, orgId)` 以便路由处理程序可以限定
+// 读取 + 写入到同一租户 — 对一个 org 发出的 token
+// 永不能意外配置到另一个。
 
 import { prisma } from '@/lib/db';
 import { currentRegion } from '@/lib/region';
@@ -44,14 +43,14 @@ export async function authenticateScim(request: Request): Promise<ScimAuthResult
     return { ok: false, status: 401, reason: 'token-not-found' };
   }
   if (!idp.scimEnabled) {
-    // Token was rotated to disable but not yet revoked? Refuse anyway —
-    // the IT operator is responsible for rotating in their IdP.
+    // Token 被轮换以禁用但尚未撤销？无论如何拒绝 —
+    // IT 操作者负责在他们的 IdP 中轮换。
     return { ok: false, status: 403, reason: 'scim-disabled' };
   }
-  // RFC 0005 §5 — SCIM tokens are region-bound. The token hash lives in
-  // the region's own DB, so reaching this point already implies same
-  // region; we still cross-check against `currentRegion()` so a
-  // misconfigured stack can't accept tokens it shouldn't.
+  // RFC 0005 §5 — SCIM token 按区域绑定。Token 哈希存在于
+  // 该区域自己的 DB，所以到达此点已暗示相同区域；我们
+  // 仍然交叉检查 `currentRegion()` 以便配置错误的堆栈无法
+  // 接受它不应该的 token。
   if (idp.organization.region !== currentRegion()) {
     return { ok: false, status: 401, reason: 'wrong-region' };
   }
@@ -59,9 +58,9 @@ export async function authenticateScim(request: Request): Promise<ScimAuthResult
 }
 
 /**
- * SCIM error envelope per RFC 7644 §3.12. The `scimType` field is
- * optional and only set on validation errors — everything else is a
- * naked `{ status, detail }`.
+ * SCIM 错误信封每 RFC 7644 §3.12。`scimType` 字段是
+ * 可选的，仅在验证错误上设置 — 其他一切是
+ * 裸露的 `{ status, detail }`。
  */
 export function scimError(status: number, detail: string, extra?: { scimType?: string }): Response {
   return Response.json(
@@ -75,7 +74,7 @@ export function scimError(status: number, detail: string, extra?: { scimType?: s
   );
 }
 
-/** SCIM 200/201 envelope with the right Content-Type. */
+/** SCIM 200/201 信封与正确的 Content-Type。 */
 export function scimJson(status: number, body: unknown): Response {
   return Response.json(body, {
     status,

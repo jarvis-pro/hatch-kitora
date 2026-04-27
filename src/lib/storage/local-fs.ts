@@ -4,12 +4,12 @@ import { dirname, isAbsolute, join, normalize, resolve, sep } from 'node:path';
 import type { StorageProvider } from './types';
 
 /**
- * RFC 0002 PR-3 — filesystem provider for dev / CI / on-prem.
+ * RFC 0002 PR-3 — dev / CI / on-prem 的文件系统提供者。
  *
- * Files land under a single root dir (default `./tmp/exports`, git-ignored).
- * `key` is a path relative to that root — never absolute, never escaping
- * the root via `..`. The download API serves files via a streamed Response
- * after auth-checking the corresponding DataExportJob row.
+ * 文件落在单个根目录下（默认 `./tmp/exports`，git 忽略）。
+ * `key` 是相对于该根的路径 — 从不绝对，从不通过 `..` 逃离
+ * 根。下载 API 在 auth 检查对应 DataExportJob 行后通过流式
+ * 响应提供文件。
  */
 export class LocalFsProvider implements StorageProvider {
   constructor(private readonly rootDir: string) {}
@@ -30,9 +30,9 @@ export class LocalFsProvider implements StorageProvider {
   }
 
   async resolveDownload(key: string): Promise<{ kind: 'stream'; url: string }> {
-    // The API route reads the file fresh; we only return the relative key.
-    // The route layer is responsible for re-checking the user owns the job
-    // before streaming bytes — provider doesn't authenticate.
+    // API 路由读取新鲜文件；我们仅返回相对密钥。
+    // 路由层负责在流式字节之前重新检查用户拥有作业 —
+    // 提供者不认证。
     return { kind: 'stream', url: key };
   }
 
@@ -40,18 +40,18 @@ export class LocalFsProvider implements StorageProvider {
     try {
       await unlink(this.fullPath(sanitizeKey(key)));
     } catch (err) {
-      // Treat ENOENT as success (idempotent expiry sweeps).
+      // 将 ENOENT 视为成功（幂等过期清扫）。
       if ((err as NodeJS.ErrnoException).code !== 'ENOENT') throw err;
     }
   }
 
-  /** Public for the download route handler. */
+  /** 对下载路由处理程序公开。 */
   fullPath(key: string): string {
     const safe = sanitizeKey(key);
     return resolve(this.rootDir, safe);
   }
 
-  /** Public for the download route handler — used to confirm existence + size. */
+  /** 对下载路由处理程序公开 — 用于确认存在 + 大小。 */
   async statKey(key: string): Promise<{ sizeBytes: number } | null> {
     try {
       const s = await stat(this.fullPath(key));
@@ -63,15 +63,15 @@ export class LocalFsProvider implements StorageProvider {
 }
 
 /**
- * Reject keys that escape the storage root or contain absolute paths.
- * The cron writes keys we control, but the download route reads keys from
- * the DB — defense-in-depth against a stray bad row.
+ * 拒绝逃离存储根目录或包含绝对路径的密钥。Cron 写入
+ * 我们控制的密钥，但下载路由从 DB 读取密钥 — 对坏行的
+ * 深层防御。
  */
 function sanitizeKey(key: string): string {
   if (!key || isAbsolute(key)) {
     throw new Error('storage-key-invalid');
   }
-  // Disallow traversal segments after normalisation.
+  // 归一化后不允许遍历段。
   const normalized = normalize(key);
   if (normalized.startsWith('..') || normalized.split(sep).includes('..')) {
     throw new Error('storage-key-traversal');

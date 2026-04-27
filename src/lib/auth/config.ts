@@ -5,11 +5,11 @@ import Google from 'next-auth/providers/google';
 import { env } from '@/env';
 
 /**
- * Edge-safe Auth.js config.
+ * 边界安全的 Auth.js 配置。
  *
- * Used by `middleware.ts` (which runs on the Edge runtime). It must NOT import
- * the Prisma adapter or anything Node-specific. The full config — with adapter
- * and Credentials provider — lives in `src/lib/auth/index.ts`.
+ * 由 `middleware.ts` 使用（在边界运行时运行）。它**不能**导入
+ * Prisma 适配器或任何 Node 特定内容。完整配置 — 包含适配器
+ * 和凭证提供商 — 存放在 `src/lib/auth/index.ts`。
  */
 export const authConfig = {
   pages: {
@@ -38,11 +38,11 @@ export const authConfig = {
   ],
   callbacks: {
     authorized({ auth, request }) {
-      // NOTE: this callback is bypassed in this codebase — `src/middleware.ts`
-      // calls `auth(callback)` with its own logic, which takes precedence
-      // over `authorized()`. The redirect / role / tfa_pending decisions
-      // therefore live there. We keep this stub for direct `auth()` calls
-      // (RSC boundary helpers) where the same rules still apply.
+      // 注意：此回调在此代码库中被绕过 — `src/middleware.ts`
+      // 用自己的逻辑调用 `auth(callback)`，优先于 `authorized()`。
+      // 重定向 / 角色 / tfa_pending 决策因此存放于那里。
+      // 我们为直接 `auth()` 调用（RSC 边界帮助程序）保持此存根，
+      // 其中相同规则仍适用。
       const isLoggedIn = !!auth?.user;
       const { pathname } = request.nextUrl;
       const isProtected = /^\/[^/]+\/(dashboard|settings|admin)/.test(pathname);
@@ -63,28 +63,26 @@ export const authConfig = {
         token.role = role ?? 'USER';
         const sv = (user as { sessionVersion?: number }).sessionVersion;
         token.sessionVersion = typeof sv === 'number' ? sv : 0;
-        // RFC 0002 PR-2 — initial sign-in: if the user has 2FA on, mark the
-        // token as pending until they pass /login/2fa. The Node-side jwt
-        // callback also re-evaluates this on every call so a *just enabled*
-        // 2FA setting can't be sidestepped by an existing JWT.
+        // RFC 0002 PR-2 — 初始登录：如果用户启用了 2FA，将令牌标记为
+        // pending，直到他们通过 /login/2fa。Node 端 jwt 回调也在每次
+        // 调用时重新评估此项，使*刚启用*的 2FA 设置无法被现有 JWT 绕过。
         const tfa = (user as { twoFactorEnabled?: boolean }).twoFactorEnabled;
         if (tfa) {
           token.tfa_pending = true;
         }
-        // RFC 0002 PR-4 — account lifecycle state at sign-in. Re-validated
-        // on every subsequent jwt() call (Node side) so a state change
-        // without re-login still takes effect.
+        // RFC 0002 PR-4 — 登录时的账户生命周期状态。在每个后续 jwt()
+        // 调用（Node 端）上重新验证，使不重新登录的状态变化仍生效。
         const status = (user as { status?: 'ACTIVE' | 'PENDING_DELETION' }).status;
         token.status = status ?? 'ACTIVE';
-        // RFC 0005 — region of the User row. Region is immutable after
-        // creation, so we seed it once at sign-in. Middleware (edge) reads
-        // this off the JWT to detect cross-region cookie smuggling.
+        // RFC 0005 — 用户行的区域。区域在创建后不可变，所以我们在
+        // 登录时一次性播种。中间件（边界）从 JWT 读取此项以检测
+        // 跨区域 cookie 走私。
         const region = (user as { region?: 'GLOBAL' | 'CN' | 'EU' }).region;
         if (region) token.region = region;
       }
-      // The full Node-side config in `src/lib/auth/index.ts` overrides this
-      // callback to additionally validate `token.sessionVersion` against the
-      // database — the edge-safe version here can't query Prisma.
+      // `src/lib/auth/index.ts` 中的完整 Node 端配置覆盖此回调
+      // 以另外验证 `token.sessionVersion` 对照数据库 —
+      // 这里的边界安全版本无法查询 Prisma。
       return token;
     },
     async session({ session, token }) {
@@ -92,27 +90,27 @@ export const authConfig = {
         session.user.id = (token.id as string) ?? session.user.id;
         session.user.role = (token.role as 'USER' | 'ADMIN' | undefined) ?? 'USER';
       }
-      // RFC 0002 PR-1 — propagate sidHash so server actions / RSC can flag
-      // the "current" device session in the active-sessions UI. Only the
-      // hash leaves the JWT; the raw sid is never exposed.
+      // RFC 0002 PR-1 — 传播 sidHash 使服务器操作 / RSC 可在
+      // 活跃会话 UI 中标记"当前"设备会话。仅哈希离开 JWT；
+      // 原始 sid 永不暴露。
       const sidHash = (token as { sidHash?: string }).sidHash;
       if (typeof sidHash === 'string' && sidHash.length > 0) {
         session.sidHash = sidHash;
       }
-      // RFC 0002 PR-2 — surface tfa_pending so middleware / RSC can route
-      // unverified users to /login/2fa.
+      // RFC 0002 PR-2 — 呈现 tfa_pending 使中间件 / RSC 可路由
+      // 未验证的用户到 /login/2fa。
       if (token.tfa_pending === true) {
         session.tfaPending = true;
       }
-      // RFC 0002 PR-4 — surface user lifecycle status so middleware can
-      // route PENDING_DELETION users to the cancel-deletion screen.
+      // RFC 0002 PR-4 — 呈现用户生命周期状态使中间件可
+      // 路由 PENDING_DELETION 用户到取消删除屏幕。
       if (token.status === 'PENDING_DELETION') {
         session.userStatus = 'PENDING_DELETION';
       }
-      // RFC 0005 — surface the user's region so middleware (also edge)
-      // can compare against the deploy region. Cross-region cookie
-      // smuggling shouldn't be possible across distinct domains, but we
-      // keep this as a server-side belt-and-braces check.
+      // RFC 0005 — 呈现用户的区域使中间件（也是边界）
+      // 可对照部署区域进行比较。跨区域 cookie 走私在
+      // 不同域中不应该可能，但我们保持此作为服务器端
+      // 保险检查。
       if (token.region === 'GLOBAL' || token.region === 'CN' || token.region === 'EU') {
         session.userRegion = token.region;
       }

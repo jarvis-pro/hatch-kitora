@@ -1,15 +1,15 @@
 import { deflateRawSync } from 'node:zlib';
 
 /**
- * RFC 0002 PR-3 — minimal ZIP writer (deflate-only, no streaming).
+ * RFC 0002 PR-3 — 最小 ZIP 写入器（仅 deflate，无流）。
  *
- * We deliberately don't pull in `archiver` / `jszip` for one feature: the
- * file count is small (≤ 10 JSON entries + a README), the content is
- * text, and deflate is in `node:zlib` already. This implementation
- * produces a fully spec-compliant ZIP that opens in macOS Finder, Windows
- * Explorer, and `unzip` on every Linux distro we care about.
+ * 我们故意不为一个功能引入 `archiver` / `jszip`：文件数很小
+ * （≤ 10 个 JSON 条目 + README），内容是文本，deflate 已在
+ * `node:zlib` 中。此实现产生完全符合规范的 ZIP，
+ * 在 macOS Finder、Windows 资源管理器和我们关心的每个
+ * Linux 发行版上的 `unzip` 中打开。
  *
- * Layout written:
+ * 布局已写入：
  *
  *   [LFH][file 1 data]
  *   [LFH][file 2 data]
@@ -19,7 +19,7 @@ import { deflateRawSync } from 'node:zlib';
  *   ...
  *   [EOCD]
  *
- * Spec reference: APPNOTE.TXT 6.3.3 (PKWARE).
+ * 规范参考：APPNOTE.TXT 6.3.3 (PKWARE)。
  */
 
 interface ZipEntry {
@@ -39,46 +39,46 @@ export function makeZip(entries: readonly ZipEntry[]): Buffer {
     const uncompressedSize = entry.body.length;
     const compressed = deflateRawSync(entry.body);
     const compressedSize = compressed.length;
-    // DOS time/date — not strictly required for compatibility, fixed
-    // value keeps zips byte-stable across runs (good for content hashing
-    // / golden snapshots in tests).
+    // DOS 时间/日期 — 对兼容性来说不是严格必需的，
+    // 固定值使 zip 在运行中保持字节稳定
+    // （对内容散列/测试中的黄金快照有好处）。
     const dosTime = 0;
-    const dosDate = (2026 - 1980) << 9; // Jan 1 of arbitrary year
+    const dosDate = (2026 - 1980) << 9; // 任意年份的 1 月 1 日
 
     const lfh = Buffer.alloc(30);
-    lfh.writeUInt32LE(0x04034b50, 0); // local file header signature
-    lfh.writeUInt16LE(20, 4); // version needed
-    lfh.writeUInt16LE(0x0800, 6); // general purpose bit flag (UTF-8)
-    lfh.writeUInt16LE(8, 8); // compression method = deflate
+    lfh.writeUInt32LE(0x04034b50, 0); // 本地文件头签名
+    lfh.writeUInt16LE(20, 4); // 需要的版本
+    lfh.writeUInt16LE(0x0800, 6); // 通用目标位标志 (UTF-8)
+    lfh.writeUInt16LE(8, 8); // 压缩方法 = deflate
     lfh.writeUInt16LE(dosTime, 10);
     lfh.writeUInt16LE(dosDate, 12);
     lfh.writeUInt32LE(crc, 14);
     lfh.writeUInt32LE(compressedSize, 18);
     lfh.writeUInt32LE(uncompressedSize, 22);
     lfh.writeUInt16LE(utf8Name.length, 26);
-    lfh.writeUInt16LE(0, 28); // extra field length
+    lfh.writeUInt16LE(0, 28); // 额外字段长度
     localChunks.push(lfh, utf8Name, compressed);
     writtenAt.push(offset);
     offset += 30 + utf8Name.length + compressedSize;
 
     const cdh = Buffer.alloc(46);
-    cdh.writeUInt32LE(0x02014b50, 0); // central directory header signature
-    cdh.writeUInt16LE(20, 4); // version made by
-    cdh.writeUInt16LE(20, 6); // version needed
+    cdh.writeUInt32LE(0x02014b50, 0); // 中央目录头签名
+    cdh.writeUInt16LE(20, 4); // 由以下版本制作
+    cdh.writeUInt16LE(20, 6); // 需要的版本
     cdh.writeUInt16LE(0x0800, 8); // gp flag (UTF-8)
-    cdh.writeUInt16LE(8, 10); // method
+    cdh.writeUInt16LE(8, 10); // 方法
     cdh.writeUInt16LE(dosTime, 12);
     cdh.writeUInt16LE(dosDate, 14);
     cdh.writeUInt32LE(crc, 16);
     cdh.writeUInt32LE(compressedSize, 20);
     cdh.writeUInt32LE(uncompressedSize, 24);
     cdh.writeUInt16LE(utf8Name.length, 28);
-    cdh.writeUInt16LE(0, 30); // extra field length
-    cdh.writeUInt16LE(0, 32); // file comment length
-    cdh.writeUInt16LE(0, 34); // disk number start
-    cdh.writeUInt16LE(0, 36); // internal file attrs
-    cdh.writeUInt32LE(0, 38); // external file attrs
-    cdh.writeUInt32LE(writtenAt[writtenAt.length - 1]!, 42); // local header offset
+    cdh.writeUInt16LE(0, 30); // 额外字段长度
+    cdh.writeUInt16LE(0, 32); // 文件注释长度
+    cdh.writeUInt16LE(0, 34); // 磁盘号开始
+    cdh.writeUInt16LE(0, 36); // 内部文件属性
+    cdh.writeUInt32LE(0, 38); // 外部文件属性
+    cdh.writeUInt32LE(writtenAt[writtenAt.length - 1]!, 42); // 本地头偏移
     centralChunks.push(cdh, utf8Name);
   }
 
@@ -87,19 +87,19 @@ export function makeZip(entries: readonly ZipEntry[]): Buffer {
   const centralSize = centralBuf.length;
 
   const eocd = Buffer.alloc(22);
-  eocd.writeUInt32LE(0x06054b50, 0); // EOCD signature
-  eocd.writeUInt16LE(0, 4); // disk number
-  eocd.writeUInt16LE(0, 6); // disk where central dir starts
-  eocd.writeUInt16LE(entries.length, 8); // entries on this disk
-  eocd.writeUInt16LE(entries.length, 10); // total entries
+  eocd.writeUInt32LE(0x06054b50, 0); // EOCD 签名
+  eocd.writeUInt16LE(0, 4); // 磁盘号
+  eocd.writeUInt16LE(0, 6); // 中央目录开始的磁盘
+  eocd.writeUInt16LE(entries.length, 8); // 该磁盘上的条目
+  eocd.writeUInt16LE(entries.length, 10); // 总条目
   eocd.writeUInt32LE(centralSize, 12);
   eocd.writeUInt32LE(centralStart, 16);
-  eocd.writeUInt16LE(0, 20); // comment length
+  eocd.writeUInt16LE(0, 20); // 注释长度
 
   return Buffer.concat([...localChunks, centralBuf, eocd]);
 }
 
-// ─── CRC-32 (zlib polynomial) ──────────────────────────────────────────────
+// ─── CRC-32 (zlib 多项式) ──────────────────────────────────────────────
 
 const CRC_TABLE = (() => {
   const table = new Uint32Array(256);

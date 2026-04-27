@@ -10,10 +10,9 @@ import { getPersonalOrgIdForUser } from '@/lib/auth/session';
 export interface ApiTokenPrincipal {
   userId: string;
   /**
-   * Organization the bearer is operating within. PR-2 contract: every API
-   * call carries an org context; one token is bound to exactly one org
-   * (RFC-0001 §9 decision). During the migration window, tokens created
-   * before the orgId column existed fall back to the user's personal org.
+   * 持有者正在操作的组织。PR-2 合同：每个 API 调用都携带 org 上下文；
+   * 一个令牌绑定到恰好一个 org（RFC-0001 §9 决策）。在迁移窗口期间，
+   * 在 orgId 列存在之前创建的令牌回退到用户的 personal org。
    */
   orgId: string;
   tokenId: string;
@@ -26,12 +25,12 @@ function hashToken(raw: string): string {
 }
 
 /**
- * Validate the `Authorization: Bearer <token>` header against the ApiToken
- * table. Returns null on any failure (bad header, unknown / revoked / expired
- * token, no resolvable org). On success, side-effects: bumps `lastUsedAt`.
+ * 对照 ApiToken 表验证 `Authorization: Bearer <token>` 头。
+ * 任何失败（头格式错误、未知 / 已吊销 / 已过期令牌、无可解析 org）返回 null。
+ * 成功时，副作用：提升 `lastUsedAt`。
  *
- * Token format we accept: `kitora_<random>`. The `kitora_` prefix is purely
- * for human eyeballing; the validator only checks length / charset.
+ * 我们接受的令牌格式：`kitora_<random>`。`kitora_` 前缀纯粹用于人工检查；
+ * 验证器仅检查长度 / 字符集。
  */
 export async function authenticateBearer(request: Request): Promise<ApiTokenPrincipal | null> {
   const header = request.headers.get('authorization');
@@ -40,8 +39,7 @@ export async function authenticateBearer(request: Request): Promise<ApiTokenPrin
   const match = HEADER_RE.exec(header.trim());
   if (!match) return null;
 
-  // First capture group is the token characters; non-null because the regex
-  // requires it to match.
+  // 第一个捕获组是令牌字符；非空是因为正则表达式要求匹配。
   const raw = match[1] as string;
   const tokenHash = hashToken(raw);
 
@@ -53,17 +51,16 @@ export async function authenticateBearer(request: Request): Promise<ApiTokenPrin
   if (token.revokedAt) return null;
   if (token.expiresAt && token.expiresAt.getTime() < Date.now()) return null;
 
-  // Resolve org: token.orgId is the source of truth; pre-PR-1 tokens may
-  // still be null (the backfill should have caught these but we defend
-  // anyway), in which case we fall back to the owner's personal org.
+  // 解析 org：token.orgId 是真实来源；PR-1 前的令牌可能仍为 null（反填
+  // 应该已捕获这些但我们也防守），此时回退到所有者的 personal org。
   const orgId = token.orgId ?? (await getPersonalOrgIdForUser(token.userId));
   if (!orgId) {
-    // No way to resolve a scope — refuse rather than silently broaden access.
+    // 无法解析范围 — 拒绝而非默默扩大访问权限。
     logger.warn({ tokenId: token.id, userId: token.userId }, 'apitoken-no-org');
     return null;
   }
 
-  // Best-effort touch — never block the request on this.
+  // 尽力触摸 — 永不阻止此请求。
   prisma.apiToken
     .update({
       where: { id: token.id },

@@ -1,19 +1,18 @@
-// RFC 0005 — Region drift safety check.
+// RFC 0005 — 区域漂移安全检查。
 //
-// Runs once at server boot via `instrumentation.ts`. The contract:
+// 通过 `instrumentation.ts` 在服务器启动时运行一次。合约：
 //
-//   * If the database has at least one Organization row, every row's
-//     region must equal `currentRegion()`. A single mismatch means
-//     somebody flipped `KITORA_REGION` on a stack that was already
-//     serving another region — refuse to start so we can't write rows
-//     into the wrong residency.
-//   * If the database is empty (fresh deploy, never seeded), pass. The
-//     first signup will stamp the canonical region for everything.
+//   * 如果数据库至少有一个 Organization 行，每行的
+//     region 必须等于 `currentRegion()`。单个不匹配意味着
+//     有人在已经服务另一个区域的堆栈上翻转了 `KITORA_REGION` —
+//     拒绝启动以便我们无法将行写入错误的驻留。
+//   * 如果数据库为空（全新部署，从未播种），通过。第
+//     一个注册将为所有内容盖上规范区域。
 //
-// We deliberately don't fail on the `User` or `AuditLog` tables — those
-// can carry historical rows from before the migration backfill (every
-// such row is GLOBAL by construction) and we'd rather not block a CN
-// stack that just hasn't seen any signups yet from booting.
+// 我们刻意不在 `User` 或 `AuditLog` 表上失败 — 这些
+// 可以从迁移回填之前携带历史行（每个
+// 这样的行根据构造是 GLOBAL）我们宁愿不阻止一个 CN
+// 堆栈刚好还没有看到任何注册启动。
 
 import { prisma } from '@/lib/db';
 import { logger } from '@/lib/logger';
@@ -29,8 +28,8 @@ export async function assertRegionMatchesDatabase(): Promise<void> {
 
   let conflict: { region: string; count: number } | null = null;
   try {
-    // Group-by gives us "every region present + how many" in one query —
-    // cheaper than a wide select even on large orgs tables.
+    // Group-by 在一个查询中给我们"存在的每个区域 + 数量" —
+    // 即使在大型 orgs 表上也比宽 select 便宜。
     const rows = await prisma.organization.groupBy({
       by: ['region'],
       _count: { _all: true },
@@ -43,10 +42,10 @@ export async function assertRegionMatchesDatabase(): Promise<void> {
       }
     }
   } catch (err) {
-    // If the query itself fails (DB unreachable, migration not run yet,
-    // ...) log loudly but don't kill the process — we don't want a flaky
-    // pre-flight to take down a healthy app. The next request will retry
-    // implicit DB connection, and ops alerting will catch a real outage.
+    // 如果查询本身失败（DB 无法到达、迁移尚未运行、
+    // ...）大声记录但不要杀死进程 — 我们不想要飘忽
+    // 的飞行前检查把一个健康的应用打倒。下一个请求将重试
+    // 隐式 DB 连接，ops 告警将捕获一个真实的中断。
     logger.warn({ err }, 'region-startup-check-skipped');
     return;
   }
@@ -56,9 +55,9 @@ export async function assertRegionMatchesDatabase(): Promise<void> {
       { expected, found: conflict.region, foundCount: conflict.count },
       'region-startup-mismatch',
     );
-    // `process.exit` rather than `throw` because Next.js swallows
-    // instrumentation throws and merely warns. We want the container to
-    // crash so the orchestrator surfaces the failure.
+    // `process.exit` 而不是 `throw` 因为 Next.js 吞咽
+    // instrumentation throws 并仅警告。我们希望容器
+    // 崩溃所以编排器表现失败。
     process.exit(1);
   }
 

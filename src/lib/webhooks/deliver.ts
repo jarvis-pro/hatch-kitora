@@ -1,21 +1,20 @@
-// NOTE: deliberately *not* `'server-only'` here — Playwright's e2e suite
-// drives `deliverWebhook` against a local http receiver to verify signing
-// and retry behavior. The transitive `@/lib/logger` (pino) dep is itself
-// gated by env-loaded config, so accidental client bundling still fails
-// loudly even without the explicit marker.
+// 注意：这里故意*不*是 `'server-only'` ——Playwright 的 e2e 套件
+// 对本地 http 接收器驱动 `deliverWebhook` 以验证签名
+// 和重试行为。传递的 `@/lib/logger`（pino）dep 本身
+// 由 env 加载的配置把守，所以即使没有显式标记，
+// 意外的客户端捆绑仍然会失败。
 import { logger } from '@/lib/logger';
 
 import { isPermanentFailure, nextRetryDelayMs } from './retry';
 import { signWebhookPayload } from './sign';
 
 /**
- * RFC 0003 PR-2 — single-delivery executor. Called by the cron worker
- * once it's claimed a row. Pure-function in/out so tests can exercise it
- * against a local http server without touching the DB.
+ * RFC 0003 PR-2 — 单一交付执行器。由 cron worker 在声明行后调用。
+ * 纯函数输入/输出，以便测试可以在不触及 DB 的情况下
+ * 对其进行本地 http 服务器的测试。
  *
- * Returns the next-state descriptor for the cron to write back. Never
- * throws — fetch errors / timeouts are mapped to RETRYING with a 5xx
- * surrogate status so the retry curve still applies.
+ * 返回 cron 要写回的下一状态描述符。永远不会抛出——fetch 错误 / 超时
+ * 被映射到 RETRYING 加上 5xx 替代状态，以便重试曲线仍然适用。
  */
 
 const FETCH_TIMEOUT_MS = 10_000;
@@ -25,9 +24,9 @@ interface DeliverInput {
   secret: string;
   eventId: string;
   eventType: string;
-  /** The full event envelope ({ id, type, createdAt, data } shape from `enqueueWebhook`). */
+  /** 完整事件信封（来自 `enqueueWebhook` 的 { id, type, createdAt, data } 形状）。*/
   payload: object;
-  /** 1-based attempt number for *this* try. */
+  /** 1-based 尝试号，用于*这*次尝试。*/
   attempt: number;
 }
 
@@ -77,8 +76,8 @@ export async function deliverWebhook(input: DeliverInput): Promise<DeliverOutcom
       body,
     });
     responseStatus = res.status;
-    // Cap the stored body at 8KB to keep the table size bounded; receivers
-    // sometimes echo huge HTML on 5xx pages.
+    // 将存储的 body 上限设为 8KB 以保持表大小有界；接收器
+    // 有时在 5xx 页面上回显大量 HTML。
     responseBody = await captureBody(res);
 
     if (res.ok) {
@@ -92,7 +91,7 @@ export async function deliverWebhook(input: DeliverInput): Promise<DeliverOutcom
         errorMessage: `HTTP ${res.status}`,
       };
     }
-    // transient → schedule next retry
+    // 瞬间故障 → 调度下一次重试
     const delayMs = nextRetryDelayMs(input.attempt);
     if (delayMs === null) {
       return {

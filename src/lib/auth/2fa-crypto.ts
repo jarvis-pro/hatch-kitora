@@ -12,25 +12,23 @@ import {
 import { env } from '@/env';
 
 /**
- * RFC 0002 PR-2 — server-only crypto for 2FA.
+ * RFC 0002 PR-2 — 2FA 的仅服务器端密码学。
  *
- * Two responsibilities:
+ * 两个职责：
  *
- *   1. AES-256-GCM encryption of the shared TOTP secret. The key is derived
- *      via HKDF from `AUTH_SECRET` + `userId` (the row-id is the salt) so a
- *      single-row leak doesn't compromise the rest of the table. Format:
- *      `[12-byte IV][16-byte auth tag][ciphertext]` packed into one Buffer.
+ *   1. 共享 TOTP 秘密的 AES-256-GCM 加密。密钥通过 HKDF 从
+ *      `AUTH_SECRET` + `userId` 衍生（行 ID 是盐），使单行泄露
+ *      不危及表的其余部分。格式：`[12 字节 IV][16 字节认证标签][密文]`
+ *      打包到一个 Buffer。
  *
- *   2. Backup code generation + verification. 10 codes per user, sha256-
- *      hashed in the DB; we delete on use rather than flag, so an attacker
- *      reading the row can't infer how many remain.
+ *   2. 备份码生成 + 验证。每个用户 10 个码，在数据库中 sha256 哈希；
+ *      我们删除而非标记使用，所以读取该行的攻击者无法推断剩余多少。
  *
- * Pure TOTP / base32 helpers live in `./2fa-totp.ts` so that test code can
- * import them without pulling in `server-only` (which throws when imported
- * outside an RSC context).
+ * 纯 TOTP / base32 帮助程序存放在 `./2fa-totp.ts` 中，以便测试代码
+ * 可导入它们而无需拉入 `server-only`（在 RSC 上下文外导入时抛出）。
  */
 
-// Re-export the pure helpers so callers don't need to know the split.
+// 重新导出纯帮助程序，使调用者不需知道分割。
 export {
   base32Decode,
   base32Encode,
@@ -40,17 +38,17 @@ export {
   verifyTotp,
 } from './2fa-totp';
 
-// ─── HKDF-derived per-user key ──────────────────────────────────────────────
+// ─── HKDF 衍生的每用户密钥 ──────────────────────────────────────────────────
 
 const KEY_INFO = 'kitora-2fa-v1';
 const KEY_LEN = 32;
 
 function deriveKey(userId: string): Buffer {
-  // Node's hkdfSync returns ArrayBuffer.
+  // Node 的 hkdfSync 返回 ArrayBuffer。
   return Buffer.from(hkdfSync('sha256', env.AUTH_SECRET, userId, KEY_INFO, KEY_LEN));
 }
 
-// ─── AES-256-GCM encrypt / decrypt ──────────────────────────────────────────
+// ─── AES-256-GCM 加密 / 解密 ──────────────────────────────────────────────
 
 const IV_LEN = 12;
 const TAG_LEN = 16;
@@ -77,27 +75,27 @@ export function decryptSecret(userId: string, packed: Buffer): Buffer {
   return Buffer.concat([decipher.update(ct), decipher.final()]);
 }
 
-// ─── Backup codes ───────────────────────────────────────────────────────────
+// ─── 备份码 ───────────────────────────────────────────────────────────────
 //
-// 10 single-use codes per user. We display them once at enable / regenerate
-// time, the DB only stores sha256(code). On verify, we look up the row, find
-// a matching hash, and **delete it from the array** (single-use).
+// 每个用户 10 个一次性码。我们仅在启用 / 重新生成时显示一次，
+// 数据库仅存储 sha256(code)。验证时，我们查找行，找到匹配的哈希，
+// 并**从数组中删除它**（一次性）。
 
 const BACKUP_CODE_COUNT = 10;
 const BACKUP_GROUP_LEN = 4;
 const BACKUP_GROUPS = 2;
-// Crockford-style alphabet — drop ambiguous 0/O/1/I.
+// Crockford 风格字母表 — 放弃模糊的 0/O/1/I。
 const BACKUP_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 
 function generateOneBackupCode(): string {
   const bytes = randomBytes(BACKUP_GROUP_LEN * BACKUP_GROUPS);
   let chars = '';
   for (let i = 0; i < bytes.length; i++) {
-    // randomBytes always returns a buffer of the requested length, so the
-    // index is in bounds — assert to satisfy noUncheckedIndexedAccess.
+    // randomBytes 总是返回请求长度的缓冲区，所以索引在范围内 —
+    // 断言以满足 noUncheckedIndexedAccess。
     chars += BACKUP_ALPHABET[bytes[i]! % BACKUP_ALPHABET.length];
   }
-  // "XXXX-XXXX" — easy to copy from a printed sheet.
+  // "XXXX-XXXX" — 易于从打印表中复制。
   const groups: string[] = [];
   for (let g = 0; g < BACKUP_GROUPS; g++) {
     groups.push(chars.slice(g * BACKUP_GROUP_LEN, (g + 1) * BACKUP_GROUP_LEN));
@@ -117,20 +115,20 @@ export function generateBackupCodes(): { plain: string[]; hashes: string[] } {
 }
 
 export function hashBackupCode(code: string): string {
-  // Normalize so users typing "abcd-efgh" or "ABCDEFGH" both work.
+  // 规范化，使用户键入"abcd-efgh"或"ABCDEFGH"都有效。
   const normalized = code.replace(/-/g, '').toUpperCase();
   return createHash('sha256').update(normalized).digest('hex');
 }
 
 /**
- * Look up a backup code in the user's hash array — returns the matching hash
- * (so the caller can delete it from the array) or null.
+ * 在用户的哈希数组中查找备份码 — 返回匹配的哈希
+ * （使调用者可从数组中删除它）或 null。
  */
 export function findBackupCodeHash(userInput: string, hashes: readonly string[]): string | null {
   if (!/^[A-Z0-9-]{4,32}$/i.test(userInput)) return null;
   const candidate = hashBackupCode(userInput);
   for (const h of hashes) {
-    // Constant-time compare per element.
+    // 恒定时间按元素比较。
     if (h.length === candidate.length) {
       const a = Buffer.from(h, 'hex');
       const b = Buffer.from(candidate, 'hex');

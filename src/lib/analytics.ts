@@ -1,9 +1,8 @@
 /**
- * Provider-agnostic analytics abstraction.
+ * 提供商无关的分析抽象。
  *
- * Wire up your provider (PostHog / Plausible / GA / Segment / Vercel Analytics)
- * inside `track`. The rest of the app calls `track('event_name', props)`
- * regardless of which backend is configured.
+ * 在 `track` 内连接你的提供商（PostHog / Plausible / GA / Segment / Vercel Analytics）。
+ * 应用的其余部分调用 `track('event_name', props)`，无论配置了哪个后端。
  */
 
 import { env } from '@/env';
@@ -26,15 +25,15 @@ export function track<E extends AnalyticsEvent>(
   properties: Extract<AnalyticsEvent, { name: E['name'] }>['properties'],
   context: TrackContext = {},
 ): void {
-  // No-op when no analytics provider is configured.
+  // 未配置分析提供商时无操作。
   if (!env.NEXT_PUBLIC_ANALYTICS_ID) {
     return;
   }
 
-  // TODO: forward to your provider of choice.
-  // Example (PostHog):
+  // TODO: 转发到你选择的提供商。
+  // 示例（PostHog）：
   // posthog.capture(event, { ...properties, ...context });
-  // Example (Plausible):
+  // 示例（Plausible）：
   // plausible(event, { props: properties });
   void event;
   void properties;

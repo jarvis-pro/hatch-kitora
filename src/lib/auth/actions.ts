@@ -42,10 +42,9 @@ export async function signupAction(input: z.infer<typeof signupSchema>) {
   }
 
   const { name, email, password } = parsed.data;
-  // RFC 0005 — sign-up is region-scoped: an email is unique within a
-  // region, but the same address may exist as an independent account in
-  // another region (kitora.cn vs kitora.io). Look up by the composite
-  // (email, region) key.
+  // RFC 0005 — 注册是区域范围的：电子邮件在一个区域内是唯一的，
+  // 但相同地址可能在另一个区域以独立账户形式存在（kitora.cn vs kitora.io）。
+  // 通过复合（email、region）键查找。
   const region = currentRegion();
   const existing = await prisma.user.findUnique({
     where: { email_region: { email, region } },
@@ -57,8 +56,8 @@ export async function signupAction(input: z.infer<typeof signupSchema>) {
   const passwordHash = await bcrypt.hash(password, 12);
   // 同事务建 user + personal org + OWNER membership —— 第一个请求进 dashboard
   // 时 requireActiveOrg() 即可命中已存在记录，无需 lazy creation。
-  // RFC 0005 — both User and Organization carry the deploy region; we
-  // stamp them inside the same transaction as the membership row.
+  // RFC 0005 — User 和 Organization 都携带部署区域；我们在与成员资格行
+  // 相同的事务中标记它们。
   const user = await prisma.$transaction(async (tx) => {
     const created = await tx.user.create({ data: { name, email, passwordHash, region } });
     const slug = `personal-${created.id.slice(-8)}`;
@@ -71,8 +70,8 @@ export async function signupAction(input: z.infer<typeof signupSchema>) {
     return created;
   });
 
-  // Fire the verification + welcome emails but don't block signup if either
-  // fails — the user can still log in and request a verification re-send.
+  // 发送验证 + 欢迎电子邮件，但若任一失败则不阻止注册 — 用户仍可登录
+  // 并请求重新发送验证。
   void sendVerificationEmail(user).catch((err) =>
     logger.error({ err, userId: user.id }, 'signup-verify-send-failed'),
   );
@@ -105,10 +104,10 @@ export async function loginAction(input: z.infer<typeof loginSchema>) {
     return { ok: true as const };
   } catch (error) {
     if (error instanceof AuthError) {
-      // RFC 0004 PR-2 — `SsoRequiredError` thrown from Credentials.authorize
-      // surfaces here as a CredentialsSignin with `code = 'sso_required'`.
-      // We surface a typed reason so the LoginForm can switch into the
-      // SSO-only rail without a hostile generic error toast.
+      // RFC 0004 PR-2 — 从 Credentials.authorize 抛出的 `SsoRequiredError`
+      // 在此表现为 code = 'sso_required' 的 CredentialsSignin。
+      // 我们呈现类型化原因，使 LoginForm 可切换到仅 SSO 轨道而无需
+      // 敌意的通用错误 toast。
       const code = (error as { code?: string }).code;
       if (code === 'sso_required') {
         return { ok: false as const, error: 'sso-required', email: parsed.data.email };
@@ -124,15 +123,14 @@ export async function logoutAction() {
 }
 
 // ---------------------------------------------------------------------------
-// Email verification
+// 电子邮件验证
 // ---------------------------------------------------------------------------
 
 /**
- * Request a (re-)send of the email verification link. Caller may be
- * unauthenticated (e.g. user lost the email) — we identify by email.
+ * 请求（重新）发送电子邮件验证链接。调用者可能未认证（例如用户丢失了电子邮件）—
+ * 我们按电子邮件标识。
  *
- * The response is intentionally generic: we do NOT reveal whether the email
- * exists or whether it's already verified.
+ * 响应故意通用：我们**不**透露电子邮件是否存在或已验证。
  */
 export async function requestEmailVerificationAction(input: { email: string }) {
   const parsed = emailSchema.safeParse(input);
@@ -161,8 +159,7 @@ export async function requestEmailVerificationAction(input: { email: string }) {
 }
 
 /**
- * Consume a verification token. Returns a discriminated result so the page
- * can render distinct copy for `expired` / `invalid`.
+ * 消费验证令牌。返回判别结果，使页面可为 `expired` / `invalid` 渲染不同副本。
  */
 export async function verifyEmailAction(input: { token: string }) {
   const parsed = tokenSchema.safeParse(input);
@@ -196,7 +193,7 @@ export async function verifyEmailAction(input: { token: string }) {
 }
 
 // ---------------------------------------------------------------------------
-// Password reset
+// 密码重置
 // ---------------------------------------------------------------------------
 
 export async function requestPasswordResetAction(input: { email: string }) {
@@ -214,8 +211,8 @@ export async function requestPasswordResetAction(input: { email: string }) {
   const user = await prisma.user.findUnique({
     where: { email_region: { email: parsed.data.email, region: currentRegion() } },
   });
-  // Only send if the user has a password set; OAuth-only users wouldn't know
-  // what to reset. Either way the response stays generic.
+  // 仅在用户设置了密码时发送；仅 OAuth 用户不知道要重置什么。
+  // 无论哪种情况，响应保持通用。
   if (user?.passwordHash) {
     try {
       await sendPasswordResetEmail(user);
@@ -249,13 +246,12 @@ export async function resetPasswordAction(input: z.infer<typeof resetPasswordSch
       where: { id: record.userId },
       data: {
         passwordHash,
-        // A successful reset proves email control — mark as verified too if
-        // it wasn't already.
+        // 成功的重置证明了电子邮件控制权 — 如果尚未标记，也将其标记为已验证。
         emailVerified: new Date(),
       },
     }),
     prisma.passwordResetToken.deleteMany({ where: { userId: record.userId } }),
-    // Optional hardening: invalidate any active sessions on password change.
+    // 可选加固：密码更改时使任何活跃会话失效。
     prisma.session.deleteMany({ where: { userId: record.userId } }),
   ]);
 

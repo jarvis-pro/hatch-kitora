@@ -13,25 +13,25 @@ import { validateEmailDomain } from '@/lib/sso/domain';
 import { encryptOidcSecret, generateScimToken } from '@/lib/sso/secret';
 
 /**
- * RFC 0004 PR-1 — IdentityProvider CRUD + SCIM token lifecycle.
+ * RFC 0004 PR-1 — IdentityProvider CRUD + SCIM token 生命周期。
  *
- * Authorization model:
+ * 授权模型：
  *
- *   - Every action resolves the org by `orgSlug` then checks membership.
- *   - OWNER / ADMIN can create / update non-`enforceForLogin` fields and
- *     manage SCIM tokens.
- *   - Only OWNER can flip `enforceForLogin = true` (locking the org behind
- *     the IdP) — that's a destructive enough decision to gate at the top
- *     role.
+ *   - 每个操作通过 `orgSlug` 解析 org，然后检查成员身份。
+ *   - OWNER / ADMIN 可以创建/更新非 `enforceForLogin` 字段并
+ *     管理 SCIM token。
+ *   - 仅 OWNER 可以翻转 `enforceForLogin = true`（将 org 锁定在
+ *     IdP 后面）— 这个决定足够具有破坏性，要在最高
+ *     角色处把守。
  *
- * Secret lifecycle:
+ * 密钥生命周期：
  *
- *   - OIDC `client_secret` plaintext flows in via `create` / `update` only.
- *     We HKDF + AES-GCM it with the just-created row id as salt before
- *     persisting. To rotate, the caller resubmits the secret in another
- *     update — there's no "decrypt and show me" path.
- *   - SCIM token plaintext is returned exactly once at `rotateScimToken`.
- *     The DB keeps `scimTokenHash` + `scimTokenPrefix` for lookups + UI.
+ *   - OIDC `client_secret` 明文仅通过 `create` / `update` 流入。
+ *     我们用刚创建的行 id 作为盐对其进行 HKDF + AES-GCM，然后
+ *     持久化。要轮换，调用者在另一个更新中重新提交密钥 —
+ *     没有"解密并显示给我"的路径。
+ *   - SCIM token 明文仅在 `rotateScimToken` 时返回一次。
+ *     DB 保留 `scimTokenHash` + `scimTokenPrefix` 用于查找 + UI。
  */
 
 const orgScopeSchema = z.object({
@@ -51,7 +51,7 @@ const baseShape = {
 const createSchema = orgScopeSchema.extend({
   protocol: protocolSchema,
   ...baseShape,
-  // SAML — full metadata XML
+  // SAML — 完整的 metadata XML
   samlMetadata: z
     .string()
     .max(64 * 1024)
@@ -76,7 +76,7 @@ const updateSchema = orgScopeSchema.extend({
     .optional(),
   oidcIssuer: z.string().url().max(512).nullable().optional(),
   oidcClientId: z.string().max(255).nullable().optional(),
-  oidcClientSecret: z.string().max(512).optional(), // null re-encrypts only if provided
+  oidcClientSecret: z.string().max(512).optional(), // 如果提供，则重新加密
   scimEnabled: z.boolean().optional(),
 });
 
@@ -161,7 +161,7 @@ export async function createIdentityProviderAction(
   const gate = await requireSsoManager(me.id, parsed.data.orgSlug);
   if (!gate) return { ok: false, error: 'forbidden' };
 
-  // OWNER-only flag.
+  // 仅限 OWNER 的标志。
   if (parsed.data.enforceForLogin && gate.role !== OrgRole.OWNER) {
     return { ok: false, error: 'enforce-owner-only' };
   }
@@ -174,9 +174,8 @@ export async function createIdentityProviderAction(
     return { ok: false, error: `invalid-domain:${domains.error}`, message: domains.bad };
   }
 
-  // Two-step write: insert the row to allocate the id, then encrypt the
-  // OIDC secret with that id as HKDF salt. Mirrors the `WebhookEndpoint`
-  // create flow (RFC 0003 PR-2).
+  // 两步写入：插入行以分配 id，然后用该 id 作为 HKDF 盐加密
+  // OIDC 密钥。镜像 `WebhookEndpoint` 创建流程（RFC 0003 PR-2）。
   const created = await prisma.identityProvider.create({
     data: {
       orgId: gate.orgId,
@@ -202,17 +201,17 @@ export async function createIdentityProviderAction(
     });
   }
 
-  // Push to Jackson. **Best-effort on create** — the row is born in draft
-  // (`enabledAt = null`), and login lookups already skip draft rows, so a
-  // sync failure here can't hand a half-configured IdP to a real user. The
-  // OWNER will see the row in the UI; flipping `enabledAt` later goes
-  // through the update path, which DOES treat sync failures as fatal — so
-  // a malformed metadata XML will surface there before it can break logins.
+  // 推送到 Jackson。**创建时尽力而为** — 行以草稿形式出生
+  // （`enabledAt = null`），登录查询已经跳过草稿行，所以
+  // 这里的同步失败无法将半配置的 IdP 交给真实用户。OWNER
+  // 将在 UI 中看到该行；稍后翻转 `enabledAt` 走更新路径，
+  // 该路径**确实**将同步失败视为致命 — 所以
+  // 格式错误的元数据 XML 会在破坏登录之前在那里浮出。
   //
-  // Why not roll back the prisma row on failure: bad SAML metadata is the
-  // single most common config mistake (typically a missing X509Certificate
-  // block), and forcing the user to re-fill the entire form just to retry
-  // is hostile UX. Keep the row, let them PATCH the bad field.
+  // 为什么不在失败时回滚 prisma 行：格式错误的 SAML 元数据是
+  // 最常见的配置错误（通常是缺少 X509Certificate
+  // 块），强制用户重新填充整个表单只是为了重试
+  // 是不友好的 UX。保留该行，让他们 PATCH 坏字段。
   try {
     if (parsed.data.protocol === SsoProtocol.SAML && parsed.data.samlMetadata) {
       await syncSamlConnection({
@@ -268,15 +267,15 @@ export async function updateIdentityProviderAction(
   const gate = await requireSsoManager(me.id, parsed.data.orgSlug);
   if (!gate) return { ok: false, error: 'forbidden' };
 
-  // Disambiguate the row before doing role checks against `enforceForLogin`.
+  // 在对 `enforceForLogin` 进行角色检查之前消除行的歧义。
   const existing = await prisma.identityProvider.findFirst({
     where: { id: parsed.data.id, orgId: gate.orgId },
     select: { id: true, protocol: true, enforceForLogin: true },
   });
   if (!existing) return { ok: false, error: 'not-found' };
 
-  // OWNER gate on the enforce flag, regardless of new vs old value (we
-  // also block ADMIN from *clearing* it — same magnitude of decision).
+  // OWNER 对 enforce 标志的把守，无论新旧值如何
+  //（我们也阻止 ADMIN 从*清除*它 — 同样量级的决定）。
   if (parsed.data.enforceForLogin !== undefined && gate.role !== OrgRole.OWNER) {
     return { ok: false, error: 'enforce-owner-only' };
   }
@@ -320,10 +319,10 @@ export async function updateIdentityProviderAction(
     data,
   });
 
-  // Re-sync Jackson if any field that affects the connection changed.
-  // Cheap: load the current row + re-push wholesale. Only the
-  // SAML metadata / OIDC fields actually matter to Jackson, but the upsert
-  // is idempotent so we just always send.
+  // 如果影响连接的任何字段发生了变化，重新同步 Jackson。
+  // 便宜：加载当前行 + 整体重新推送。只有
+  // SAML metadata / OIDC 字段对 Jackson 真正重要，但 upsert
+  // 是幂等的，所以我们只是总是发送。
   if (
     data.samlMetadata !== undefined ||
     data.oidcIssuer !== undefined ||
@@ -347,8 +346,8 @@ export async function updateIdentityProviderAction(
         });
       } else if (
         fresh.protocol === SsoProtocol.OIDC &&
-        // OIDC client secret was just provided in this PATCH (we never re-
-        // decrypt because rotation requires the caller to resubmit).
+        // OIDC client secret 刚在此 PATCH 中提供（我们永不重新
+        // 解密，因为轮换需要调用者重新提交）。
         parsed.data.oidcClientSecret &&
         fresh.oidcIssuer &&
         fresh.oidcClientId
@@ -397,8 +396,8 @@ export async function deleteIdentityProviderAction(
   const gate = await requireSsoManager(me.id, parsed.data.orgSlug);
   if (!gate) return { ok: false, error: 'forbidden' };
 
-  // Block delete while enforceForLogin is on — operator must explicitly
-  // unenforce first, otherwise we lock the org out of any password fallback.
+  // 在 enforceForLogin 开启时阻止删除 — 操作者必须显式
+  // 先取消强制，否则我们会将 org 锁定在任何密码回退之外。
   const existing = await prisma.identityProvider.findFirst({
     where: { id: parsed.data.id, orgId: gate.orgId },
     select: { id: true, enforceForLogin: true },
@@ -410,9 +409,9 @@ export async function deleteIdentityProviderAction(
 
   await prisma.identityProvider.delete({ where: { id: existing.id } });
 
-  // Best-effort Jackson cleanup. If the row was never synced (e.g., earlier
-  // sync failed), `removeConnections` is a no-op. We swallow errors so a
-  // dead Jackson connection doesn't block deleting the user-facing row.
+  // 尽力而为的 Jackson 清理。如果该行从未被同步（例如，之前
+  // 同步失败），`removeConnections` 是无操作。我们吞没错误，
+  // 所以死亡的 Jackson 连接不会阻止删除用户面对的行。
   try {
     await removeConnections(parsed.data.orgSlug);
   } catch (err) {
@@ -433,7 +432,7 @@ export async function deleteIdentityProviderAction(
 
 interface RotateScimResult {
   ok: true;
-  /** Plaintext SCIM token — show to caller exactly once, then drop. */
+  /** 明文 SCIM token — 向调用者显示一次，然后丢弃。 */
   token: string;
   prefix: string;
 }

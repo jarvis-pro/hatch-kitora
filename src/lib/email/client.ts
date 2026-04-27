@@ -1,7 +1,7 @@
-// NOTE: deliberately *not* `'server-only'` here — Playwright e2e tests and
-// tsx CLI scripts transitively import this via `runWebhookCronTick` and
-// other server flows. The transitive `resend` SDK + `@/env` imports are
-// Node-only, so accidental client bundling still fails loudly.
+// 注意：这里故意*没有* `'server-only'` — Playwright e2e 测试和
+// tsx CLI 脚本通过 `runWebhookCronTick` 和其他服务器流
+// 传递导入这个。传递的 `resend` SDK + `@/env` 导入是
+// Node 专用，所以意外的客户端打包仍会大声失败。
 import { Resend } from 'resend';
 
 import { env } from '@/env';

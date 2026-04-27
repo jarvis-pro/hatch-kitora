@@ -1,22 +1,22 @@
-// RFC 0005 — Multi-region runtime entrypoint.
+// RFC 0005 — 多区域运行时入口点。
 //
-// `currentRegion()` is the *only* sanctioned reader of the deploy region.
-// Resolution rules:
+// `currentRegion()` 是部署区域的*唯一*批准读取器。
+// 解析规则：
 //
-//   1. `KITORA_REGION` — the canonical, uppercase env var that lines up
-//      with the Prisma `Region` enum.
-//   2. legacy `REGION` (`'global' | 'cn'`) — accepted for one deprecation
-//      window (v0.6 + v0.7); a one-shot `logger.warn` fires the first
-//      time we fall back to it.
-//   3. neither set — default to `GLOBAL`. This is intentionally lenient
-//      for `pnpm dev` / unit tests; production deploys set the var via
-//      Dockerfile + compose (see `docs/deploy/global.md`).
+//   1. `KITORA_REGION` — 规范、大写的环境变量与 Prisma `Region`
+//      枚举对齐。
+//   2. 遗留 `REGION`（`'global' | 'cn'`） — 接受一个弃用
+//      窗口（v0.6 + v0.7）；一次 `logger.warn` 首次
+//      回退到它时触发。
+//   3. 都未设置 — 默认为 `GLOBAL`。这对于
+//      `pnpm dev` / 单元测试是有意宽松的；生产部署通过
+//      Dockerfile + compose 设置变量（见 `docs/deploy/global.md`）。
 //
-// We avoid `'server-only'` here even though every consumer is server-side:
-// Playwright e2e fixtures import `currentRegion()` transitively (through
-// `recordAudit` and `provisionSsoUser`) and the test runner is Node, not
-// the Next bundler. The transitive `@/lib/db` deps still keep the module
-// out of any client bundle in practice.
+// 我们即使每个使费者都是 server-side 也避免了 'server-only' —
+// Playwright e2e fixtures 可传递导入 `currentRegion()`（通过
+// `recordAudit` 和 `provisionSsoUser`）并且测试运行器是 Node，不是
+// Next 打包程序。可传递 `@/lib/db` deps 仍然把模块
+// 保留在实际上任何客户端包之外。
 
 import { Region } from '@prisma/client';
 
@@ -24,8 +24,8 @@ import { env } from '@/env';
 import { logger } from '@/lib/logger';
 
 /**
- * Map from the legacy lower-case `REGION` env var to the new `Region`
- * enum. Kept tight — only the values v0.5 actually shipped are accepted.
+ * 从遗留小写 `REGION` 环境变量到新 `Region`
+ * 枚举的映射。保持紧凑 — 仅接受 v0.5 实际运送的值。
  */
 const LEGACY_REGION_MAP = {
   global: Region.GLOBAL,
@@ -48,9 +48,9 @@ function emitLegacyWarning(value: string): void {
 }
 
 /**
- * The region this process serves. Determined at first call from
- * `KITORA_REGION` (preferred) or the legacy `REGION` (deprecated). The
- * result is cached: regions can never change while a process is running.
+ * 此进程服务的区域。在首次调用时从
+ * `KITORA_REGION`（首选）或遗留 `REGION`（已弃用）确定。结果
+ * 被缓存：区域在进程运行时永远无法更改。
  */
 let cached: Region | null = null;
 
@@ -74,15 +74,15 @@ export function currentRegion(): Region {
   return cached;
 }
 
-/** Convenience predicate — true iff this process serves the CN region. */
+/** 便利谓词 — 当且仅当此进程服务 CN 区域时为真。 */
 export function isCnRegion(): boolean {
   return currentRegion() === Region.CN;
 }
 
 /**
- * Test-only helper: forget the cached region so a subsequent call
- * re-reads the environment. Production code must never call this — the
- * region is supposed to be immutable for the life of the process.
+ * 仅供测试的助手：忘记缓存的区域以便后续调用
+ * 重新读取环境。生产代码绝不能调用这个 — 区域
+ * 应该对进程的生命周期不可变。
  *
  * @internal
  */

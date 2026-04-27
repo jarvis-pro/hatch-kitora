@@ -1,30 +1,29 @@
-// NOTE: deliberately *not* `'server-only'` here — Playwright e2e tests
-// drive `createDeviceSession` / `hashSid` in-process via the SSO flow's
-// `issueSsoSession` helper. The transitive `@/lib/db` (prisma) + `node:crypto`
-// imports already gate accidental client bundling.
+// 注意：故意*没有* `'server-only'` 标记 — Playwright e2e 测试通过 SSO 流的
+// `issueSsoSession` 辅助函数在进程内驱动 `createDeviceSession` / `hashSid`。
+// 传递的 `@/lib/db` (prisma) + `node:crypto` 导入已经阻止了意外的客户端打包。
 import { createHash, randomBytes } from 'node:crypto';
 
 import { prisma } from '@/lib/db';
 
 /**
- * Active sessions plumbing (RFC 0002 PR-1).
+ * 活跃会话管道（RFC 0002 PR-1）。
  *
- * Each issued JWT carries a random `sid` claim — sha256(sid) is the row key
- * in `DeviceSession`. We never store the raw sid; that lives only in the
- * signed JWT cookie.
+ * 每个签发的 JWT 都包含一个随机的 `sid` 声明 — sha256(sid) 是
+ * `DeviceSession` 中的行键。我们从不存储原始 sid；它仅存在于签名的
+ * JWT cookie 中。
  *
- * The Node-side jwt() callback in `src/lib/auth/index.ts` calls
- * `validateDeviceSession()` on every request — a missing or revoked row
- * forces a re-login. `signOutEverywhere()` and per-row revocation both flip
- * `revokedAt`, so a user can manage their fleet of devices from the UI.
+ * `src/lib/auth/index.ts` 中的 Node 侧 jwt() 回调在每个请求上调用
+ * `validateDeviceSession()` — 缺失或已撤销的行强制重新登录。
+ * `signOutEverywhere()` 和按行撤销都会翻转 `revokedAt`，因此用户可以
+ * 从 UI 管理他们的设备群。
  */
 
-/** Generate a fresh raw sid suitable for embedding in a JWT claim. */
+/** 生成一个新鲜的原始 sid 以嵌入到 JWT 声明中。 */
 export function generateSid(): string {
   return randomBytes(32).toString('base64url');
 }
 
-/** Hash a raw sid for DB storage / lookup. */
+/** 为数据库存储/查找散列化一个原始 sid。 */
 export function hashSid(rawSid: string): string {
   return createHash('sha256').update(rawSid).digest('hex');
 }
@@ -36,7 +35,7 @@ interface CreateInput {
   ip?: string | null;
 }
 
-/** Persist a new DeviceSession row at sign-in. Returns the row id. */
+/** 在登录时持久化一个新的 DeviceSession 行。返回行 ID。 */
 export async function createDeviceSession(input: CreateInput): Promise<string> {
   const row = await prisma.deviceSession.create({
     data: {
@@ -56,11 +55,11 @@ interface ValidateResult {
 }
 
 /**
- * Validate that a sid still maps to an unrevoked row. Called from the jwt()
- * callback on every request — keep it fast (one indexed unique lookup).
+ * 验证 sid 仍映射到未撤销的行。从每个请求的 jwt() 回调调用 —
+ * 保持速度快（一次索引唯一查找）。
  *
- * Also opportunistically refreshes `lastSeenAt` with a 60s throttle so the
- * sessions list stays meaningful without turning this row into a hot-spot.
+ * 还会以 60 秒的节流方式机会性地刷新 `lastSeenAt`，这样会话列表保持
+ * 有意义而不会使该行成为热点。
  */
 export async function validateDeviceSession(rawSid: string): Promise<ValidateResult> {
   const sidHash = hashSid(rawSid);
@@ -71,8 +70,8 @@ export async function validateDeviceSession(rawSid: string): Promise<ValidateRes
   if (!row || row.revokedAt) {
     return { ok: false, sidHash };
   }
-  // Fire-and-forget the throttled lastSeenAt update. Errors here must never
-  // block auth — at worst the UI shows a slightly stale timestamp.
+  // 异步触发节流的 lastSeenAt 更新。这里的错误不能阻止认证 —
+  // 最坏的情况是 UI 显示略微过时的时间戳。
   void touchDeviceSession(sidHash);
   return { ok: true, sidHash };
 }
@@ -80,9 +79,9 @@ export async function validateDeviceSession(rawSid: string): Promise<ValidateRes
 const TOUCH_THROTTLE_MS = 60_000;
 
 /**
- * Throttled `lastSeenAt` update. `updateMany` with a `lastSeenAt < cutoff`
- * filter makes this naturally idempotent under concurrency — only the
- * request that crosses the cutoff actually writes.
+ * 节流的 `lastSeenAt` 更新。带有 `lastSeenAt < cutoff` 过滤器的
+ * `updateMany` 在并发下自然是幂等的 — 只有超过截止日期的请求
+ * 才会实际写入。
  */
 async function touchDeviceSession(sidHash: string): Promise<void> {
   const cutoff = new Date(Date.now() - TOUCH_THROTTLE_MS);
@@ -92,11 +91,11 @@ async function touchDeviceSession(sidHash: string): Promise<void> {
       data: { lastSeenAt: new Date() },
     });
   } catch {
-    // Swallow — see comment above.
+    // 吞掉错误 — 见上面的注释。
   }
 }
 
-/** Revoke a single session by row id. Returns true if a row was actually revoked. */
+/** 通过行 ID 撤销单个会话。如果实际撤销了一行，返回 true。 */
 export async function revokeDeviceSessionById(userId: string, id: string): Promise<boolean> {
   const result = await prisma.deviceSession.updateMany({
     where: { id, userId, revokedAt: null },
@@ -106,9 +105,9 @@ export async function revokeDeviceSessionById(userId: string, id: string): Promi
 }
 
 /**
- * Revoke every active session for a user. Used by `signOutEverywhereAction`,
- * `changePasswordAction`, and the future account-deletion flow alongside the
- * `User.sessionVersion` bump.
+ * 撤销用户的每个活跃会话。由 `signOutEverywhereAction`、
+ * `changePasswordAction` 和未来的账户删除流与 `User.sessionVersion`
+ * 增量一起使用。
  */
 export async function revokeAllDeviceSessions(userId: string): Promise<number> {
   const result = await prisma.deviceSession.updateMany({
@@ -128,9 +127,8 @@ export interface DeviceSessionView {
 }
 
 /**
- * List a user's active sessions for the settings UI. The caller's own
- * sidHash is passed so we can flag the "current" row — the UI hides the
- * revoke button for it (no foot-guns).
+ * 列出用户的活跃会话供设置 UI 使用。调用者自己的 sidHash 被传递
+ * 以便我们可以标记"当前"行 — UI 为其隐藏撤销按钮（没有脚枪）。
  */
 export async function listActiveDeviceSessions(
   userId: string,

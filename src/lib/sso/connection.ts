@@ -1,30 +1,30 @@
-// NOTE: deliberately *not* `'server-only'` here — server actions, route
-// handlers, and (eventually) e2e fixtures all import this adapter. The
-// transitive `@boxyhq/saml-jackson` import is Node-only.
+// 注意：这里刻意*不*设置 'server-only' — server action、route
+// handler 和（最终）e2e fixtures 都导入此适配器。可传递的
+// `@boxyhq/saml-jackson` 导入仅是 Node。
 //
-// Thin sync layer between `IdentityProvider` rows and `@boxyhq/saml-jackson`
-// connections. Jackson stores its own copy of the parsed SAML metadata /
-// OIDC discovery payload in its `jackson_*` tables; we own the user-facing
-// row in `IdentityProvider` and re-push to Jackson on every write so the
-// two views never drift.
+// 在 `IdentityProvider` 行和 `@boxyhq/saml-jackson` 连接之间的
+// 薄同步层。Jackson 在其 `jackson_*` 表中存储已解析 SAML 元数据/
+// OIDC discovery 载荷的自己副本；我们在 `IdentityProvider` 中
+// 拥有面向用户的行并在每次写入时重新推送到 Jackson，所以两个
+// 视图永不漂移。
 //
-// Tenancy contract:
+// 租约合约：
 //
-//   tenant  = organization slug (UTF-8, URL-safe)
-//   product = JACKSON_PRODUCT (constant — single-product install)
+//   tenant  = organization slug（UTF-8，URL 安全）
+//   product = JACKSON_PRODUCT（常量 — 单产品安装）
 //
-// `getConnections({ tenant, product })` returns at most one SAML and one
-// OIDC connection — Jackson allows N per (tenant, product) but our
-// `IdentityProvider` `@@unique([orgId, protocol])` collapses that to two.
+// `getConnections({ tenant, product })` 最多返回一个 SAML 和一个
+// OIDC 连接 — Jackson 允许每个（tenant, product）有 N 个，但我们
+// `IdentityProvider` `@@unique([orgId, protocol])` 将其折叠为两个。
 
 import { env } from '@/env';
 
 import { JACKSON_PRODUCT, getConnectionController } from './jackson';
 
 export interface SamlSyncInput {
-  /** Organization slug — used as Jackson tenant. */
+  /** Organization slug — 用作 Jackson tenant。 */
   orgSlug: string;
-  /** Raw IdP metadata XML. */
+  /** 原始 IdP 元数据 XML。 */
   samlMetadata: string;
 }
 
@@ -32,8 +32,8 @@ export interface OidcSyncInput {
   orgSlug: string;
   oidcIssuer: string;
   oidcClientId: string;
-  /** Plaintext OIDC client_secret. Not persisted by Jackson in plaintext —
-   *  Jackson encrypts at rest with its own key. We re-pass on every update. */
+  /** 明文 OIDC client_secret。未由 Jackson 以明文形式持久化 —
+   *  Jackson 用其自己的密钥加密静态。我们在每次更新时重新传递。 */
   oidcClientSecret: string;
 }
 
@@ -42,16 +42,15 @@ function defaultRedirectUrl(): string {
 }
 
 function allowedRedirectUrls(): string {
-  // Jackson expects a JSON-encoded array of allowed redirect-URI prefixes.
-  // We only ever land back in our own app, so a single host is enough.
+  // Jackson 期望 JSON 编码的允许重定向 URI 前缀数组。
+  // 我们只在我们自己的应用中着陆，所以单个主机足够。
   return JSON.stringify([env.NEXT_PUBLIC_APP_URL]);
 }
 
 /**
- * Upsert a SAML connection. If a SAML row already exists for this tenant
- * we delete + recreate (Jackson's `updateSAMLConnection` requires the
- * pre-existing `clientID` + `clientSecret`, and we don't track those —
- * delete+create is idempotent and equally cheap).
+ * Upsert 一个 SAML 连接。如果此租户已存在 SAML 行，我们删除 + 重新创建
+ *（Jackson 的 `updateSAMLConnection` 需要预先存在的 `clientID` + `clientSecret`，
+ * 而我们不跟踪它们 — 删除+创建是幂等的并且同样便宜）。
  */
 export async function syncSamlConnection(input: SamlSyncInput): Promise<void> {
   const ctrl = await getConnectionController();
@@ -59,10 +58,10 @@ export async function syncSamlConnection(input: SamlSyncInput): Promise<void> {
     tenant: input.orgSlug,
     product: JACKSON_PRODUCT,
   });
-  // Drop any pre-existing SAML row(s) under the same tenant. Jackson keys
-  // by clientID; passing the same metadata twice would create duplicates.
-  // The (SAMLSSORecord | OIDCSSORecord) union has no shared `protocol`
-  // field — discriminate by which record-shape field is set.
+  // 删除同一租户下的任何预先存在的 SAML 行。Jackson 由 clientID
+  // 键入；传递相同元数据两次将创建重复项。(SAMLSSORecord | OIDCSSORecord)
+  // 联合没有共享 `protocol` 字段 — 通过设置哪个记录形状字段
+  // 来区分。
   for (const c of existing) {
     if ('idpMetadata' in c) {
       await ctrl.deleteConnections({
@@ -81,8 +80,8 @@ export async function syncSamlConnection(input: SamlSyncInput): Promise<void> {
 }
 
 /**
- * Upsert an OIDC connection. Same delete+recreate pattern as
- * `syncSamlConnection` for the same reason.
+ * Upsert 一个 OIDC 连接。与 `syncSamlConnection` 相同的删除+重新创建
+ * 模式出于相同的原因。
  */
 export async function syncOidcConnection(input: OidcSyncInput): Promise<void> {
   const ctrl = await getConnectionController();
@@ -91,7 +90,7 @@ export async function syncOidcConnection(input: OidcSyncInput): Promise<void> {
     product: JACKSON_PRODUCT,
   });
   for (const c of existing) {
-    // OIDC record carries `oidcProvider`; SAML record doesn't.
+    // OIDC 记录携带 `oidcProvider`；SAML 记录不。
     if ('oidcProvider' in c) {
       await ctrl.deleteConnections({
         clientID: c.clientID,
@@ -110,7 +109,7 @@ export async function syncOidcConnection(input: OidcSyncInput): Promise<void> {
   });
 }
 
-/** Remove every connection under a tenant — used on IdP delete + org delete. */
+/** 删除租户下的每个连接 — 在 IdP 删除 + org 删除时使用。 */
 export async function removeConnections(orgSlug: string): Promise<void> {
   const ctrl = await getConnectionController();
   const existing = await ctrl.getConnections({

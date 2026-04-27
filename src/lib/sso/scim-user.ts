@@ -1,6 +1,6 @@
-// Helpers for shaping a `(User, Membership)` pair into the SCIM 2.0 User
-// resource representation. Pure module — no `'server-only'` so route
-// handlers + tests can both import.
+// 将 `(User, Membership)` 对形状化为 SCIM 2.0 User
+// 资源表示的助手。纯模块 — 没有 'server-only' 所以路由
+// 处理程序 + 测试都可以导入。
 
 import { OrgRole } from '@prisma/client';
 
@@ -8,7 +8,7 @@ export interface ScimUserInput {
   id: string;
   email: string;
   name: string | null;
-  /** Membership-level fields. */
+  /** Membership 级别的字段。 */
   membershipId: string;
   role: OrgRole;
   deletedAt: Date | null;
@@ -16,12 +16,12 @@ export interface ScimUserInput {
 }
 
 /**
- * Project a User+Membership row into the SCIM `urn:…:User` shape. The
- * SCIM `id` is the **membership** id — not the user id — because SCIM is
- * scoped per-IdP / tenant, and the same User row can have memberships
- * across multiple orgs. Using membership id is what an IdP expects: when
- * IT removes the user from the Kitora app in Okta, SCIM DELETE arrives
- * with that id and we cleanly drop only that org's membership.
+ * 将 User+Membership 行投影到 SCIM `urn:…:User` 形状。
+ * SCIM `id` 是**成员资格** id — 不是用户 id — 因为 SCIM
+ * 按 IdP/租户范围，相同 User 行可以在多个 org 中有成员资格。
+ * 使用成员资格 id 是 IdP 期望的：当 IT 在 Okta 中从 Kitora 应用
+ * 删除用户时，SCIM DELETE 到达该 id，我们干净地仅删除那个 org
+ * 的成员资格。
  */
 export function toScimUser(row: ScimUserInput, orgSlug: string) {
   const [givenName, ...rest] = (row.name ?? '').split(/\s+/).filter(Boolean);
@@ -54,19 +54,19 @@ export function toScimUser(row: ScimUserInput, orgSlug: string) {
     meta: {
       resourceType: 'User',
       location: `/api/scim/v2/Users/${row.membershipId}`,
-      // We don't track per-row mtime separately from Membership.joinedAt;
-      // most IdPs accept either an unset or stale `lastModified` here.
+      // 我们不分别从 Membership.joinedAt 跟踪每行 mtime；
+      // 大多数 IdP 接受这里未设置或过期的 `lastModified`。
       lastModified: undefined,
     },
-    // Per-tenant convenience attributes — not part of the standard SCIM
-    // User schema but useful for IdP-side diagnostics.
+    // Per-tenant 便利属性 — 不是标准 SCIM User 模式的部分
+    // 但对 IdP 侧诊断有用。
     'urn:kitora:scim:1.0:tenant': { orgSlug },
   };
 }
 
 /**
- * The 3 static SCIM Groups expose stable ids — we use the role enum
- * lowercased so an IT operator can spot them at a glance.
+ * 3 个静态 SCIM Groups 公开稳定 id — 我们使用角色枚举
+ * 小写，以便 IT 操作者可以一眼识别。
  */
 export function groupIdForRole(role: OrgRole): string {
   return role.toLowerCase();
@@ -87,11 +87,11 @@ export function roleFromGroupId(groupId: string): OrgRole | null {
 }
 
 /**
- * Parse a SCIM `userName eq "value"` filter clause. Anything else is
- * unsupported in v1 — we log + 400 in the route handler.
+ * 解析 SCIM `userName eq "value"` 过滤器子句。其他一切在 v1 中
+ * 不受支持 — 我们在路由处理程序中记录 + 400。
  */
 export function parseUserNameEqFilter(filter: string): string | null {
-  // Match: userName eq "value"   /   userName eq 'value'   /   externalId eq "value"
+  // 匹配：userName eq "value"   /   userName eq 'value'   /   externalId eq "value"
   const m = filter.match(/^(userName|externalId)\s+eq\s+(['"])(.+)\2$/i);
   return m ? m[3]! : null;
 }

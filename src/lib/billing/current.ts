@@ -6,9 +6,9 @@ import { prisma } from '@/lib/db';
 import { getFreePlan, getPlanByPriceId, type Plan } from '@/lib/stripe/plans';
 
 export interface CurrentBilling {
-  /** Resolved plan — falls back to the Free plan if no live subscription. */
+  /** 已解决的计划 — 如果没有活跃订阅，则回落到免费计划。 */
   plan: Plan;
-  /** Live subscription row, or `null` if the user is on Free. */
+  /** 活跃订阅行，或如果用户在免费版上则为 `null`。 */
   subscription: Pick<
     Subscription,
     'id' | 'status' | 'stripePriceId' | 'currentPeriodEnd' | 'cancelAtPeriodEnd'
@@ -18,12 +18,11 @@ export interface CurrentBilling {
 const LIVE_STATUSES = ['ACTIVE', 'TRIALING', 'PAST_DUE'] as const;
 
 /**
- * Resolve the org's current plan + subscription. Picks the most recent
- * "live" subscription; if there is none, returns the Free plan.
+ * 解析组织的当前计划 + 订阅。选择最新的"活跃"订阅；
+ * 如果没有，返回免费计划。
  *
- * PR-2: switched to org-scoped lookup. Subscriptions are now created with
- * orgId during the dual-write window; rows older than the backfill have
- * orgId set as well (see scripts/migrate-personal-orgs.ts).
+ * PR-2：切换到组织范围的查找。订阅现在在双写窗口期间使用 orgId
+ * 创建；早于回填的行也设置了 orgId（请参见 scripts/migrate-personal-orgs.ts）。
  */
 export async function getCurrentBilling(orgId: string): Promise<CurrentBilling> {
   const subscription = await prisma.subscription.findFirst({

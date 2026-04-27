@@ -1,19 +1,16 @@
-// RFC 0007 PR-1 — Verify wrappers around `@simplewebauthn/server`.
+// RFC 0007 PR-1 — 围绕 `@simplewebauthn/server` 的验证包装器。
 //
-// Two verify operations:
+// 两个验证操作：
 //
-//   * verifyRegistration  — called by the `/register/verify` route after
-//                            navigator.credentials.create(). Produces a
-//                            new credential row's worth of data.
-//   * verifyAuthentication — called by `/authenticate/verify` after
-//                            navigator.credentials.get(). Re-verifies
-//                            against an existing stored credential and
-//                            updates its counter / lastUsedAt.
+//   * verifyRegistration  — 在 navigator.credentials.create() 后由
+//                           `/register/verify` 路由调用。生成新凭据行的数据。
+//   * verifyAuthentication — 在 navigator.credentials.get() 后由
+//                           `/authenticate/verify` 调用。根据现有
+//                           存储的凭据重新验证，更新其计数器 / lastUsedAt。
 //
-// Both wrap the SimpleWebAuthn helpers in the deploy-region-aware
-// origin / RP ID config so call sites don't need to import config.ts
-// themselves. Errors are normalised to `null`-on-fail so route handlers
-// can branch on truthy/falsy without try/catch sprawl.
+// 两者都将 SimpleWebAuthn 助手包装在部署区域感知的源 / RP ID 配置中，
+// 以便调用站点不需要自己导入 config.ts。错误被规范化为 `null`-on-fail，
+// 以便路由处理程序可以在 truthy/falsy 上分支，而不需要 try/catch 蔓延。
 
 import 'server-only';
 
@@ -24,12 +21,11 @@ import { logger } from '@/lib/logger';
 
 import { getOrigin, getRpId } from './config';
 
-// ─── Lazy SDK init ─────────────────────────────────────────────────────────
+// ─── 懒初始化 SDK ─────────────────────────────────────────────────────────
 //
-// SimpleWebAuthn ships ESM with `import { ... }` named exports; dynamic
-// import keeps the module out of edge bundles + makes upgrade-time
-// breakage easier to localise (RFC 0006 PR-3 wrestled with similar SDK
-// type drift on alipay-sdk / wechatpay-node-v3).
+// SimpleWebAuthn 使用 `import { ... }` 命名导出来传输 ESM；
+// 动态导入将模块保持在边缘包之外 + 使升级时的破坏更易于本地化
+// （RFC 0006 PR-3 在 alipay-sdk / wechatpay-node-v3 上处理类似的 SDK 类型漂移）。
 
 let _sdk: typeof SimpleWebAuthnServer | null = null;
 
@@ -39,11 +35,11 @@ async function getSdk(): Promise<typeof SimpleWebAuthnServer> {
   return _sdk;
 }
 
-// ─── Registration verification ─────────────────────────────────────────────
+// ─── 注册验证 ─────────────────────────────────────────────────────────
 
 export interface VerifyRegistrationInput {
   response: RegistrationResponseJSON;
-  /** Challenge minted at /register/options time, returned via `consumeChallenge`. */
+  /** 在 /register/options 时生成的质询，通过 `consumeChallenge` 返回。*/
   expectedChallenge: string;
 }
 
@@ -51,17 +47,17 @@ export interface VerifiedRegistration {
   credentialId: string;
   publicKey: Buffer;
   counter: number;
-  /** Authenticator-reported transports — empty array if none. */
+  /** 身份验证器报告的传输——如果没有则为空数组。*/
   transports: string[];
-  /** 'singleDevice' (device-bound) or 'multiDevice' (synced passkey). */
+  /** 'singleDevice'（设备绑定）或 'multiDevice'（同步密钥）。*/
   deviceType: 'singleDevice' | 'multiDevice';
-  /** AuthenticatorData BE flag — true iff the credential is cloud-backed. */
+  /** AuthenticatorData BE 标志——当且仅当凭据是云备份时为真。*/
   backedUp: boolean;
 }
 
 /**
- * Verify a registration response. Returns null on any failure so the
- * route handler can short-circuit with a 4xx without rethrowing.
+ * 验证注册响应。任何失败都返回 null，以便路由处理程序可以用 4xx
+ * 短路，而无需重新抛出。
  */
 export async function verifyRegistration(
   input: VerifyRegistrationInput,
@@ -73,8 +69,8 @@ export async function verifyRegistration(
       expectedChallenge: input.expectedChallenge,
       expectedOrigin: getOrigin(),
       expectedRPID: getRpId(),
-      // We don't pin attestation: 'none' is the default and we don't
-      // need certified-vendor restrictions for v1 (RFC 0007 §1).
+      // 我们不固定证明：'none' 是默认值，对于 v1，我们不需要
+      // 经认证的供应商限制（RFC 0007 §1）。
       requireUserVerification: false,
     });
 
@@ -98,12 +94,12 @@ export async function verifyRegistration(
   }
 }
 
-// ─── Authentication verification ────────────────────────────────────────────
+// ─── 身份验证验证 ────────────────────────────────────────────────────────────
 
 export interface VerifyAuthenticationInput {
   response: AuthenticationResponseJSON;
   expectedChallenge: string;
-  /** The stored credential row this assertion claims to be from. */
+  /** 此断言声称来自的存储凭据行。*/
   credential: {
     id: string; // base64url credentialId
     publicKey: Buffer;
@@ -113,26 +109,23 @@ export interface VerifyAuthenticationInput {
 }
 
 export interface VerifiedAuthentication {
-  /** Authenticator-reported new counter — caller persists it. */
+  /** 身份验证器报告的新计数器——调用方持久化它。*/
   newCounter: number;
 }
 
 /**
- * Verify an authentication response against a stored credential.
- * Returns null on any failure (signature mismatch, replay, expired
- * challenge, origin mismatch).
+ * 根据存储的凭据验证身份验证响应。任何失败都返回 null
+ * （签名不匹配、重放、过期质询、源不匹配）。
  */
 export async function verifyAuthentication(
   input: VerifyAuthenticationInput,
 ): Promise<VerifiedAuthentication | null> {
   const sdk = await getSdk();
   try {
-    // SimpleWebAuthn v13 declares `publicKey: Uint8Array<ArrayBuffer>`.
-    // Node's `Buffer` is technically `Uint8Array<ArrayBufferLike>` (which
-    // includes SharedArrayBuffer) — TS rejects the assignment under
-    // strict mode. Re-wrap into a plain Uint8Array<ArrayBuffer> by
-    // copying the underlying bytes; the .buffer of the new array is
-    // guaranteed to be a real ArrayBuffer.
+    // SimpleWebAuthn v13 声明 `publicKey: Uint8Array<ArrayBuffer>`。
+    // Node 的 `Buffer` 技术上是 `Uint8Array<ArrayBufferLike>`（包括 SharedArrayBuffer）
+    // ——在严格模式下 TS 拒绝分配。通过复制基础字节重新包装为
+    // 纯 Uint8Array<ArrayBuffer>；新数组的 .buffer 保证是真实的 ArrayBuffer。
     const publicKey = new Uint8Array(input.credential.publicKey);
 
     const result = await sdk.verifyAuthenticationResponse({

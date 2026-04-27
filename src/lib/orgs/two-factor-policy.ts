@@ -15,19 +15,19 @@ const toggleSchema = z.object({
 });
 
 /**
- * RFC 0002 PR-4 — toggle the org-wide "require 2FA for all members" switch.
+ * RFC 0002 PR-4 — 切换 org 级"要求所有成员使用 2FA"开关。
  *
- * Constraints:
- *   1. Caller must be OWNER of the named org.
- *   2. Caller must have 2FA enabled themselves before turning it on, or
- *      they'd lock themselves out on the next request (middleware would
- *      bounce them to /onboarding/2fa-required, but they couldn't toggle
- *      it back from there because they'd fail the same gate).
+ * 约束：
+ *   1. 调用者必须是命名 org 的 OWNER。
+ *   2. 在启用它之前，调用者必须自己启用 2FA，否则
+ *      他们会在下一个请求时将自己锁定（中间件会
+ *      将他们反弹到 /onboarding/2fa-required，但他们无法从那里切换
+ *      它回来，因为他们会失败同样的把守）。
  *
- * The toggle is *not* retroactive — existing members who don't have 2FA
- * are bumped to the onboarding page on their next request, but their
- * current pages keep working until then. New invitations carry a hint in
- * the email so they know to expect the requirement at sign-in.
+ * 该切换*不*具有追溯效果 — 没有 2FA 的现有成员
+ * 在他们的下一个请求中被提示到登录页面，但他们
+ * 的当前页面在那之前仍然有效。新邀请在
+ * 邮件中带有提示，所以他们知道在登录时会期望此要求。
  */
 export async function toggleOrgRequire2faAction(input: z.infer<typeof toggleSchema>) {
   const me = await requireUser();
@@ -48,8 +48,8 @@ export async function toggleOrgRequire2faAction(input: z.infer<typeof toggleSche
     return { ok: false as const, error: 'forbidden' as const };
   }
 
-  // Only check the caller's own 2FA when *enabling* — disabling never
-  // locks anyone out.
+  // 仅在*启用*时检查调用者自己的 2FA — 禁用永远不会
+  // 将任何人锁定。
   if (parsed.data.require2fa) {
     const fresh = await prisma.user.findUniqueOrThrow({
       where: { id: me.id },
@@ -81,12 +81,11 @@ export async function toggleOrgRequire2faAction(input: z.infer<typeof toggleSche
 }
 
 /**
- * RFC 0002 PR-4 — call from RSC pages / server actions that resolve an
- * active org to enforce the require2fa policy. Returns null when compliant,
- * or an "violation" descriptor that the caller should redirect to the
- * onboarding page with. We don't throw because RSC handlers like to handle
- * this with their own redirect helpers (and `redirect()` from `next/navigation`
- * throws a special token that's awkward to chain through).
+ * RFC 0002 PR-4 — 从解析 active org 的 RSC 页面/server action 调用
+ * 以执行 require2fa 策略。当符合时返回 null，或调用者应重定向到
+ * 登录页面的"violation"描述符。我们不抛出因为 RSC 处理程序喜欢用
+ * 他们自己的重定向助手处理这个（而来自 `next/navigation` 的 `redirect()`
+ * 抛出一个特殊 token 该 token 链接起来很尴尬）。
  */
 export async function checkOrg2faCompliance(): Promise<null | {
   violation: 'need-2fa';

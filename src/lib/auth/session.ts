@@ -10,8 +10,8 @@ import { auth } from './index';
 export const ACTIVE_ORG_COOKIE = 'kitora_active_org';
 
 /**
- * Require an authenticated session — throws if missing. Server actions / RSC
- * boundary helper; callers should redirect to /login when this throws.
+ * 需要一个认证会话 — 如果缺失则抛出。服务器操作 / RSC
+ * 边界辅助函数；当此抛出时，调用者应重定向到 /login。
  */
 export async function requireUser() {
   const session = await auth();
@@ -22,10 +22,9 @@ export async function requireUser() {
 }
 
 /**
- * Resolve the sha256(sid) of the caller's current device session, if any.
- * Returns `null` for legacy (pre-RFC-0002) JWTs that don't carry a sid —
- * such requests can still see the active sessions list, just without the
- * "current" badge.
+ * 解析调用者当前设备会话的 sha256(sid)（如果有的话）。
+ * 对于不携带 sid 的旧版（pre-RFC-0002）JWT 返回 `null` —
+ * 这类请求仍可以看到活跃会话列表，只是没有"当前"徽章。
  */
 export async function getCurrentSidHash(): Promise<string | null> {
   const session = await auth();
@@ -40,17 +39,17 @@ export interface ActiveOrg {
 }
 
 /**
- * Resolve the caller's active organization.
+ * 解析调用者的活跃组织。
  *
- * PR-3 contract:
- *   1. Read the `kitora_active_org` cookie. If it points to an org the user
- *      is a member of, return that.
- *   2. Otherwise (no cookie / stale cookie / org deleted), fall back to the
- *      user's Personal Org (the OWNER membership whose slug starts with
- *      `personal-`).
- *   3. If the user has no membership at all (e.g. an OAuth user the backfill
- *      never saw), lazily create their personal org. Idempotent via upsert,
- *      safe under concurrent requests.
+ * PR-3 契约：
+ *   1. 读取 `kitora_active_org` cookie。如果它指向用户
+ *      是成员的组织，返回该组织。
+ *   2. 否则（无 cookie / 陈旧 cookie / 组织已删除），
+ *      回落到用户的个人组织（OWNER 成员关系，其 slug
+ *      以 `personal-` 开头）。
+ *   3. 如果用户根本没有成员关系（例如回填从未看到的 OAuth
+ *      用户），延迟创建他们的个人组织。通过 upsert 幂等，
+ *      在并发请求下安全。
  */
 export async function requireActiveOrg(): Promise<ActiveOrg> {
   const sessionUser = await requireUser();
@@ -74,12 +73,12 @@ export async function requireActiveOrg(): Promise<ActiveOrg> {
         slug: cookieMembership.organization.slug,
       };
     }
-    // Cookie pointed at an org we no longer belong to (deleted / removed).
-    // Drop it; we'll fall through to the personal-org branch below.
+    // Cookie 指向我们不再属于的组织（已删除 / 被移除）。
+    // 删除它；我们将降至下面的个人组织分支。
   }
 
-  // Personal org is the canonical fallback — sorted by joinedAt to keep it
-  // stable across multiple memberships.
+  // 个人组织是规范的回落 — 按 joinedAt 排序以在
+  // 多个成员关系中保持其稳定。
   const personal = await prisma.membership.findFirst({
     where: { userId: sessionUser.id, role: OrgRole.OWNER },
     orderBy: { joinedAt: 'asc' },
@@ -97,9 +96,9 @@ export async function requireActiveOrg(): Promise<ActiveOrg> {
     };
   }
 
-  // OAuth-created user that the migration never saw — bootstrap their
-  // personal org now. Idempotent via upsert by slug; safe under concurrent
-  // requests (only one wins, the rest land on `update: {}`).
+  // OAuth 创建的用户，迁移从未看到 — 现在引导他们的
+  // 个人组织。通过 slug 的 upsert 幂等；在并发
+  // 请求下安全（只有一个赢，其余落在 `update: {}`）。
   return ensurePersonalOrg(sessionUser.id);
 }
 
@@ -134,7 +133,7 @@ async function ensurePersonalOrg(userId: string): Promise<ActiveOrg> {
   };
 }
 
-/** Personal-org lookup with no cookie / session involvement. */
+/** 无 cookie / 会话参与的个人组织查找。 */
 export async function getPersonalOrgIdForUser(userId: string): Promise<string | null> {
   const m = await prisma.membership.findFirst({
     where: { userId, role: OrgRole.OWNER },
@@ -144,7 +143,7 @@ export async function getPersonalOrgIdForUser(userId: string): Promise<string | 
   return m?.orgId ?? null;
 }
 
-/** List every org the user belongs to — used by the org switcher / /api/v1/me. */
+/** 列出用户所属的每个组织 — 由组织切换器 / /api/v1/me 使用。 */
 export async function listMyOrgs(userId: string) {
   return prisma.membership.findMany({
     where: { userId },

@@ -1,8 +1,8 @@
-// NOTE: deliberately *not* `'server-only'` here — Playwright e2e tests
-// import this transitively via `provisionSsoUser` (RFC 0004 PR-2) and
-// previously through cron-driven flows. The transitive `@/lib/db` (prisma)
-// + `@/lib/request` (next/headers) deps are Node-only, so accidental
-// client bundling still fails loudly.
+// 注意：故意**不是** `'server-only'` — Playwright e2e 测试
+// 通过 `provisionSsoUser`（RFC 0004 PR-2）传递导入此文件，
+// 之前通过 cron 驱动的流程。传递性 `@/lib/db`（prisma）
+// + `@/lib/request`（next/headers）依赖仅限 Node，所以意外的客户端
+// 捆绑仍会大声失败。
 import type { Prisma } from '@prisma/client';
 
 import { prisma } from '@/lib/db';
@@ -11,7 +11,7 @@ import { currentRegion } from '@/lib/region';
 import { getClientIp } from '@/lib/request';
 import { bridgeAuditToWebhook } from '@/lib/webhooks/from-audit';
 
-/** Canonical action codes — keep these stable; UI maps them to translated copy. */
+/** 规范操作码 — 保持这些稳定；UI 将其映射到翻译副本。 */
 export const AUDIT_ACTIONS = [
   'role.set',
   'account.password_changed',
@@ -26,26 +26,26 @@ export const AUDIT_ACTIONS = [
   'member.removed',
   'member.role_changed',
   'ownership.transferred',
-  // RFC 0002 PR-1 — Active Sessions
+  // RFC 0002 PR-1 — 活跃会话
   'session.revoked',
   // RFC 0002 PR-2 — 2FA
   '2fa.enabled',
   '2fa.disabled',
   '2fa.backup_regenerated',
-  // RFC 0002 PR-3 — Data export
+  // RFC 0002 PR-3 — 数据导出
   'account.export_requested',
   'org.export_requested',
-  // RFC 0002 PR-4 — Deletion grace period + Org 2FA enforcement
+  // RFC 0002 PR-4 — 删除宽限期 + Org 2FA 强制
   'account.deletion_scheduled',
   'account.deletion_cancelled',
   'org.2fa_required_changed',
-  // RFC 0003 PR-1 — Outbound webhooks
+  // RFC 0003 PR-1 — 出站 webhook
   'webhook.endpoint_created',
   'webhook.endpoint_updated',
   'webhook.endpoint_deleted',
   'webhook.secret_rotated',
   'webhook.endpoint_auto_disabled',
-  // RFC 0004 PR-1 — SSO (SAML + OIDC + SCIM)
+  // RFC 0004 PR-1 — SSO（SAML + OIDC + SCIM）
   'sso.idp_created',
   'sso.idp_updated',
   'sso.idp_deleted',
@@ -61,10 +61,10 @@ export const AUDIT_ACTIONS = [
   'webauthn.credential_removed',
   'webauthn.login_succeeded',
   'webauthn.tfa_succeeded',
-  // RFC 0008 PR-3 — Background jobs（admin manual 操作）
-  // 注意：runner 自己**不**为每个 DEAD_LETTER 写 audit —— 那是噪音、由
+  // RFC 0008 PR-3 — 后台任务（管理员手动操作）
+  // 注意：runner 自己**不**为每个 DEAD_LETTER 写审计 — 那是噪音、由
   // metrics + Sentry 已经覆盖；只在 admin /admin/jobs UI 上手动 cancel /
-  // retry 一行 DLQ 时写 audit（对应 PR-4）。
+  // retry 一行 DLQ 时写审计（对应 PR-4）。
   'job.cancelled',
   'job.retried',
 ] as const;
@@ -72,9 +72,9 @@ export const AUDIT_ACTIONS = [
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
 
 /**
- * `next-intl` rejects `.` in key segments because it parses dots as nesting.
- * We keep dotted action codes for readability in the DB and translate them
- * to underscore-form only when looking up message strings.
+ * `next-intl` 拒绝键段中的 `.`，因为它解析点为嵌套。
+ * 我们在数据库中保持点号操作码以保持可读性，仅在查找消息字符串时
+ * 将其转换为下划线形式。
  */
 export function auditActionToI18nKey(action: string): string {
   return action.replaceAll('.', '_');
@@ -83,10 +83,9 @@ export function auditActionToI18nKey(action: string): string {
 interface RecordAuditInput {
   actorId: string | null;
   /**
-   * Organization scope for this audit row. Pass the active org for tenant-
-   * scoped actions (billing changes, member updates, ...). Pass `null` for
-   * platform-level actions where the actor moves across orgs (platform
-   * admin role changes, system housekeeping).
+   * 此审计行的组织范围。为租户范围的操作传递活跃 org（计费变更、成员更新、...）。
+   * 为平台级操作传递 `null`，其中参与者跨 org 移动（平台管理员角色变更、
+   * 系统管理）。
    */
   orgId?: string | null;
   action: AuditAction;
@@ -95,9 +94,8 @@ interface RecordAuditInput {
 }
 
 /**
- * Append an audit log entry. Best-effort — failures are logged but never
- * thrown, so an audit-store outage cannot block the underlying business
- * action.
+ * 附加审计日志条目。 尽力而为 — 失败被记录但永不抛出，所以审计存储
+ * 中断无法阻止基础业务操作。
  */
 export async function recordAudit(input: RecordAuditInput): Promise<void> {
   try {
@@ -110,9 +108,8 @@ export async function recordAudit(input: RecordAuditInput): Promise<void> {
         target: input.target ?? null,
         metadata: input.metadata,
         ip: ip === 'unknown' ? null : ip,
-        // RFC 0005 — stamp the row with the deploy region. Callers never
-        // pass region in: a single process only ever serves one region,
-        // so any "override" would mean the call site is wrong.
+        // RFC 0005 — 用部署区域标记该行。调用者永不传递区域：
+        // 单个流程仅服务一个区域，所以任何"覆盖"意味着调用点错误。
         region: currentRegion(),
       },
     });
@@ -120,9 +117,8 @@ export async function recordAudit(input: RecordAuditInput): Promise<void> {
     logger.error({ err, action: input.action }, 'audit-write-failed');
   }
 
-  // RFC 0003 PR-2 — fan out to subscribed webhook endpoints. Wrapped in
-  // its own try so a webhook bookkeeping error never bubbles out of the
-  // audit write (the audit row itself succeeded above).
+  // RFC 0003 PR-2 — 扇出至订阅的 webhook 端点。包装在自己的 try 中
+  // 使 webhook 簿记错误永不从审计写冒出（审计行本身上面成功）。
   try {
     await bridgeAuditToWebhook({
       orgId: input.orgId ?? null,

@@ -1,23 +1,22 @@
-// NOTE: deliberately *not* `'server-only'` here — Playwright's e2e suite
-// imports `buildUserExport` directly to verify the file set + the
-// blacklist scrubber. The transitive `@/lib/db` (PrismaClient) dep already
-// makes accidental client bundling fail loudly, so the safety guarantee
-// is preserved without the import-time throw.
+// 注意：这里故意*没有* `'server-only'` — Playwright 的 e2e 套件
+// 直接导入 `buildUserExport` 来验证文件集 + 黑名单清理器。
+// 传递的 `@/lib/db` (PrismaClient) 依赖项已经使意外的客户端
+// 打包失败发声，因此安全保证在没有导入时抛出的情况下被保留。
 import { prisma } from '@/lib/db';
 
 import { makeZip } from './zip';
 
 /**
- * RFC 0002 PR-3 — build the GDPR data export zip.
+ * RFC 0002 PR-3 — 构建 GDPR 数据导出 zip。
  *
- * Two scopes (user / org). Both go through `MANIFEST_VERSION = '1.0'` so
- * future schema additions can be detected by tooling. Sensitive fields
- * are *never* written — see `assertSafePayload` for the blacklist.
+ * 两个范围（user / org）。两者都通过 `MANIFEST_VERSION = '1.0'` 进行，
+ * 以便工具可以检测到未来的模式添加。敏感字段*从不*被写入 —
+ * 请参阅 `assertSafePayload` 了解黑名单。
  *
- * Field policy:
+ * 字段策略：
  *   ✗ passwordHash, tokenHash, sidHash, encSecret, backupHashes
- *   ✗ Stripe customer / price / subscription IDs (replaced with plan slug)
- *   ✓ everything else the user already sees in the UI
+ *   ✗ Stripe customer / price / subscription IDs（用计划 slug 替换）
+ *   ✓ 用户已在 UI 中看到的所有其他内容
  */
 
 const MANIFEST_VERSION = '1.0';
@@ -87,7 +86,7 @@ export async function buildUserExport(userId: string): Promise<{
   const auditLogs = await prisma.auditLog.findMany({
     where: { actorId: userId },
     orderBy: { createdAt: 'desc' },
-    take: 5000, // hard cap so a noisy actor can't blow up the zip
+    take: 5000, // 硬盖，所以嘈杂的参与者不能吹爆 zip
     select: {
       id: true,
       action: true,
@@ -154,7 +153,7 @@ export async function buildUserExport(userId: string): Promise<{
     ),
     jsonFile(
       'api-tokens.json',
-      // Metadata only — never the hash, never the raw token.
+      // 仅元数据 — 从不散列，从不原始令牌。
       user.apiTokens.map((t) => ({
         id: t.id,
         name: t.name,
@@ -209,7 +208,7 @@ export async function buildOrgExport(orgId: string): Promise<{
           acceptedAt: true,
           revokedAt: true,
           createdAt: true,
-          // tokenHash is intentionally omitted — see assertSafePayload.
+          // tokenHash 被故意省略 — 请参阅 assertSafePayload。
         },
       },
       apiTokens: {
@@ -232,9 +231,9 @@ export async function buildOrgExport(orgId: string): Promise<{
           cancelAtPeriodEnd: true,
           createdAt: true,
           updatedAt: true,
-          // stripeSubscriptionId / stripePriceId omitted; we surface the
-          // plan SLUG via mapping but keep this PR pragmatic — leave
-          // priceId resolution to a future "billing context" pass.
+          // stripeSubscriptionId / stripePriceId 被省略；我们通过映射
+          // 展示计划 SLUG 但保持这个 PR 实用 —
+          // 将 priceId 解析留给未来的"账单上下文"传递。
         },
       },
     },
@@ -315,7 +314,7 @@ export async function buildOrgExport(orgId: string): Promise<{
   };
 }
 
-// ─── Helpers ────────────────────────────────────────────────────────────────
+// ─── 辅助函数 ────────────────────────────────────────────────────────────────
 
 function jsonFile(name: string, data: unknown): ZipFile {
   return { name, body: Buffer.from(JSON.stringify(data, null, 2), 'utf8') };
@@ -326,7 +325,7 @@ function textFile(name: string, body: string): ZipFile {
 }
 
 function stamp(): string {
-  // YYYYMMDD — UTC, deterministic.
+  // YYYYMMDD — UTC，确定性。
   const d = new Date();
   const y = d.getUTCFullYear();
   const m = String(d.getUTCMonth() + 1).padStart(2, '0');
@@ -335,9 +334,9 @@ function stamp(): string {
 }
 
 /**
- * Defense-in-depth blacklist scan. Even though we hand-pick fields above,
- * a future select-all regression could leak a hash. This grep over the
- * raw JSON catches the obvious culprits.
+ * 纵深防御黑名单扫描。即使我们在上面手选字段，
+ * 未来的 select-all 回归也可能泄露散列。
+ * 这个对原始 JSON 的 grep 捕获明显的嫌疑人。
  */
 const BLACKLIST = [
   'passwordHash',

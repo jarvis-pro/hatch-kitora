@@ -22,8 +22,8 @@ interface UserLike {
 }
 
 /**
- * Fire-and-forget welcome email. Delivery failures are swallowed (logged) —
- * a flaky mail provider must NOT block the signup flow.
+ * 异步发送欢迎邮件。传递失败被吞掉（记录） —
+ * 不稳定的邮件提供商不能阻止注册流程。
  */
 export async function sendWelcomeEmail(user: UserLike) {
   try {
@@ -38,9 +38,8 @@ export async function sendWelcomeEmail(user: UserLike) {
 }
 
 /**
- * Issue a fresh email-verification token for the user and send the verify
- * email. Old tokens for the same user are invalidated to keep the table small
- * and prevent replay across stale links.
+ * 为用户签发一个新鲜的邮箱验证令牌并发送验证邮件。
+ * 同一用户的旧令牌被撤销以保持表小并防止旧链接跨的重放。
  */
 export async function sendVerificationEmail(user: UserLike) {
   const raw = generateRawToken();
@@ -72,10 +71,10 @@ export async function sendVerificationEmail(user: UserLike) {
 }
 
 /**
- * RFC 0002 PR-2 — fire-and-forget alert sent right after 2FA enrollment is
- * confirmed. Acts as a tripwire if a hijacked session enables 2FA without
- * the real owner knowing. Failures are logged, never thrown — auth flow
- * must not block on mail provider hiccups.
+ * RFC 0002 PR-2 — 在确认 2FA 注册后立即发送的异步警告。
+ * 如果被劫持的会话在真正的所有者不知情的情况下启用 2FA，
+ * 则充当绊索。失败被记录，从不抛出 — 认证流不能
+ * 因邮件提供商故障而阻塞。
  */
 export async function sendTwoFactorEnabledEmail(user: UserLike) {
   try {
@@ -93,9 +92,9 @@ export async function sendTwoFactorEnabledEmail(user: UserLike) {
 }
 
 /**
- * RFC 0002 PR-2 — fire-and-forget alert sent whenever 2FA is removed (by
- * the user themselves or by an admin during recovery). Same swallow-on-fail
- * stance as the enabled email.
+ * RFC 0002 PR-2 — 无论何时移除 2FA 时发送的异步警告
+ * （由用户自己或管理员在恢复期间发送）。同启用邮件一样的
+ * 吞掉失败立场。
  */
 export async function sendTwoFactorDisabledEmail(user: UserLike, opts: { byAdmin?: boolean } = {}) {
   try {
@@ -114,9 +113,9 @@ export async function sendTwoFactorDisabledEmail(user: UserLike, opts: { byAdmin
 }
 
 /**
- * Issue a fresh password-reset token and send the reset email. Always returns
- * void — the caller should give a generic success message to the user (do NOT
- * leak whether the email exists in the system).
+ * 签发一个新鲜的密码重置令牌并发送重置邮件。总是返回
+ * void — 调用者应该给用户一个通用成功消息
+ * （不要泄露电子邮件是否存在于系统中）。
  */
 export async function sendPasswordResetEmail(user: UserLike) {
   const raw = generateRawToken();
@@ -148,10 +147,9 @@ export async function sendPasswordResetEmail(user: UserLike) {
 }
 
 /**
- * RFC 0002 PR-3 — fire-and-forget notification when the cron worker
- * finishes a data export. The download link goes through the auth-gated
- * route (`/api/exports/[jobId]/download`), so even if the email lands in
- * the wrong inbox the recipient still has to sign in to grab the file.
+ * RFC 0002 PR-3 — 当 cron 工作程序完成数据导出时发送的异步通知。
+ * 下载链接通过认证门控路由（`/api/exports/[jobId]/download`），
+ * 所以即使邮件送到了错误的收件箱，收件人仍需登录才能获取文件。
  */
 export async function sendDataExportReadyEmail(
   user: UserLike,
@@ -175,9 +173,9 @@ export async function sendDataExportReadyEmail(
 }
 
 /**
- * RFC 0002 PR-4 — sent when a user schedules account deletion. Acts as a
- * tripwire: if the recipient didn't request it, the link in the email
- * brings them straight back to /settings to cancel.
+ * RFC 0002 PR-4 — 当用户安排账户删除时发送。充当绊索：
+ * 如果收件人没有请求它，邮件中的链接会将他们直接带回
+ * /settings 以取消。
  */
 export async function sendAccountDeletionScheduledEmail(user: UserLike, scheduledFor: Date) {
   try {
@@ -187,9 +185,8 @@ export async function sendAccountDeletionScheduledEmail(user: UserLike, schedule
       react: AccountDeletionScheduledEmail({
         name: user.name ?? undefined,
         appUrl: env.NEXT_PUBLIC_APP_URL,
-        // ISO date string is unambiguous across locales — the email body
-        // can be improved later with locale-aware formatting if we add
-        // i18n to email templates.
+        // ISO 日期字符串跨区域是明确的 — 如果我们为电子邮件
+        // 模板添加 i18n，邮件正文可以稍后改进为区域感知格式。
         scheduledFor: scheduledFor.toISOString().slice(0, 10),
       }),
     });
@@ -199,9 +196,8 @@ export async function sendAccountDeletionScheduledEmail(user: UserLike, schedule
 }
 
 /**
- * RFC 0002 PR-4 — sent when a user cancels their scheduled deletion.
- * Confirms the in-app action by hitting the inbox too, useful as an
- * audit trail.
+ * RFC 0002 PR-4 — 当用户取消其计划删除时发送。
+ * 通过点击收件箱来确认应用内操作，有用于审计跟踪。
  */
 export async function sendAccountDeletionCancelledEmail(user: UserLike) {
   try {

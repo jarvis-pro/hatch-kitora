@@ -1,16 +1,16 @@
 import { OrgRole } from '@prisma/client';
 
 /**
- * Org-internal permission matrix — see RFC-0001 §4.
+ * Org 内部权限矩阵 — 见 RFC-0001 §4。
  *
- * Platform `User.role = ADMIN` is intentionally NOT considered here; it's a
- * separate axis enforced via `requireAdmin` in `src/lib/admin/actions.ts`.
- * Mixing the two would make the audit story muddy, so we keep them apart.
+ * Platform `User.role = ADMIN` 刻意不被考虑；它是一个
+ * 单独的轴，通过 `src/lib/admin/actions.ts` 中的 `requireAdmin` 执行。
+ * 混合两者会使审计故事浑浊，所以我们将它们分开。
  */
 
 export type OrgAction =
   | 'org.view'
-  | 'org.update' // rename / slug / image
+  | 'org.update' // 重命名 / slug / 图像
   | 'org.delete'
   | 'org.transfer_ownership'
   | 'member.invite'

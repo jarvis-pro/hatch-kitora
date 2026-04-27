@@ -25,11 +25,11 @@ const revokeSchema = z.object({ invitationId: z.string().min(1) });
 const acceptSchema = z.object({ token: z.string().min(20).max(128) });
 
 /**
- * ADMIN/OWNER: invite a new member to the active org.
+ * ADMIN/OWNER：邀请新成员加入活跃组织。
  *
- * Re-issuing an invitation to the same email replaces any pending row (we
- * can't keep two pending tokens for the same (orgId,email) under our unique
- * constraint, and re-sending should always be valid).
+ * 重新向同一邮箱发出邀请将替换任何待处理行（在我们的唯一约束下
+ * 我们不能为同一 (orgId,email) 保留两个待处理 token，重新发送
+ * 应该始终有效）。
  */
 export async function createInvitationAction(input: z.infer<typeof createSchema>) {
   const me = await requireActiveOrg();
@@ -40,14 +40,14 @@ export async function createInvitationAction(input: z.infer<typeof createSchema>
   if (!parsed.success) {
     return { ok: false as const, error: 'invalid-input' as const };
   }
-  // OWNER role is reserved for the founding member; transfer is a separate flow.
+  // OWNER 角色保留给创始成员；转移是单独的流程。
   if (parsed.data.role === OrgRole.OWNER) {
     return { ok: false as const, error: 'cannot-invite-owner' as const };
   }
 
   const email = parsed.data.email;
 
-  // Don't bother inviting someone already in this org.
+  // 不要浪费时间邀请已经在这个 org 中的人。
   const existingMember = await prisma.user.findFirst({
     where: {
       email,
@@ -59,11 +59,10 @@ export async function createInvitationAction(input: z.infer<typeof createSchema>
     return { ok: false as const, error: 'already-member' as const };
   }
 
-  // RFC 0005 §5 — cross-region invites are forbidden. If a User row with
-  // this email exists in another region, refuse to issue an invitation
-  // that they could never legitimately accept (the accept flow is also
-  // region-scoped). When no User row exists yet the invitation is fine —
-  // the recipient will sign up in this region first.
+  // RFC 0005 §5 — 禁止跨区域邀请。如果具有此邮箱的 User 行
+  // 存在于另一个区域，拒绝发出邀请，他们永远无法合法接受
+  //（接受流程也是区域范围的）。当尚无 User 行时邀请很好 —
+  // 收件人将首先在此区域注册。
   const region = currentRegion();
   const wrongRegionMatch = await prisma.user.findFirst({
     where: { email, region: { not: region } },
@@ -81,8 +80,8 @@ export async function createInvitationAction(input: z.infer<typeof createSchema>
   const tokenHash = hashToken(raw);
   const expires = expiresAt(INVITE_TTL_MS);
 
-  // Replace any prior invitation for the same (org,email) — keeps the unique
-  // constraint clean and means re-sends always work.
+  // 替换同一 (org,email) 的任何先前邀请 — 保持唯一约束清洁
+  // 并意味着重新发送始终有效。
   await prisma.$transaction([
     prisma.invitation.deleteMany({ where: { orgId: me.orgId, email } }),
     prisma.invitation.create({
@@ -117,7 +116,7 @@ export async function createInvitationAction(input: z.infer<typeof createSchema>
       raw,
     });
   } catch (err) {
-    // Email failure is non-fatal — admins can re-send from the members page.
+    // 邮件失败无关痛痒 — 管理员可以从成员页面重新发送。
     logger.error({ err, orgId: me.orgId, email }, 'invitation-email-failed-non-fatal');
   }
 
@@ -161,8 +160,8 @@ export async function revokeInvitationAction(input: z.infer<typeof revokeSchema>
 }
 
 /**
- * Token-bearer accepts the invitation. Caller must already be authenticated
- * with the email the invitation was sent to.
+ * Token 持有者接受邀请。调用者必须已使用邀请所发送到的
+ * 邮箱进行身份验证。
  */
 export async function acceptInvitationAction(input: z.infer<typeof acceptSchema>) {
   const sessionUser = await requireUser();
@@ -191,10 +190,10 @@ export async function acceptInvitationAction(input: z.infer<typeof acceptSchema>
   if (inv.expiresAt.getTime() < Date.now()) {
     return { ok: false as const, error: 'expired' as const };
   }
-  // RFC 0005 §5 — invitations are region-bound. Cross-region tokens
-  // shouldn't exist (the create path blocks them) and same-stack DBs
-  // can't store cross-region rows, but as belt-and-braces we explicitly
-  // reject anything pointing outside this region.
+  // RFC 0005 §5 — 邀请按区域绑定。跨区域 token
+  // 不应存在（创建路径阻止它们）并且相同堆栈的 DB
+  // 无法存储跨区域行，但作为保险我们显式
+  // 拒绝指向此区域之外的任何东西。
   if (inv.organization.region !== currentRegion()) {
     return { ok: false as const, error: 'cross-region' as const };
   }
@@ -214,7 +213,7 @@ export async function acceptInvitationAction(input: z.infer<typeof acceptSchema>
     prisma.membership.upsert({
       where: { orgId_userId: { orgId: inv.orgId, userId } },
       create: { orgId: inv.orgId, userId, role: inv.role },
-      // Re-accepting an old invite shouldn't downgrade an existing role.
+      // 重新接受旧邀请不应降级现有角色。
       update: {},
     }),
     prisma.invitation.update({

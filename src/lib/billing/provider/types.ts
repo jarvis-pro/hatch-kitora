@@ -1,15 +1,15 @@
 /**
- * Region-agnostic billing provider contract.
+ * 区域无关的账单提供商契约。
  *
- * One concrete implementation per payment rail: StripeProvider for global
- * markets (cards / Apple Pay / SEPA / etc.), AlipayProvider and
- * WechatPayProvider for mainland China. Pick one at boot via `getProvider()`
- * which reads `currentRegion()` (RFC 0005).
+ * 每个支付轨道一个具体实现：全球市场的 StripeProvider
+ * （卡 / Apple Pay / SEPA / 等），以及中国大陆的
+ * AlipayProvider 和 WechatPayProvider。通过 `getProvider()`
+ * 在启动时选择一个，该函数读取 `currentRegion()`（RFC 0005）。
  */
 export interface CheckoutInput {
-  /** Active organization the subscription belongs to (RFC-0001 multi-tenant). */
+  /** 订阅所属的活跃组织（RFC-0001 多租户）。 */
   orgId: string;
-  /** OWNER user — used only for Stripe customer cosmetics / portal contact. */
+  /** OWNER 用户 — 仅用于 Stripe 客户化妆品 / 门户联系。 */
   ownerUserId?: string;
   priceId: string;
   successUrl: string;
@@ -17,7 +17,7 @@ export interface CheckoutInput {
 }
 
 export interface CheckoutResult {
-  /** URL the browser should be sent to. */
+  /** 应将浏览器发送到的 URL。 */
   url: string;
 }
 
@@ -32,8 +32,8 @@ export interface PortalResult {
 
 export interface BillingProvider {
   readonly id: 'stripe' | 'alipay' | 'wechat';
-  /** Hosted-checkout URL builder. Throws on configuration errors. */
+  /** 托管结账 URL 构建器。在配置错误时抛出。 */
   createCheckoutSession(input: CheckoutInput): Promise<CheckoutResult>;
-  /** Self-service customer portal — manage payment methods, cancel, etc. */
+  /** 自助客户门户 — 管理支付方式、取消等。 */
   createPortalSession(input: PortalInput): Promise<PortalResult>;
 }

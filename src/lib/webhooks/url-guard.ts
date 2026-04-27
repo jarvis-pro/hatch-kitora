@@ -1,29 +1,28 @@
 /**
- * RFC 0003 PR-1 — SSRF guard for endpoint URLs.
+ * RFC 0003 PR-1 — 端点 URL 的 SSRF 防护。
  *
- * Protects the worker (PR-2) from being tricked into hitting internal
- * services. We do the validation at endpoint *creation* time so the user
- * gets an immediate, actionable error in the UI; the cron also re-checks
- * before each delivery (defense-in-depth, in case DNS changes).
+ * 保护 worker（PR-2）免受被欺骗以击中内部服务。
+ * 我们在端点*创建*时进行验证，以便用户在 UI 中获得
+ * 立即的、可操作的错误；cron 也在每次交付前重新检查
+ * （纵深防御，以防 DNS 更改）。
  *
- * Rules:
- *   1. Must be `https:` (or `http:` if explicitly allowed for localhost dev).
- *   2. Hostname must not resolve to / be a literal of:
- *        - private RFC1918 (10/8, 172.16/12, 192.168/16)
- *        - link-local (169.254/16) — incl. AWS / GCP metadata IPs
- *        - loopback (127/8)
- *        - IPv6 fc00::/7, ::1, fe80::/10
- *   3. Block known cloud metadata endpoints by name (best effort).
+ * 规则：
+ *   1. 必须是 `https:`（或 `http:` 如果为本地开发明确允许）。
+ *   2. 主机名不能解析为 / 是字面量：
+ *        - 私有 RFC1918（10/8、172.16/12、192.168/16）
+ *        - 链路本地（169.254/16）——包括 AWS / GCP 元数据 IP
+ *        - 环回（127/8）
+ *        - IPv6 fc00::/7、::1、fe80::/10
+ *   3. 按名称阻止已知的云元数据端点（最佳努力）。
  *
- * DNS resolution is intentionally skipped at validation time — DNS rebinding
- * is a real attack but doing a sync resolve here is fragile (DNS can change
- * between this check and delivery). The cron does its own resolve right
- * before the fetch.
+ * DNS 解析在验证时被故意跳过——DNS 重新绑定是真实的
+ * 攻击，但在这里进行同步解析很脆弱（DNS 可以在此检查和
+ * 交付之间更改）。cron 在 fetch 前进行自己的解析。
  */
 
 const BLOCKED_HOSTNAMES = new Set([
   'localhost',
-  // AWS / GCP / Azure / Hetzner metadata endpoints (well-known by hostname).
+  // AWS / GCP / Azure / Hetzner 元数据端点（按主机名众所周知）。
   'metadata.google.internal',
   'metadata.azure.com',
 ]);
@@ -76,7 +75,7 @@ export function validateWebhookUrl(
   if (BLOCKED_HOSTNAMES.has(host)) {
     return { ok: false, reason: 'blocked-host' };
   }
-  // IPv4 literal — apply CIDR ban list.
+  // IPv4 字面量——应用 CIDR 禁用列表。
   if (/^[\d.]+$/.test(host)) {
     for (const cidr of PRIVATE_IPV4_RANGES) {
       if (ipv4InCidr(host, cidr)) {
@@ -84,9 +83,9 @@ export function validateWebhookUrl(
       }
     }
   }
-  // IPv6 literal — block loopback (`[::1]`), link-local (`[fe80::*]`),
-  // ULA (`[fc00::*]` / `[fd00::*]`). Anything more sophisticated falls
-  // out of scope for v1; cron-side resolve will catch the rest.
+  // IPv6 字面量——阻止环回（`[::1]`）、链路本地（`[fe80::*]`）、
+  // ULA（`[fc00::*]` / `[fd00::*]`）。更复杂的任何东西超出
+  // v1 范围；cron 端解析将捕获其余的。
   if (host.startsWith('[') || host.includes(':')) {
     if (host === '::1' || host === '[::1]') return { ok: false, reason: 'blocked-host' };
     if (host.startsWith('fe80:') || host.startsWith('fc') || host.startsWith('fd')) {

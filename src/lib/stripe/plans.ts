@@ -6,8 +6,8 @@ export interface Plan {
   id: PlanId;
   name: string;
   priceId: string | null;
-  /** Display amount in **cents**, USD. Source of truth is Stripe — this is
-   *  used only for UI cards / approximate MRR. */
+  /** 显示金额（以**美分**为单位），美元。事实来源是 Stripe——这仅用于
+   *  UI 卡片 / 近似的月度经常性收入。*/
   amountCents: number;
   interval: 'month' | 'year' | null;
 }
@@ -35,7 +35,7 @@ export function getPlanByPriceId(priceId: string): Plan | undefined {
 }
 
 export function getFreePlan(): Plan {
-  // Always defined — see `plans` above.
+  // 总是已定义——见上面的 `plans`。
   // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
   return plans.find((p) => p.id === 'free')!;
 }

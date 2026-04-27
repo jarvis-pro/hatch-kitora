@@ -1,18 +1,17 @@
-// RFC 0006 PR-2 — Aliyun OSS storage provider for the CN region.
+// RFC 0006 PR-2 — CN 区域的 Aliyun OSS 存储提供者。
 //
-// Mirrors `S3Provider` in shape (PUT object, signed-URL download, best-
-// effort delete). The SDK (`ali-oss`, v6+) is loaded *lazily* on first
-// use so a GLOBAL-region process never imports the OSS client even
-// transitively.
+// 镜像 `S3Provider` 的形状（PUT 对象、签名 URL 下载、尽力
+// 删除）。SDK（`ali-oss`、v6+）在首次使用时*懒加载*，所以
+// GLOBAL 区域进程永不导入 OSS 客户端甚至可传递。
 //
-// Why ali-oss not the S3-compatible interface:
-//   - OSS's S3 compatibility layer has known quirks around v4 signing of
-//     PUT bodies > 1MB and around `x-oss-meta-*` header naming. Native
-//     SDK avoids those gotchas.
-//   - First-class CN region endpoints (`oss-cn-shanghai-internal.aliyuncs
-//     .com` for ACK→OSS VPC traffic) only resolve cleanly through ali-oss.
+// 为什么 ali-oss 而不是 S3 兼容接口：
+//   - OSS 的 S3 兼容层在 v4 签名 PUT 体 > 1MB 和
+//     `x-oss-meta-*` 头命名上有已知问题。原生 SDK 避免
+//     那些陷阱。
+//   - 一流的 CN 区域端点（`oss-cn-shanghai-internal.aliyuncs
+//     .com` 用于 ACK→OSS VPC 流量）仅通过 ali-oss 清晰解析。
 //
-// Lazy SDK init parallels the Alipay / WeChat Pay providers in PR-3.
+// 懒 SDK 初始化平行 PR-3 中的 Alipay / WeChat Pay 提供者。
 
 import 'server-only';
 
@@ -21,11 +20,11 @@ import { logger } from '@/lib/logger';
 
 import type { StorageProvider } from './types';
 
-// ─── SDK shape (minimal local view) ────────────────────────────────────────
+// ─── SDK 形状（最小本地视图）────────────────────────────────────────
 //
-// ali-oss publishes types but they drift across minor versions. We model
-// only the surface we actually invoke; the dynamic import casts through
-// `unknown` so a future SDK upgrade can't break our typecheck.
+// ali-oss 发布类型但它们在小版本间漂移。我们仅建模
+// 我们实际调用的表面；动态导入通过 `unknown` 强制转换
+// 所以未来 SDK 升级无法破坏我们的类型检查。
 
 interface OssClientLike {
   put(
@@ -34,7 +33,7 @@ interface OssClientLike {
     options?: { headers?: Record<string, string>; mime?: string },
   ): Promise<{ name: string; res: { status: number } }>;
 
-  /** Synchronous signed-URL builder. */
+  /** 同步签名 URL 构建器。 */
   signatureUrl(key: string, options: { expires: number; method?: 'GET' | 'PUT' }): string;
 
   delete(key: string): Promise<{ res: { status: number } }>;
@@ -45,11 +44,11 @@ interface OssConstructorOptions {
   accessKeySecret: string;
   region: string;
   bucket: string;
-  /** Override endpoint (e.g. internal VPC endpoint). */
+  /** 覆盖端点（例如内部 VPC 端点）。 */
   endpoint?: string;
-  /** Force HTTPS. */
+  /** 强制 HTTPS。 */
   secure: true;
-  /** v4 signature is the only one OSS still recommends as of 2026. */
+  /** v4 签名是截至 2026 OSS 仍推荐的唯一。 */
   authorizationV4: true;
 }
 
@@ -65,15 +64,15 @@ async function getClient(): Promise<OssClientLike> {
     !env.ALIYUN_OSS_REGION
   ) {
     throw new Error(
-      'aliyun-oss-not-configured: ALIYUN_ACCESS_KEY_ID / ALIYUN_ACCESS_KEY_SECRET / ALIYUN_OSS_BUCKET / ALIYUN_OSS_REGION required',
+      'aliyun-oss-not-configured: ALIYUN_ACCESS_KEY_ID / ALIYUN_ACCESS_KEY_SECRET / ALIYUN_OSS_BUCKET / ALIYUN_OSS_REGION 必需',
     );
   }
 
   const mod = await import('ali-oss');
-  // ali-oss is a CJS module — `default` is the constructor in ESM-interop
-  // bundlers, the module itself is the constructor under raw CJS. Accept
-  // both, cast through `unknown` to stay insulated from SDK type drift
-  // (cf. RFC 0006 PR-3 wechat.ts wrestle).
+  // ali-oss 是一个 CJS 模块 — `default` 在 ESM 交互中是构造函数
+  // 打包程序，模块本身在原始 CJS 下是构造函数。接受
+  // 两者，通过 `unknown` 强制转换以保持与 SDK 类型漂移绝缘
+  //（cf. RFC 0006 PR-3 wechat.ts 角力）。
   const Ctor = ((mod as unknown as { default?: new (cfg: OssConstructorOptions) => OssClientLike })
     .default ?? (mod as unknown as new (cfg: OssConstructorOptions) => OssClientLike)) as new (
     cfg: OssConstructorOptions,
@@ -92,20 +91,20 @@ async function getClient(): Promise<OssClientLike> {
   return _client;
 }
 
-// ─── Helpers ───────────────────────────────────────────────────────────────
+// ─── 助手 ───────────────────────────────────────────────────────────────
 
 /**
- * Mirror `S3Provider`'s key sanitisation: strip directory components and
- * suspicious characters so callers can pass arbitrary `suggestedKey`s
- * without escaping the bucket prefix.
+ * 镜像 `S3Provider` 的密钥净化：删除目录组件和
+ * 可疑字符，以便调用者可以传递任意 `suggestedKey`
+ * 而不逃离桶前缀。
  */
 function sanitizeKey(suggestedKey: string): string {
   const basename = suggestedKey.split('/').pop() ?? suggestedKey;
-  // Allow alnum, dash, dot, underscore. Replace anything else with '-'.
+  // 允许字数、dash、dot、underscore。将其他任何替换为 '-'。
   return basename.replace(/[^A-Za-z0-9._-]/g, '-');
 }
 
-// ─── Provider implementation ───────────────────────────────────────────────
+// ─── 提供者实现 ───────────────────────────────────────────────────
 
 export class AliyunOssProvider implements StorageProvider {
   async put({
@@ -121,9 +120,9 @@ export class AliyunOssProvider implements StorageProvider {
     const client = await getClient();
     const result = await client.put(key, body, {
       mime: contentType,
-      // OSS-side server encryption is on by default at the bucket level
-      // (RFC 0006 §4.5). `x-oss-server-side-encryption` header forces it
-      // even if a future bucket admin disables the default.
+      // OSS 侧服务器加密在桶级别默认是开启的
+      //（RFC 0006 §4.5）。`x-oss-server-side-encryption` 头强制它
+      // 即使未来桶管理员禁用默认。
       headers: { 'x-oss-server-side-encryption': 'AES256' },
     });
     if (result.res.status !== 200) {
@@ -147,8 +146,8 @@ export class AliyunOssProvider implements StorageProvider {
     try {
       await client.delete(key);
     } catch (error) {
-      // Best-effort: 404s on a missing object are fine, surface other
-      // errors for the sweeper's audit log.
+      // 尽力而为：缺失对象上的 404 没问题，为清扫器的审计日志
+      // 浮出其他错误。
       logger.warn({ err: error, key }, 'aliyun-oss-delete-failed');
     }
   }

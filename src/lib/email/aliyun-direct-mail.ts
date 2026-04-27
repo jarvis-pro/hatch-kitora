@@ -1,41 +1,41 @@
-// RFC 0006 PR-2 — Aliyun DirectMail email provider for the CN region.
+// RFC 0006 PR-2 — CN 区域的阿里云 DirectMail 电子邮件提供商。
 //
-// Wraps `@alicloud/dm20151123` (modular Aliyun OpenAPI SDK). v1 only
-// implements `SingleSendMail` — covers ≤ 100 recipients per call which
-// is enough for our auth / billing / org-invitation flows.
+// 包装 `@alicloud/dm20151123`（模块化阿里云 OpenAPI SDK）。v1 仅
+// 实现 `SingleSendMail` — 每个调用最多覆盖 100 个收件人，
+// 足以满足我们的认证/账单/组织邀请流。
 //
-// SDK is loaded lazily so a GLOBAL-region process never touches it.
-// Local interface mirrors only the surface we invoke; cast through
-// `unknown` keeps us insulated from minor-version type drift (same
-// rationale as `aliyun-oss.ts` and the PR-3 WeChat wrapper).
+// SDK 延迟加载，以便 GLOBAL 区域进程从不接触它。
+// 本地接口仅镜像我们调用的表面；通过 `unknown` 投射
+// 使我们对次要版本类型漂移绝缘（与 `aliyun-oss.ts` 和
+// PR-3 WeChat 包装器相同的理由）。
 
-// Deliberately *not* `'server-only'` here — `sendEmail()` is the public
-// API and inherits the same e2e + tsx-CLI compatibility constraint as
-// `email/send.ts` documents. Transitively the alibaba SDKs are Node-only,
-// so accidental client bundling still fails loudly.
+// 这里故意*没有* `'server-only'` — `sendEmail()` 是公共
+// API 并继承与 `email/send.ts` 文档相同的 e2e + tsx-CLI 兼容性约束。
+// 传递地阿里巴巴 SDK 仅 Node 专用，所以意外的客户端
+// 打包仍会大声失败。
 
 import { env } from '@/env';
 import { logger } from '@/lib/logger';
 
-// ─── SDK shape (minimal local view) ────────────────────────────────────────
+// ─── SDK 形状（最小本地视图） ────────────────────────────────────────
 
 interface DmClientLike {
   singleSendMail(req: SingleSendMailRequest): Promise<SingleSendMailResponse>;
 }
 
 interface SingleSendMailRequest {
-  /** Verified sender address (e.g. `noreply@mail.kitora.cn`). */
+  /** 已验证的发件人地址（例如 `noreply@mail.kitora.cn`）。 */
   accountName: string;
-  /** 0 = use random Aliyun-assigned envelope-from, 1 = use accountName. */
+  /** 0 = 使用随机阿里云分配的信封发件人，1 = 使用 accountName。 */
   addressType: 0 | 1;
-  /** 1 = receipts go back to accountName, 0 = receipts dropped. */
+  /** 1 = 收据回到 accountName，0 = 收据已删除。 */
   replyToAddress: 0 | 1;
-  /** Comma-separated list, max 100 addresses. */
+  /** 逗号分隔列表，最多 100 个地址。 */
   toAddress: string;
   subject: string;
   htmlBody?: string;
   textBody?: string;
-  /** Display name shown in the From header. */
+  /** 在 From 标头中显示的显示名称。 */
   fromAlias?: string;
 }
 
@@ -49,7 +49,7 @@ interface DmConfigLike {
   endpoint: string;
 }
 
-// ─── Lazy SDK init ─────────────────────────────────────────────────────────
+// ─── 延迟 SDK 初始化 ─────────────────────────────────────────────────────────
 
 let _client: DmClientLike | null = null;
 
@@ -90,21 +90,21 @@ async function getClient(): Promise<DmClientLike> {
   return _client;
 }
 
-// ─── Public send API ────────────────────────────────────────────────────────
+// ─── 公共发送 API ────────────────────────────────────────────────────────
 
 export interface AliyunDmSendParams {
   to: string | string[];
   subject: string;
   html: string;
   text: string;
-  /** Display name in the From header. Falls back to `Kitora`. */
+  /** From 标头中的显示名称。回落到 `Kitora`。 */
   fromAlias?: string;
 }
 
 /**
- * Send a transactional email via Aliyun DirectMail. Throws on SDK error
- * after a single retry on 5xx (DirectMail is generally fine for first-
- * attempt, but the SLB sometimes flakes during account region failover).
+ * 通过阿里云 DirectMail 发送事务性电子邮件。在 5xx 上单次重试后
+ * 在 SDK 错误时抛出（DirectMail 通常对首次尝试没问题，
+ * 但 SLB 有时在账户区域故障转移期间出现故障）。
  */
 export async function sendAliyunDirectMail(
   params: AliyunDmSendParams,

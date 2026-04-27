@@ -1,19 +1,16 @@
-// RFC 0007 PR-3 — Server actions for the /login/2fa Passkey challenge.
+// RFC 0007 PR-3 — /login/2fa Passkey 挑战的服务器操作。
 //
-// Symmetric with `verifyTfaForCurrentSessionAction` (TOTP path) in
-// `src/lib/account/two-factor.ts`: the user is already authenticated
-// against their password but `tfa_pending = true`; passing a Passkey
-// challenge clears the flag the same way a correct TOTP code does.
+// 与 `src/lib/account/two-factor.ts` 中的 `verifyTfaForCurrentSessionAction`（TOTP 路径）对称：
+// 用户已经通过密码认证但 `tfa_pending = true`；通过 Passkey 挑战清空标志的方式与
+// 正确的 TOTP 代码相同。
 //
-// Two actions:
+// 两个操作：
 //
-//   * getPasskeyChallengeAction() — generates `PublicKeyCredentialRequestOptions`
-//     for the current user (allowCredentials = their stored credentials)
-//     and persists the challenge.
-//   * verifyPasskeyForCurrentSessionAction(response) — verifies the
-//     assertion against a stored credential, bumps counter / lastUsedAt,
-//     calls updateAuthSession({ tfa: 'verified' }) to flip the JWT, and
-//     records an audit row.
+//   * getPasskeyChallengeAction() — 为当前用户生成 `PublicKeyCredentialRequestOptions`
+//     （allowCredentials = 其存储的凭证）并持久化挑战。
+//   * verifyPasskeyForCurrentSessionAction(response) — 验证断言对照存储的凭证，
+//     提升计数器 / lastUsedAt，调用 updateAuthSession({ tfa: 'verified' }) 翻转 JWT，
+//     并记录审计行。
 
 'use server';
 
@@ -31,19 +28,18 @@ import { getRpId } from '@/lib/webauthn/config';
 import { verifyAuthentication } from '@/lib/webauthn/verify';
 
 const verifySchema = z.object({
-  /** Verbatim AuthenticationResponseJSON from `startAuthentication()`. */
+  /** 来自 `startAuthentication()` 的逐字 AuthenticationResponseJSON。 */
   response: z.unknown(),
 });
 
 /**
- * Step 1 of the 2FA-challenge passkey ceremony.
+ * 2FA 挑战 passkey 仪式的第 1 步。
  *
- * Returns the SDK-issued options envelope. Side effects:
- *   * Persists `options.challenge` on `User.webauthnChallenge` for verify
- *     to cross-check.
- *   * `allowCredentials` filtered to the user's existing credentials so
- *     the browser only prompts for one of those (not arbitrary discoverable
- *     keys — that's the PR-4 passwordless path).
+ * 返回 SDK 发行的选项信封。副作用：
+ *   * 在 `User.webauthnChallenge` 上持久化 `options.challenge` 以供验证
+ *     交叉检查。
+ *   * `allowCredentials` 过滤到用户的现有凭证，以便浏览器仅提示其中一个
+ *     （而非任意可发现的密钥 — 那是 PR-4 无密码路径）。
  */
 export async function getPasskeyChallengeAction() {
   const me = await requireUser().catch(() => null);
@@ -80,11 +76,11 @@ export async function getPasskeyChallengeAction() {
 }
 
 /**
- * Step 2 of the 2FA-challenge passkey ceremony.
+ * 2FA 挑战 passkey 仪式的第 2 步。
  *
- * Verifies the SDK assertion against a stored credential, then flips the
- * JWT's `tfa_pending` to false via `updateAuthSession({ tfa: 'verified' })`.
- * Symmetric with the TOTP path (RFC 0002 PR-2 §verifyTfaForCurrentSessionAction).
+ * 验证 SDK 断言对照存储的凭证，然后通过 `updateAuthSession({ tfa: 'verified' })`
+ * 翻转 JWT 的 `tfa_pending` 为 false。与 TOTP 路径对称
+ * （RFC 0002 PR-2 §verifyTfaForCurrentSessionAction）。
  */
 export async function verifyPasskeyForCurrentSessionAction(input: z.infer<typeof verifySchema>) {
   const me = await requireUser().catch(() => null);
@@ -101,7 +97,7 @@ export async function verifyPasskeyForCurrentSessionAction(input: z.infer<typeof
     return { ok: false as const, error: 'challenge-expired' as const };
   }
 
-  // The assertion's `id` field is the credentialId — look it up.
+  // 断言的 `id` 字段是 credentialId — 查找它。
   const response = parsed.data.response as AuthenticationResponseJSON;
   if (typeof response?.id !== 'string') {
     return { ok: false as const, error: 'invalid-input' as const };
@@ -142,7 +138,7 @@ export async function verifyPasskeyForCurrentSessionAction(input: z.infer<typeof
     data: { counter: verified.newCounter, lastUsedAt: new Date() },
   });
 
-  // Mirror TOTP success path: flip the JWT's tfa_pending flag.
+  // 镜像 TOTP 成功路径：翻转 JWT 的 tfa_pending 标志。
   await updateAuthSession({ tfa: 'verified' } as unknown as Parameters<
     typeof updateAuthSession
   >[0]).catch(() => {});

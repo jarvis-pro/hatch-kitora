@@ -7,12 +7,11 @@ import { prisma } from '@/lib/db';
 import { stripe } from './client';
 
 /**
- * Returns the Stripe customer id for an organization, creating one if
- * needed.
+ * 返回组织的 Stripe 客户 ID，如果需要则创建一个。
  *
- * PR-4 contract: `Organization.stripeCustomerId` is the single source of
- * truth. We look up the OWNER membership only to grab a contact email/name
- * for the new Stripe customer (cosmetic — the canonical owner is the org).
+ * PR-4 契约：`Organization.stripeCustomerId` 是单一事实来源。
+ * 我们只查找 OWNER 成员资格来获取新 Stripe 客户的联系电子邮件/名称
+ *（仅供显示——规范的所有者是组织本身）。
  */
 export async function getOrCreateStripeCustomerId(orgId: string): Promise<string> {
   const org = await prisma.organization.findUnique({

@@ -18,7 +18,7 @@ const resetTfaSchema = z.object({
   userId: z.string().min(1),
 });
 
-/** Require ADMIN session — throws (caller should never reach unauthorized). */
+/** 需要 ADMIN 会话 — 抛出异常（调用者永远不应该到达未授权）。 */
 async function requireAdmin() {
   const session = await auth();
   if (!session?.user || session.user.role !== 'ADMIN') {
@@ -35,7 +35,7 @@ export async function setUserRoleAction(input: z.infer<typeof setRoleSchema>) {
     return { ok: false as const, error: 'invalid-input' as const };
   }
 
-  // Prevent admins from accidentally demoting themselves.
+  // 防止管理员意外降级自己。
   if (parsed.data.userId === me.id && parsed.data.role !== 'ADMIN') {
     return { ok: false as const, error: 'self-demote' as const };
   }
@@ -49,8 +49,8 @@ export async function setUserRoleAction(input: z.infer<typeof setRoleSchema>) {
     { actor: me.id, target: parsed.data.userId, role: parsed.data.role },
     'admin-set-user-role',
   );
-  // Platform-level action — actor moves across orgs. orgId stays null per
-  // RFC-0001 §4 ("global / platform admin actions allow orgId = null").
+  // 平台级操作 — 参与者跨 org。orgId 保持 null，按照
+  // RFC-0001 §4（"全局 / 平台管理操作允许 orgId = null"）。
   await recordAudit({
     actorId: me.id,
     orgId: null,
@@ -65,13 +65,12 @@ export async function setUserRoleAction(input: z.infer<typeof setRoleSchema>) {
 }
 
 /**
- * RFC 0002 PR-2 — platform-admin recovery path for "I lost my authenticator
- * AND my backup codes". After identity has been verified out-of-band (support
- * ticket), an admin clicks a button in `/admin/users/:id` and we wipe the
- * user's TwoFactorSecret + flip `twoFactorEnabled = false`. Audit row attributes
- * the action to the admin actor (target = the user who lost access). Email
- * notification goes to the user with `byAdmin: true` so they know what
- * happened the next time they read their inbox.
+ * RFC 0002 PR-2 — 平台管理员恢复路径，用于"我丢失了认证器
+ * 且丢失了备份码"。在身份验证已通过外部途径验证后（支持工单），
+ * 管理员在 `/admin/users/:id` 点击按钮，我们清除用户的 TwoFactorSecret +
+ * 翻转 `twoFactorEnabled = false`。审计行将操作归因于管理员参与者
+ * （target = 失去访问权限的用户）。电子邮件通知发往用户且 `byAdmin: true`
+ * 以便他们下次读收件箱时知道发生了什么。
  */
 export async function resetUserTwoFactorAction(input: z.infer<typeof resetTfaSchema>) {
   const me = await requireAdmin();
@@ -91,9 +90,8 @@ export async function resetUserTwoFactorAction(input: z.infer<typeof resetTfaSch
     return { ok: false as const, error: 'not-enabled' as const };
   }
 
-  // Same-tx wipe: secret row + denormalized flag move together so a partial
-  // failure can't leave the user in a "twoFactorEnabled=true with no secret"
-  // limbo where they could never log in.
+  // 同一 tx 清除：秘密行 + 去规范化标志一起移动，使部分失败无法将用户
+  // 留在"twoFactorEnabled=true 但无秘密"的地狱中，他们永远无法登录。
   await prisma.$transaction([
     prisma.twoFactorSecret.delete({ where: { userId: target.id } }),
     prisma.user.update({
@@ -126,8 +124,8 @@ export async function resetUserTwoFactorAction(input: z.infer<typeof resetTfaSch
 const jobIdSchema = z.object({ jobId: z.string().min(1) });
 
 /**
- * RFC 0008 §4.8 / PR-4 — admin manual cancel：把一行（DEAD_LETTER 或 PENDING）
- * 翻 CANCELED，写 audit `job.cancelled`。RUNNING 行不能 cancel —— 等当次结束。
+ * RFC 0008 §4.8 / PR-4 — 管理员手动取消：将一行（DEAD_LETTER 或 PENDING）
+ * 翻转为 CANCELED，写入审计 `job.cancelled`。RUNNING 行无法取消 — 等待当次结束。
  */
 export async function cancelJobAction(input: z.infer<typeof jobIdSchema>) {
   const me = await requireAdmin();
@@ -164,11 +162,11 @@ export async function cancelJobAction(input: z.infer<typeof jobIdSchema>) {
 }
 
 /**
- * RFC 0008 §4.8 / PR-4 — admin manual retry：仅对 DEAD_LETTER 行有效；翻回 PENDING
- * 重置 attempt / lockedBy / lastError / completedAt / deleteAt，下一 tick 即可被
- * `FOR UPDATE SKIP LOCKED` 重新抢到。写 audit `job.retried`。
+ * RFC 0008 §4.8 / PR-4 — 管理员手动重试：仅对 DEAD_LETTER 行有效；翻转回 PENDING，
+ * 重置 attempt / lockedBy / lastError / completedAt / deleteAt，下一 tick
+ * 即可被 `FOR UPDATE SKIP LOCKED` 重新获取。写入审计 `job.retried`。
  *
- * 注意：admin 应在 retry 前修复根因；retry 仅是「再试一次」，不会自动绕过原失败原因。
+ * 注意：管理员应在重试前修复根本原因；重试仅是"再试一次"，不会自动绕过原失败原因。
  */
 export async function retryJobAction(input: z.infer<typeof jobIdSchema>) {
   const me = await requireAdmin();

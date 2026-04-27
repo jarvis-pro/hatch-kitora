@@ -18,7 +18,7 @@ const switchSchema = z.object({ slug: z.string().min(1).max(60) });
 
 const updateOrgSchema = z.object({
   name: z.string().min(1).max(80),
-  // 3..40 chars, lowercase + digits + dash, must start and end with alphanumeric
+  // 3..40 个字符，小写 + 数字 + dash，必须以字母数字开头和结尾
   slug: z
     .string()
     .regex(/^[a-z0-9](?:[a-z0-9-]{1,38}[a-z0-9])?$/, 'invalid-slug')
@@ -33,7 +33,7 @@ const updateMemberRoleSchema = z.object({
 const transferSchema = z.object({ userId: z.string().min(1) });
 const deleteOrgSchema = z.object({ slugConfirm: z.string().min(1) });
 
-/** Switch the caller's active org (cookie). Caller must be a member. */
+/** 切换调用者的活跃组织（cookie）。调用者必须是成员。 */
 export async function setActiveOrgAction(input: z.infer<typeof switchSchema>) {
   const me = await requireActiveOrg();
   const parsed = switchSchema.safeParse(input);
@@ -64,7 +64,7 @@ export async function setActiveOrgAction(input: z.infer<typeof switchSchema>) {
   return { ok: true as const };
 }
 
-/** Rename / re-slug the active org. */
+/** 重命名/重新设置活跃组织的 slug。 */
 export async function updateOrgAction(input: z.infer<typeof updateOrgSchema>) {
   const me = await requireActiveOrg();
   if (!can(me.role, 'org.update')) {
@@ -75,7 +75,7 @@ export async function updateOrgAction(input: z.infer<typeof updateOrgSchema>) {
     return { ok: false as const, error: 'invalid-input' as const };
   }
 
-  // Slug uniqueness collision → 409 friendly error.
+  // Slug 唯一性冲突 → 409 友好错误。
   if (parsed.data.slug !== me.slug) {
     const taken = await prisma.organization.findUnique({
       where: { slug: parsed.data.slug },
@@ -86,16 +86,16 @@ export async function updateOrgAction(input: z.infer<typeof updateOrgSchema>) {
     }
   }
 
-  // RFC 0005 — `region` is intentionally absent from `updateOrgSchema`,
-  // and the update payload here lists only `name` + `slug`. Region is a
-  // deploy-time-immutable property of an Org; any attempt to reach it
-  // would have to bypass both the zod schema and this explicit allow-list.
+  // RFC 0005 — `region` 刻意不在 `updateOrgSchema` 中，
+  // 这里的更新载荷仅列出 `name` + `slug`。Region 是 Org 的一个
+  // 部署时不可变属性；任何尝试访问它的做法
+  // 都必须同时绕过 zod schema 和这个显式允许列表。
   await prisma.organization.update({
     where: { id: me.orgId },
     data: { name: parsed.data.name, slug: parsed.data.slug },
   });
 
-  // Slug changed — refresh the cookie so the next request still resolves.
+  // Slug 已更改 — 刷新 cookie 以便下一个请求仍能解析。
   if (parsed.data.slug !== me.slug) {
     const c = await cookies();
     c.set(ACTIVE_ORG_COOKIE, parsed.data.slug, {
@@ -118,7 +118,7 @@ export async function updateOrgAction(input: z.infer<typeof updateOrgSchema>) {
   return { ok: true as const, slug: parsed.data.slug };
 }
 
-/** Remove a member from the active org. OWNER cannot be removed (transfer first). */
+/** 从活跃组织中移除成员。OWNER 无法被移除（需先转移）。 */
 export async function removeMemberAction(input: z.infer<typeof removeMemberSchema>) {
   const me = await requireActiveOrg();
   if (!can(me.role, 'member.remove')) {
@@ -154,7 +154,7 @@ export async function removeMemberAction(input: z.infer<typeof removeMemberSchem
   return { ok: true as const };
 }
 
-/** Change a member's role. OWNER role is reserved — use transferOwnership for that. */
+/** 更改成员的角色。OWNER 角色被保留 — 使用 transferOwnership 来转移。 */
 export async function updateMemberRoleAction(input: z.infer<typeof updateMemberRoleSchema>) {
   const me = await requireActiveOrg();
   if (!can(me.role, 'member.update_role')) {
@@ -195,8 +195,8 @@ export async function updateMemberRoleAction(input: z.infer<typeof updateMemberR
 }
 
 /**
- * Transfer ownership to another existing member. Atomically demotes current
- * OWNER → ADMIN and promotes target → OWNER.
+ * 将所有权转移给另一个现有成员。原子性地将当前
+ * OWNER → ADMIN 降级，并将目标 → OWNER 提升。
  */
 export async function transferOwnershipAction(input: z.infer<typeof transferSchema>) {
   const me = await requireActiveOrg();
@@ -242,7 +242,7 @@ export async function transferOwnershipAction(input: z.infer<typeof transferSche
   return { ok: true as const };
 }
 
-/** Permanently delete the active org. OWNER only. Type-the-slug confirmation. */
+/** 永久删除活跃组织。仅限 OWNER。需输入 slug 确认。 */
 export async function deleteOrgAction(input: z.infer<typeof deleteOrgSchema>) {
   const me = await requireActiveOrg();
   if (!can(me.role, 'org.delete')) {
@@ -255,14 +255,14 @@ export async function deleteOrgAction(input: z.infer<typeof deleteOrgSchema>) {
   if (parsed.data.slugConfirm !== me.slug) {
     return { ok: false as const, error: 'slug-mismatch' as const };
   }
-  // Personal orgs are bound to the user account — refuse to delete here, the
-  // /settings danger zone (account deletion) is the right place for that.
+  // 个人组织绑定到用户账户 — 拒绝在此删除，危险区 /settings（账户删除）
+  // 是正确的地方。
   if (me.slug.startsWith('personal-')) {
     return { ok: false as const, error: 'personal-org' as const };
   }
 
-  // Audit first (the row keeps its orgId nominally even after the org is
-  // deleted; AuditLog has no FK on orgId, so it survives).
+  // 先记录审计（即使组织被删除后，该行名义上仍保留其 orgId；
+  // AuditLog 在 orgId 上没有 FK，所以它幸存下来）。
   await recordAudit({
     actorId: me.userId,
     orgId: me.orgId,
@@ -270,11 +270,11 @@ export async function deleteOrgAction(input: z.infer<typeof deleteOrgSchema>) {
     target: me.slug,
   });
 
-  // Cascading FKs (Membership / Invitation / Subscription / ApiToken) take care of children.
+  // 级联 FK（Membership / Invitation / Subscription / ApiToken）处理子数据。
   await prisma.organization.delete({ where: { id: me.orgId } });
   logger.info({ orgId: me.orgId, slug: me.slug, actor: me.userId }, 'org-deleted');
 
-  // Clear the active-org cookie so the user falls back to their personal org.
+  // 清除活跃组织 cookie 以便用户回落到个人组织。
   const c = await cookies();
   c.delete(ACTIVE_ORG_COOKIE);
 

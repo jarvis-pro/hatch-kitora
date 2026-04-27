@@ -14,19 +14,19 @@ const orgScopeSchema = z.object({
 });
 
 /**
- * RFC 0002 PR-3 — data export server actions.
+ * RFC 0002 PR-3 — 数据导出服务器操作。
  *
- * Two entry points:
+ * 两个入口：
  *
- *   triggerUserExportAction()             — current user's own data
- *   triggerOrgExportAction({ orgSlug })   — entire org's data (OWNER only)
+ *   triggerUserExportAction()             — 当前用户自己的数据
+ *   triggerOrgExportAction({ orgSlug })   — 整个组织的数据（仅 OWNER）
  *
- * Both insert a `DataExportJob` row in PENDING; the cron worker
- * (`scripts/run-export-jobs.ts`) picks it up and does the actual zip build.
+ * 两者都会在数据库中插入一个 PENDING 状态的 `DataExportJob` 行；cron 工作程序
+ * （`scripts/run-export-jobs.ts`）会后续接手并执行实际的 zip 构建。
  *
- * Rate limit: at most one *non-failed* export of the same scope key per
- * 24h. We enforce this in the DB rather than via Upstash so that the
- * limit survives Redis being unconfigured (worst case for the template).
+ * 速率限制：同一范围键在 24h 内最多一个*未失败*的导出。
+ * 我们在数据库中强制执行此限制，而不是通过 Upstash，以便在 Redis 未配置时
+ * 限制也能保留（模板的最坏情况）。
  */
 
 const RATE_WINDOW_MS = 24 * 60 * 60 * 1000;
@@ -79,10 +79,9 @@ export async function triggerOrgExportAction(input: z.infer<typeof orgScopeSchem
     return { ok: false as const, error: 'invalid-input' as const };
   }
 
-  // Resolve org by slug + verify caller is OWNER. We restrict by
-  // membership instead of trusting the active-org cookie, so even if the
-  // UI is on a different org the action only acts on the *requested* one
-  // when the caller is its OWNER.
+  // 通过 slug 解析 org + 验证调用者是否为 OWNER。我们通过成员身份而不是
+  // 信任活跃 org cookie 来限制，所以即使 UI 在不同 org，该操作也仅在
+  // 调用者是其 OWNER 时作用于*请求的* org。
   const membership = await prisma.membership.findFirst({
     where: {
       userId: me.userId,

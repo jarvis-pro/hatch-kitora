@@ -13,9 +13,9 @@ import { currentRegion } from '@/lib/region';
 import { authConfig } from './config';
 import { createDeviceSession, generateSid, hashSid, validateDeviceSession } from './device-session';
 
-// RFC 0004 PR-2 — surfaced through Auth.js's `CredentialsSignin.code` so the
-// `loginAction` server action can map it to a `sso-required` reason for the
-// UI's "your org requires SSO" rail.
+// RFC 0004 PR-2 — 通过 Auth.js 的 `CredentialsSignin.code` 浮出，
+// 所以 `loginAction` 服务器操作可以将其映射到 UI 的
+// "your org requires SSO" rail 的 `sso-required` 原因。
 class SsoRequiredError extends CredentialsSignin {
   code = 'sso_required';
 }
@@ -26,16 +26,16 @@ const credentialsSchema = z.object({
 });
 
 /**
- * RFC 0005 — Region-aware Prisma adapter.
+ * RFC 0005 — 区域感知 Prisma 适配器。
  *
- * The stock `@auth/prisma-adapter` issues `findUnique({ where: { email } })`
- * for OAuth account-linking lookups and `prisma.user.create({ data })`
- * without a region. Both break under the new `(email, region)` composite:
- * the lookup no longer compiles, and the create silently writes the
- * column's `GLOBAL` default — wrong on a CN/EU stack.
+ * 标准的 `@auth/prisma-adapter` 为 OAuth 账户链接查找发出
+ * `findUnique({ where: { email } })`，并为 `prisma.user.create({ data })`
+ * 不带区域。两者都在新的 `(email, region)` 复合下破裂：
+ * 查找不再编译，创建无声地写入列的 `GLOBAL` 默认值 —
+ * CN/EU 堆栈上错误。
  *
- * We delegate to the stock adapter and override only the two affected
- * methods so future Auth.js features ride the upstream behaviour.
+ * 我们委托给标准适配器，只覆盖两个受影响的方法，
+ * 所以未来的 Auth.js 功能乘坐上游行为。
  */
 function regionAwarePrismaAdapter() {
   const base = PrismaAdapter(prisma);
@@ -47,10 +47,10 @@ function regionAwarePrismaAdapter() {
       });
     },
     async createUser(data: Parameters<NonNullable<typeof base.createUser>>[0]) {
-      // The stock adapter's behaviour: drop any incoming id, let Prisma
-      // mint one. We reuse `stripUndefined`'s spirit by destructuring.
-      // RFC 0005 — stamp the deploy region so OAuth-created users land in
-      // the right `(email, region)` slot.
+      // 标准适配器的行为：删除任何传入的 id，让 Prisma
+      // 铸造一个。我们通过解构重用 `stripUndefined` 的精神。
+      // RFC 0005 — 为部署区域加盖印章，所以 OAuth 创建的用户
+      // 落在正确的 `(email, region)` 槽中。
       const { id: _id, ...rest } = data;
       void _id;
       return prisma.user.create({
@@ -69,9 +69,9 @@ export const {
 } = NextAuth({
   ...authConfig,
   adapter: regionAwarePrismaAdapter(),
-  // Route Auth.js noise through pino with sane levels. Wrong password is
-  // user-error, not app-error — keep it at debug so prod logs don't blow up
-  // on every failed login.
+  // 将 Auth.js 噪声路由通过 pino，级别合理。错误的密码是
+  // 用户错误，不是应用错误 — 保持在调试级别，
+  // 所以生产日志不会在每次登录失败时爆炸。
   logger: {
     error(error) {
       const name = (error as { name?: string }).name ?? error.constructor.name;
@@ -102,10 +102,10 @@ export const {
         }
 
         const { email, password } = parsed.data;
-        // RFC 0005 — credentials login is region-scoped. The same address
-        // may exist as an independent account in a different region; the
-        // process only ever serves its own region, so a stack-leaking
-        // session cannot be issued from here.
+        // RFC 0005 — 凭证登录是区域限定的。同一地址
+        // 可能在不同的区域中作为独立账户存在；
+        // 该过程只为其自己的区域提供服务，
+        // 所以从这里无法颁发堆栈泄漏会话。
         const user = await prisma.user.findUnique({
           where: { email_region: { email, region: currentRegion() } },
         });
@@ -119,11 +119,11 @@ export const {
           return null;
         }
 
-        // RFC 0004 PR-2 — enforce SSO. If this user belongs to ANY org that's
-        // flipped `enforceForLogin = true` and that IdP is `enabledAt`-active,
-        // the password path is closed. OWNERs of such orgs are exempt — we
-        // don't want an IdP outage to lock the keeper-of-keys out (mirrors
-        // the SSO RFC §11 decision).
+        // RFC 0004 PR-2 — 强制 SSO。如果此用户属于任何已
+        // 翻转 `enforceForLogin = true` 的组织，且该 IdP
+        // 是 `enabledAt` 活跃的，密码路径被关闭。这类组织的
+        // OWNER 被豁免 — 我们不希望 IdP 故障将密钥保管者锁定
+        // （反映 SSO RFC §11 决定）。
         const enforcing = await prisma.identityProvider.findFirst({
           where: {
             enforceForLogin: true,
@@ -156,10 +156,10 @@ export const {
           sessionVersion: user.sessionVersion,
           twoFactorEnabled: user.twoFactorEnabled,
           status: user.status,
-          // RFC 0005 — propagate the User row's region into the Auth.js
-          // user object so `authConfig.callbacks.jwt` can stamp the
-          // token. The composite-unique findUnique above already restricts
-          // to `currentRegion()`, so this is always in lock-step.
+          // RFC 0005 — 将 User 行的区域传播到 Auth.js
+          // 用户对象，以便 `authConfig.callbacks.jwt` 可以标记
+          // 令牌。上面的复合唯一 findUnique 已限制为
+          // `currentRegion()`，所以这总是锁步的。
           region: user.region,
         };
       },
@@ -168,8 +168,8 @@ export const {
   callbacks: {
     ...authConfig.callbacks,
     async jwt({ token, user, trigger, session, account, profile, isNewUser }) {
-      // Initial sign-in: delegate to the edge-safe callback so we keep one
-      // source of truth for the basic claims.
+      // 初始登录：委托给边缘安全回调，以便我们为
+      // 基本声明保持一个真实来源。
       const base = await authConfig.callbacks.jwt({
         token,
         user,
@@ -181,7 +181,7 @@ export const {
       });
       if (!base) return base;
 
-      // ── Initial sign-in: mint a fresh sid + DeviceSession row ─────────
+      // ── 初始登录：铸造一个新鲜的 sid + DeviceSession 行 ─────────
       if (user && base.id) {
         const rawSid = generateSid();
         try {
@@ -199,15 +199,16 @@ export const {
           base.sid = rawSid;
           base.sidHash = hashSid(rawSid);
         } catch (err) {
-          // If the DeviceSession write fails the JWT is still issued — but
-          // without a sid claim, the validation branch below treats it as
-          // "legacy / pre-RFC-0002 token" and lets it through one time.
+          // 如果 DeviceSession 写入失败，JWT 仍会被签发 —
+          // 但没有 sid 声明，下面的验证分支将其视为
+          // "legacy / pre-RFC-0002 token" 并让其通过一次。
           logger.error({ err, userId: base.id }, 'device-session-create-failed');
         }
       }
 
-      // Re-validate every subsequent call against the DB so revoked tokens
-      // (sessionVersion bump) get hard-killed. One indexed PK lookup; cheap.
+      // 重新验证所有后续调用以防对抗 DB，
+      // 所以被撤销的令牌（sessionVersion 碰撞）被硬杀。
+      // 一个索引的 PK 查找；便宜。
       if (!user && base.id) {
         const fresh = await prisma.user.findUnique({
           where: { id: base.id as string },
@@ -220,59 +221,62 @@ export const {
           },
         });
         if (!fresh) {
-          // User was deleted — invalidate the token entirely.
+          // 用户被删除 — 完全使令牌无效。
           return null;
         }
         if (fresh.sessionVersion !== base.sessionVersion) {
           return null;
         }
-        // Reflect current role in the token (e.g. an admin promotion takes
-        // effect on the next request without forcing a re-login).
+        // 在令牌中反映当前角色（例如管理员提升
+        // 在下一个请求时生效，而无需强制重新登录）。
         base.role = fresh.role;
-        // RFC 0002 PR-4 — keep `status` in sync so middleware sees the
-        // PENDING_DELETION flip the moment the action commits, no need
-        // to wait for a fresh JWT mint.
+        // RFC 0002 PR-4 — 保持 `status` 同步，
+        // 以便中间件在操作提交时立即看到
+        // PENDING_DELETION 翻转，无需等待新鲜的 JWT 铸造。
         base.status = fresh.status;
-        // RFC 0005 — region is immutable on the User row, but pre-RFC-0005
-        // tokens won't have it claimed. Refresh from the DB so middleware
-        // always has a region to compare against `currentRegion()`.
+        // RFC 0005 — 区域在 User 行上是不可变的，
+        // 但 pre-RFC-0005 令牌不会声称它。
+        // 从 DB 刷新，以便中间件总是有一个区域来对抗
+        // `currentRegion()` 进行比较。
         base.region = fresh.region;
 
-        // ── RFC 0002 PR-2: tfa_pending state machine ──────────────────
+        // ── RFC 0002 PR-2: tfa_pending 状态机 ──────────────────
         //
-        // Three transitions handled here:
-        //   (a) `update` trigger with `session.tfa === 'verified'` clears
-        //       the flag — that's the success path of /login/2fa.
-        //   (b) 2FA was just disabled (DB says false) → clear the flag so
-        //       the user isn't stuck on the challenge page.
-        //   (c) 2FA was just enabled mid-session → set the flag so the
-        //       user is bumped to the challenge before any further action.
+        // 这里处理了三个转换：
+        //   (a) 使用 `session.tfa === 'verified'` 的 `update` 触发器
+        //       清除标志 — 这是 /login/2fa 的成功路径。
+        //   (b) 2FA 刚被禁用（DB 显示 false） → 清除标志
+        //       以便用户不会卡在质询页面上。
+        //   (c) 2FA 在会话中间被启用 → 设置标志，
+        //       以便用户在任何进一步操作前被推送到质询。
         if (trigger === 'update' && (session as { tfa?: string } | undefined)?.tfa === 'verified') {
           base.tfa_pending = false;
         } else if (!fresh.twoFactorEnabled) {
           base.tfa_pending = false;
         } else if (fresh.twoFactorEnabled && base.tfa_pending !== false) {
-          // Pre-existing tokens (predating PR-2) won't have tfa_pending set
-          // at all. Treat undefined as "needs challenge" the moment 2FA is
-          // on, so users who enabled 2FA can't bypass with old tokens.
+          // 预先存在的令牌（早于 PR-2）不会设置
+          // tfa_pending。一旦 2FA 开启，将 undefined
+          // 视为"需要质询"，以便启用 2FA 的用户
+          // 不能用旧令牌绕过。
           if (base.tfa_pending === undefined) {
             base.tfa_pending = true;
           }
         }
 
-        // ── Per-session sid validation ────────────────────────────────
+        // ── 每会话 sid 验证 ────────────────────────────────
         //
-        // Tokens that pre-date PR-1 don't carry a sid; let them through
-        // until their natural rotation. New tokens must point at an
-        // unrevoked DeviceSession row, otherwise we hard-reject (= forced
-        // re-login on the next request).
+        // 早于 PR-1 的令牌不携带 sid；让它们通过
+        // 直到自然轮换。新令牌必须指向未撤销的
+        // DeviceSession 行，否则我们硬拒绝（=下一个请求上强制
+        // 重新登录）。
         if (typeof base.sid === 'string' && base.sid.length > 0) {
           const result = await validateDeviceSession(base.sid);
           if (!result.ok) {
             return null;
           }
-          // Keep sidHash in sync with the rolled jwt — the session callback
-          // (edge-safe) reads this to flag the "current" device in the UI.
+          // 保持 sidHash 与滚动的 jwt 同步 —
+          // 会话回调（边缘安全）读取这个以在 UI 中标记
+          // "当前"设备。
           base.sidHash = result.sidHash;
         }
       }

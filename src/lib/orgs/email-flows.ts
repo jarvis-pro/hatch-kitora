@@ -12,15 +12,15 @@ interface SendInvitationInput {
   orgName: string;
   inviterName?: string | null;
   role: OrgRole;
-  /** raw token — only known at create time, lives in the email link only */
+  /** 原始 token — 仅在创建时已知，仅存在于邮件链接中 */
   raw: string;
 }
 
 /**
- * Send an organization invitation. Failures are propagated so the calling
- * server action can surface them, but we don't roll the invitation row back
- * (we'd rather have a stale row that admins can re-send than block UX on a
- * flaky mail provider).
+ * 发送组织邀请。失败会被传播，以便调用的
+ * server action 可以显示它们，但我们不会回滚邀请行
+ *（我们宁愿有一个管理员可以重新发送的过期行，也不想因为
+ * 不稳定的邮件提供商而阻止 UX）。
  */
 export async function sendInvitationEmail(input: SendInvitationInput): Promise<void> {
   const acceptUrl = `${env.NEXT_PUBLIC_APP_URL}/invite/${input.raw}`;

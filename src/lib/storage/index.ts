@@ -9,21 +9,20 @@ import { env } from '@/env';
 import { isCnRegion } from '@/lib/region';
 
 /**
- * RFC 0002 PR-3 — storage facade.
+ * RFC 0002 PR-3 — 存储门面。
  *
- * The active provider is picked once at module load. Callers always go
- * through `storage` (the singleton) so swapping providers is a single
- * env flip with no code changes.
+ * 活跃提供者在模块加载时选择一次。调用者总是通过 `storage`
+ *（单例）去，所以交换提供者是单个 env 翻转，无需代码更改。
  *
- * RFC 0006 PR-2 — region wins over `DATA_EXPORT_STORAGE`. A CN-region
- * deploy MUST land objects in Aliyun OSS regardless of the legacy env
- * flag (PIPL §39 — "store within China"). Outside CN, the historical
- * `DATA_EXPORT_STORAGE` env still toggles between local-fs and S3.
+ * RFC 0006 PR-2 — 区域超过 `DATA_EXPORT_STORAGE`。CN 区域部署
+ * 必须无论旧 env 标志如何都在 Aliyun OSS 中着陆对象
+ *（PIPL §39 — "存储在中国内"）。CN 外，历史 `DATA_EXPORT_STORAGE`
+ * env 仍在本地 fs 和 S3 之间切换。
  *
- * Why a hand-rolled abstraction instead of pulling in `@aws-sdk/client-s3`
- * directly: keeps the Local provider pure-Node (no network on dev / CI),
- * mirrors the billing provider pattern in `src/lib/billing/provider/`,
- * and gives us a clean seam for testing (LocalFsProvider against a tmp dir).
+ * 为什么是手工制作抽象而不是直接拉入 `@aws-sdk/client-s3`：
+ * 保持 Local 提供者纯 Node（dev / CI 上无网络），镜像
+ * `src/lib/billing/provider/` 中的计费提供者模式，
+ * 并为我们提供清洁的测试接缝（LocalFsProvider 针对 tmp dir）。
  */
 function makeProvider(): StorageProvider {
   if (isCnRegion()) {

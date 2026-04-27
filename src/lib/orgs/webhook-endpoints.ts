@@ -13,18 +13,18 @@ import { generateWebhookSecret } from '@/lib/webhooks/secret';
 import { validateWebhookUrl } from '@/lib/webhooks/url-guard';
 
 /**
- * RFC 0003 PR-1 — webhook endpoint server actions (CRUD + rotate-secret).
+ * RFC 0003 PR-1 — webhook endpoint server action（CRUD + rotate-secret）。
  *
- * Authorization model: every action resolves the org by `orgSlug`, then
- * verifies the caller has an OWNER or ADMIN membership on it. We don't
- * trust the active-org cookie here — the action explicitly takes a slug
- * so the same UI can manage endpoints across orgs without context-switch
- * gymnastics.
+ * 授权模型：每个操作通过 `orgSlug` 解析 org，然后
+ * 验证调用者在其上具有 OWNER 或 ADMIN 成员资格。我们不
+ * 信任 active-org cookie — action 显式获取 slug
+ * 以便同一 UI 可以跨 org 管理端点而无需上下文切换
+ * 体操。
  *
- * Secret lifecycle: plaintext is returned only on `create` and on
- * `rotateSecret`. The DB stores `sha256(plain)` + a short `secretPrefix`
- * for UI disambiguation. Lost secrets are not recoverable — users must
- * rotate.
+ * 密钥生命周期：明文仅在 `create` 和
+ * `rotateSecret` 上返回。DB 存储 `sha256(plain)` + 一个短 `secretPrefix`
+ * 用于 UI 消歧。丢失的密钥无法恢复 — 用户必须
+ * 轮换。
  */
 
 const orgScopeSchema = z.object({
@@ -42,7 +42,7 @@ const updateSchema = orgScopeSchema.extend({
   url: z.string().url().max(2048).optional(),
   description: z.string().max(200).nullable().optional(),
   enabledEvents: z.array(z.string().min(1).max(64)).max(WEBHOOK_EVENTS_SET.size).optional(),
-  // `null` reactivates a previously disabled endpoint.
+  // `null` 重新激活之前禁用的端点。
   disabledAt: z.union([z.date(), z.null()]).optional(),
 });
 
@@ -56,8 +56,8 @@ const resendSchema = orgScopeSchema.extend({
 });
 
 /**
- * Verify the caller belongs to the named org with ADMIN or OWNER role.
- * Returns the resolved orgId on success, or null on auth failure.
+ * 验证调用者属于具有 ADMIN 或 OWNER 角色的命名 org。
+ * 成功时返回已解析的 orgId，auth 失败时返回 null。
  */
 async function requireWebhookManager(userId: string, orgSlug: string): Promise<string | null> {
   const membership = await prisma.membership.findFirst({
@@ -100,7 +100,7 @@ export async function createWebhookEndpointAction(input: z.infer<typeof createSc
   }
 
   const secret = generateWebhookSecret();
-  // Two-step write because encSecret is HKDF-derived from the row id.
+  // 两步写入因为 encSecret 是从行 id 派生的 HKDF。
   const endpoint = await prisma.webhookEndpoint.create({
     data: {
       orgId,
@@ -127,7 +127,7 @@ export async function createWebhookEndpointAction(input: z.infer<typeof createSc
   });
   revalidatePath('/settings/organization/webhooks');
 
-  // The plaintext secret is shown ONCE — caller must surface it in the UI.
+  // 明文密钥显示一次 — 调用者必须在 UI 中显示它。
   return {
     ok: true as const,
     endpoint: { id: endpoint.id, url: endpoint.url, secretPrefix: endpoint.secretPrefix },
@@ -145,9 +145,9 @@ export async function updateWebhookEndpointAction(input: z.infer<typeof updateSc
   const orgId = await requireWebhookManager(me.id, parsed.data.orgSlug);
   if (!orgId) return { ok: false as const, error: 'forbidden' as const };
 
-  // Defensive: confirm the endpoint actually belongs to this org before
-  // touching it. Prevents "I'm OWNER of org A, but I'll PATCH endpoint X
-  // belonging to org B" by guessing ids.
+  // 防御性的：在触及之前确认端点实际上属于此 org。
+  // 防止"我是 org A 的 OWNER，但我会 PATCH 属于 org B 的端点 X"
+  // 通过猜测 id。
   const existing = await prisma.webhookEndpoint.findFirst({
     where: { id: parsed.data.id, orgId },
     select: { id: true },
@@ -204,9 +204,9 @@ export async function deleteWebhookEndpointAction(input: z.infer<typeof idScopeS
   });
   if (result.count === 0) return { ok: false as const, error: 'not-found' as const };
 
-  // Cascade on the FK takes care of WebhookDelivery rows. PR-2 cron
-  // additionally flips orphaned PENDING/RETRYING rows that escape the
-  // cascade race to CANCELED — sleep tight.
+  // FK 上的级联处理 WebhookDelivery 行。PR-2 cron
+  // 另外翻转转义级联竞争的孤立 PENDING/RETRYING 行到 CANCELED —
+  // 安心睡吧。
 
   logger.info({ actor: me.id, orgId, endpointId: parsed.data.id }, 'webhook-endpoint-deleted');
   await recordAudit({
@@ -230,9 +230,9 @@ export async function rotateWebhookSecretAction(input: z.infer<typeof idScopeSch
   if (!orgId) return { ok: false as const, error: 'forbidden' as const };
 
   const fresh = generateWebhookSecret();
-  // updateMany returns count without ids; do a findFirst guard up front so
-  // we know the row exists before touching encSecret (whose key is derived
-  // from the id, so we need it).
+  // updateMany 返回 count 而不是 id；提前做 findFirst 保护，所以
+  // 我们知道行存在于触及 encSecret 之前（其密钥由
+  // id 派生，所以我们需要它）。
   const existing = await prisma.webhookEndpoint.findFirst({
     where: { id: parsed.data.id, orgId },
     select: { id: true },
@@ -256,19 +256,19 @@ export async function rotateWebhookSecretAction(input: z.infer<typeof idScopeSch
   });
   revalidatePath('/settings/organization/webhooks');
 
-  // Plaintext returned ONCE — same contract as create.
+  // 明文返回一次 — 与 create 相同的约定。
   return { ok: true as const, secret: fresh.plain, secretPrefix: fresh.prefix };
 }
 
 // ─── Resend a delivery ─────────────────────────────────────────────────────
 
 /**
- * RFC 0003 PR-2 — manually requeue a single delivery row. Resets attempt
- * + clears terminal-state fields + sets `nextAttemptAt = now()` so the
- * next cron tick picks it up. Works on any non-PENDING/RETRYING row.
+ * RFC 0003 PR-2 — 手动重新排队单个 delivery 行。重置 attempt
+ * + 清除终态字段 + 设置 `nextAttemptAt = now()` 以便
+ * 下一个 cron tick 拿起它。在任何非 PENDING/RETRYING 行上有效。
  *
- * Useful for DEAD_LETTER recovery: the user fixed their endpoint and
- * wants to replay a stuck event without firing it from the source again.
+ * 用于 DEAD_LETTER 恢复：用户修复了他们的端点并
+ * 想要重新播放卡住的事件而不从源再次触发它。
  */
 export async function resendWebhookDeliveryAction(input: z.infer<typeof resendSchema>) {
   const me = await requireUser();
@@ -278,9 +278,8 @@ export async function resendWebhookDeliveryAction(input: z.infer<typeof resendSc
   const orgId = await requireWebhookManager(me.id, parsed.data.orgSlug);
   if (!orgId) return { ok: false as const, error: 'forbidden' as const };
 
-  // Defensive double-check: delivery must belong to an endpoint owned by
-  // *this* org. updateMany with a constrained where catches the
-  // cross-org guess in a single query.
+  // 防御性双重检查：delivery 必须属于由*此* org 拥有的端点。
+  // updateMany 与受约束 where 在单个查询中捕获跨 org 猜测。
   const result = await prisma.webhookDelivery.updateMany({
     where: {
       id: parsed.data.deliveryId,

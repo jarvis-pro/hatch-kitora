@@ -1,21 +1,20 @@
-// NOTE: deliberately *not* `'server-only'` here — server actions, server
-// components, and (eventually) the Playwright e2e suite all import this
-// module. The transitive `@/env` runtime validation already gates client
-// bundling.
+// 注意：这里刻意*不*设置 'server-only' — server action、server
+// 组件和（最终）Playwright e2e 套件都导入此模块。可传递的
+// `@/env` 运行时验证已 gate 客户端打包。
 //
-// Two pieces of secret material live in `IdentityProvider`:
+// 两块秘密材料存在于 `IdentityProvider`：
 //
-//   1. OIDC `client_secret` — AES-256-GCM ciphertext, key HKDF-derived from
-//      `AUTH_SECRET + endpoint id`. Same envelope as RFC 0002 / 0003.
-//   2. SCIM token — `scim_<base64url(32)>`. We persist `sha256(plaintext)`
-//      + the first 8 chars (the "prefix") for UI / log display. Plaintext
-//      flows back to the user exactly once at create / rotate.
+//   1. OIDC `client_secret` — AES-256-GCM 密文，密钥来自
+//      `AUTH_SECRET + endpoint id` 的 HKDF。与 RFC 0002 / 0003 相同信封。
+//   2. SCIM token — `scim_<base64url(32)>`。我们持久化 `sha256(plaintext)`
+//      + 前 8 个字符（"prefix"）用于 UI / 日志显示。明文在
+//      创建/轮换时恰好返回用户一次。
 
 import { createCipheriv, createDecipheriv, createHash, hkdfSync, randomBytes } from 'node:crypto';
 
 import { env } from '@/env';
 
-// ─── OIDC client secret envelope ────────────────────────────────────────────
+// ─── OIDC client secret 信封 ────────────────────────────────────────────
 
 const OIDC_KEY_INFO = 'kitora-sso-oidc-v1';
 const KEY_LEN = 32;
@@ -48,17 +47,17 @@ export function decryptOidcSecret(providerId: string, packed: Buffer): string {
   return Buffer.concat([decipher.update(ct), decipher.final()]).toString('utf8');
 }
 
-// ─── SCIM token issuance ────────────────────────────────────────────────────
+// ─── SCIM token 发出 ────────────────────────────────────────────────────
 
 const SCIM_PREFIX = 'scim_';
 const SCIM_RAW_BYTES = 32;
 
 export interface FreshScimToken {
-  /** Plaintext to hand back to the user once. Format: `scim_<base64url(32)>`. */
+  /** 明文向用户交付一次。格式：`scim_<base64url(32)>`。 */
   plain: string;
-  /** sha256 hex of plaintext — fingerprint stored in DB. */
+  /** 明文的 sha256 hex — 指纹存储在 DB。 */
   hash: string;
-  /** First 8 chars of the base64url body — safe to display in UIs / logs. */
+  /** base64url 体的前 8 个字符 — 可安全在 UI / 日志中显示。 */
   prefix: string;
 }
 

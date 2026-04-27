@@ -1,12 +1,12 @@
 import { headers } from 'next/headers';
 
 /**
- * Resolve the client IP from common proxy headers, falling back to "unknown".
+ * 从常见代理头解析客户端 IP，回退到"unknown"。
  *
- * Calls outside a Next.js request scope (e.g. inside a test that drives a
- * server action / `recordAudit` directly) make `headers()` throw. We swallow
- * that case and return `'unknown'` so callers in test contexts still get a
- * usable string instead of the audit insert blowing up.
+ * Next.js 请求范围外的调用（例如在直接驱动 server action / `recordAudit`
+ * 的测试内）使 `headers()` 抛出。我们吞咽那个
+ * 情况并返回 `'unknown'` 以便测试上下文中的调用者仍然获得
+ * 可用字符串而不是审计插入炸掉。
  */
 export async function getClientIp(): Promise<string> {
   try {

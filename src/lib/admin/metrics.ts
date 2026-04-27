@@ -6,8 +6,8 @@ export interface AdminMetrics {
   totalUsers: number;
   newUsersLast7d: number;
   activeSubscriptions: number;
-  /** Approximate MRR in USD cents — sum of `Pro` / `Team` plan prices.
-   *  Real MRR should come from Stripe; this is a rough indicator only. */
+  /** 近似 USD 美分的 MRR — `Pro` / `Team` 计划价格之和。
+   *  真实 MRR 应来自 Stripe；这仅是粗略指标。 */
   approxMrrCents: number;
 }
 

@@ -1,26 +1,24 @@
-// RFC 0007 PR-1 — Ephemeral WebAuthn challenge storage.
+// RFC 0007 PR-1 — 临时 WebAuthn 质询存储。
 //
-// Each register / authenticate ceremony starts with a server-generated
-// 32-byte random challenge. The browser includes it (signed by the
-// authenticator) in the response; the server cross-checks. This module
-// is the single sanctioned spot to mint + consume challenges.
+// 每个注册/身份验证仪式都从服务器生成的 32 字节随机质询开始。
+// 浏览器将其包含（由身份验证器签署）在响应中；服务器进行交叉检查。
+// 此模块是生成和使用质询的唯一正式位置。
 //
-// Storage strategy: instead of a separate `WebAuthnChallenge` table,
-// we squat on two columns of `User` (`webauthnChallenge` +
-// `webauthnChallengeAt`). Trade-off:
+// 存储策略：我们不使用单独的 `WebAuthnChallenge` 表，而是占用
+// `User` 表的两列（`webauthnChallenge` + `webauthnChallengeAt`）。
+// 权衡：
 //
-//   pro:  one less table, one less migration, one less cleanup cron;
-//         each user can only have one ceremony in flight at a time
-//         which matches reality (no two browsers signing simultaneously
-//         for the same account).
-//   con:  if a user starts a ceremony in tab A then opens tab B and
-//         starts another, tab A's challenge is overwritten and tab A's
-//         ceremony will fail at verify. Deemed acceptable — UX issue
-//         only, not a security one.
+//   优点：少一个表，少一个迁移，少一个清理 cron；
+//         每个用户每次只能进行一个仪式，
+//         这与现实相符（同一账户不能同时在两个浏览器中登录）。
+//   缺点：如果用户在标签页 A 开始一个仪式，然后打开标签页 B 并
+//         启动另一个，标签页 A 的质询会被覆盖，标签页 A 的仪式
+//         在验证时会失败。被认为是可接受的——仅是用户体验问题，
+//         不是安全问题。
 //
-// Lifetime is 5 minutes (TTL_MS). `consumeChallenge` is read-time
-// expiry-checked; expired challenges are treated identically to
-// "no challenge in progress" (both return `null`).
+// 生活时间为 5 分钟 (TTL_MS)。`consumeChallenge` 在读取时进行
+// 过期检查；过期的质询与"没有质询进行中"完全相同
+// （两者都返回 `null`）。
 
 import 'server-only';
 
@@ -31,8 +29,8 @@ import { prisma } from '@/lib/db';
 const TTL_MS = 5 * 60 * 1000;
 
 /**
- * Generate + persist a fresh challenge for `userId`. Overwrites any
- * existing challenge in flight for the same user.
+ * 为 `userId` 生成并持久化一个新质询。覆盖同一用户的任何
+ * 现有进行中的质询。
  */
 export async function mintChallenge(userId: string): Promise<string> {
   const challenge = randomBytes(32).toString('base64url');
@@ -47,19 +45,18 @@ export async function mintChallenge(userId: string): Promise<string> {
 }
 
 /**
- * Read + clear the challenge for `userId`. Returns `null` if there is
- * no challenge in flight, or the challenge is older than `TTL_MS`.
+ * 读取并清除 `userId` 的质询。如果没有质询进行中，或
+ * 质询超过 `TTL_MS`，返回 `null`。
  *
- * Always clears the row's challenge fields, even on a no-op read — this
- * way an attacker can't replay an expired challenge by calling consume
- * twice.
+ * 总是清除行的质询字段，即使是无操作读取——这样攻击者
+ * 不能通过调用 consume 两次来重放过期的质询。
  */
 export async function consumeChallenge(userId: string): Promise<string | null> {
   const row = await prisma.user.findUnique({
     where: { id: userId },
     select: { webauthnChallenge: true, webauthnChallengeAt: true },
   });
-  // Always clear — defensive even when there's nothing to consume.
+  // 总是清除——即使没有要消费的内容也是防御性的。
   if (row?.webauthnChallenge) {
     await prisma.user.update({
       where: { id: userId },
@@ -73,14 +70,13 @@ export async function consumeChallenge(userId: string): Promise<string | null> {
 }
 
 /**
- * For the discoverable / usernameless login flow we don't yet know
- * which user is signing — we mint a challenge keyed by an opaque
- * server-generated session id stashed in the response cookie, not by
- * userId. This stub is here so PR-4 can add a `mintAnonymousChallenge`
- * implementation without touching call sites that already use the
- * userId-keyed path.
+ * 对于可发现的 / 无用户名登录流程，我们还不知道哪个用户正在
+ * 登录——我们生成一个由不透明的服务器生成的会话 ID 键入的质询，
+ * 该 ID 藏在响应 cookie 中，而不是由 userId 键入。这个存根
+ * 在这里，以便 PR-4 可以添加一个 `mintAnonymousChallenge` 实现，
+ * 而不需要接触已经使用 userId 键入路径的调用站点。
  *
- * @internal Only the PR-4 passwordless route reaches here.
+ * @internal 仅 PR-4 无密码路由到达此处。
  */
 export async function __anonymousChallengeStubForPR4(): Promise<never> {
   throw new Error('webauthn-anonymous-challenge-not-yet-implemented (RFC 0007 PR-4)');
