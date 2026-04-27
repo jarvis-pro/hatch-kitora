@@ -16,8 +16,11 @@
  * 就被短路 —— 这正是我们不想重现的 bug。
  */
 
-const looksLikeAuthNoise = (msg) =>
-  msg.includes('CredentialsSignin') || msg.includes('[auth][error]');
+// 只过滤 `CredentialsSignin` 这一类已知"用户输错密码"噪音。
+// 不能仅凭 `[auth][error]` 判定 —— 该前缀同样覆盖 JWTDecodeError /
+// OAuthCallbackError 等真正需要在 e2e 排错时看到的报错。如果未来要静默
+// 更多噪音类，在此 OR 上加具体的 error class 名，避免黑洞式吞错。
+const looksLikeAuthNoise = (msg) => msg.includes('CredentialsSignin');
 
 let suppressing = false;
 
