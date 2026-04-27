@@ -1,61 +1,55 @@
-# Aliyun infrastructure (RFC 0006 PR-1)
+# 阿里云基础设施（RFC 0006 PR-1）
 
-Terraform skeleton for the CN-region stack. Mirrors the topology in
+CN region 技术栈的 Terraform 骨架，拓扑与
 [`docs/rfcs/0006-cn-region-deployment.md`](../../docs/rfcs/0006-cn-region-deployment.md)
-§4.
+§4 中的描述保持一致。
 
-## Status
+## 状态
 
-**Skeleton, not runnable.** The `*.tf` files declare the modules and
-inputs we plan to apply; resource implementations are stubbed with TODO
-comments. The first real `terraform apply` is gated on:
+**骨架阶段，尚不可执行。** `*.tf` 文件声明了计划部署的模块和输入；资源实现以 TODO 注释占位。首次真正执行 `terraform apply` 的前置条件：
 
-1. Aliyun corporate account in `实名认证` status;
-2. ICP 备案 number issued (no public DNS until then);
-3. RAM Role for Terraform with the right policies attached.
+1. 阿里云企业账号完成`实名认证`；
+2. ICP 备案号已取得（备案前不得使用公网 DNS）；
+3. Terraform 专用 RAM Role 已创建并附加正确的权限策略。
 
-When all three are in hand, fill in the `# TODO` markers in each module
-and run `terraform plan` against a fresh workspace before `apply`. The
-intent is that everything flips to a working stack with one `apply`
-call — no ClickOps in production.
+三项就绪后，填入各模块中的 `# TODO` 标记，在全新 workspace 上执行 `terraform plan` 验证后再 `apply`。目标是一次 `apply` 调用将整个技术栈拉起 —— 生产环境不走 ClickOps。
 
-## Layout
+## 目录结构
 
 ```
 infra/aliyun/
-├── README.md              ← this file
-├── main.tf                ← top-level wiring; calls all modules
-├── variables.tf           ← inputs: region, az pair, env name, tags
-├── outputs.tf             ← exported endpoints for ACK / app config
-├── versions.tf            ← provider pin (alicloud >= 1.230)
+├── README.md              ← 本文件
+├── main.tf                ← 顶层连线；调用所有模块
+├── variables.tf           ← 输入：region、可用区对、环境名、标签
+├── outputs.tf             ← 导出端点，供 ACK / 应用配置使用
+├── versions.tf            ← provider 版本锁定（alicloud >= 1.230）
 └── modules/
-    ├── vpc/               ← VPC + 2× vSwitches (zone-i, zone-j)
+    ├── vpc/               ← VPC + 2× vSwitch（zone-i、zone-j）
     ├── security-groups/   ← sg-public-slb / sg-app / sg-data
-    ├── rds/               ← RDS PostgreSQL primary + standby
-    ├── redis/             ← Aliyun Redis (TLS 6380)
-    ├── oss/               ← buckets: data-export + uploads
-    ├── sls/               ← log project + 3 logstores
-    ├── ack/               ← ACK cluster + 2-node pool
-    ├── slb-waf/           ← public SLB + WAF rules
-    └── kms/               ← envelope-encryption key for secrets
+    ├── rds/               ← RDS PostgreSQL 主节点 + 备节点
+    ├── redis/             ← 阿里云 Redis（TLS 6380）
+    ├── oss/               ← Bucket：data-export + uploads
+    ├── sls/               ← 日志项目 + 3 个 logstore
+    ├── ack/               ← ACK 集群 + 2 节点池
+    ├── slb-waf/           ← 公网 SLB + WAF 规则
+    └── kms/               ← 密钥信封加密用 KMS 密钥
 ```
 
-## Why Terraform and not Aliyun ROS
+## 为何选择 Terraform 而非阿里云 ROS
 
-Both work; Terraform wins on:
+两者均可；Terraform 的优势在于：
 
-- multi-cloud familiarity (we already use it for AWS in GLOBAL);
-- HCL ergonomics for modules and variables;
-- `terraform import` for back-filling resources we created manually
-  during initial备案 testing.
+- 跨云熟悉度（我们在 GLOBAL 栈已使用 AWS + Terraform）；
+- HCL 在模块和变量方面的工程体验更佳；
+- `terraform import` 可将备案测试期间手动创建的资源纳入管理。
 
-The `alicloud` provider has full RFC 0006 §4 surface coverage as of
-`1.230+`; all eight modules use only documented resources.
+`alicloud` provider 自 `1.230+` 起已全面覆盖 RFC 0006 §4 的资源面，
+八个模块均只使用已文档化的资源。
 
-## State backend
+## State 后端
 
-Use Aliyun OSS as the remote state store, NOT the default local backend.
-Place the state file in a private bucket separate from the data buckets:
+使用阿里云 OSS 作为远程 state 存储，**不使用**默认的本地后端。
+将 state 文件放在独立于数据桶的私有 Bucket 中：
 
 ```hcl
 backend "oss" {
@@ -65,4 +59,4 @@ backend "oss" {
 }
 ```
 
-Lock with Aliyun's OSS server-side locking (Terraform 1.6+).
+通过阿里云 OSS 服务端锁定（Terraform 1.6+）防止并发写入。

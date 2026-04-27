@@ -1,8 +1,8 @@
 # RFC 0006 §4.1 — Three-tier security group layout.
 #
-#   sg-public-slb : 22 / 80 / 443 ingress; only attached to SLB ENI.
-#   sg-app        : ingress only from sg-public-slb on :3000; egress *.
-#   sg-data       : ingress only from sg-app on :5432 / :6379 / :6380.
+#   sg-public-slb : 开放 22 / 80 / 443 入站；仅挂载到 SLB ENI。
+#   sg-app        : 仅允许来自 sg-public-slb 的 :3000 入站；出站不限。
+#   sg-data       : 仅允许来自 sg-app 的 :5432 / :6379 / :6380 入站。
 
 variable "env" { type = string }
 variable "vpc_id" { type = string }
@@ -28,8 +28,8 @@ variable "common_tags" { type = map(string) }
 # resource "alicloud_security_group" "app" { ... }
 # resource "alicloud_security_group" "data" { ... }
 #
-# Inter-SG rules: sg-app accepts :3000 from sg-public-slb only;
-# sg-data accepts :5432 + :6379 + :6380 from sg-app only.
+# 安全组间规则：sg-app 仅接受来自 sg-public-slb 的 :3000；
+# sg-data 仅接受来自 sg-app 的 :5432 + :6379 + :6380。
 
 output "sg_public_slb_id" { value = null }
 output "sg_app_id" { value = null }

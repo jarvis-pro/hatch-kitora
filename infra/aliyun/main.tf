@@ -1,7 +1,7 @@
 # RFC 0006 PR-1 — Top-level wiring.
 #
-# Calls each module in dependency order. Outputs flow forward so RDS
-# knows the VPC's vSwitch ids, ACK knows the SLB / SG layout, etc.
+# 按依赖顺序调用各模块。输出向前传递，使 RDS 能获取 VPC 的 vSwitch ID，
+# ACK 能获取 SLB / 安全组布局等信息。
 
 module "vpc" {
   source = "./modules/vpc"

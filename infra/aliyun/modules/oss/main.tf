@@ -1,13 +1,13 @@
 # RFC 0006 §4.5 — OSS buckets.
 #
-# Two buckets:
-#   * data-export — RFC 0002 PR-3 zip artefacts. Lifecycle rule: 7d→IA,
-#     30d→delete (matches signed-URL TTL of 7d).
-#   * uploads     — user avatars / attachments. v1 unused; created up
-#     front so RFC 0008+ can land features without re-running TF.
+# 两个 Bucket：
+#   * data-export —— RFC 0002 PR-3 zip 包。生命周期规则：7d→IA，
+#     30d→删除（与签名 URL 的 7d TTL 匹配）。
+#   * uploads     —— 用户头像 / 附件。v1 暂未使用；提前创建，
+#     以便 RFC 0008+ 落地功能时无需重跑 TF。
 #
-# Both: server-side encryption AES256 + cross-region replication OFF
-# (data-residency: copies don't leave CN, period).
+# 两者均：服务端 AES256 加密 + 跨区域复制关闭
+#（数据驻留：副本不得离开 CN，绝对不允许）。
 
 variable "env" { type = string }
 variable "data_export_bucket_name" { type = string }

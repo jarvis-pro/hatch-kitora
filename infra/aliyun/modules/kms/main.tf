@@ -1,13 +1,12 @@
 # RFC 0006 — KMS envelope key for app secrets at rest.
 #
-# Used by:
-#   * RDS (encrypt storage)
-#   * OSS (per-object SSE-KMS optional escalation from default AES256)
-#   * ACK secret-binding (envelope-encrypt etcd-side secrets so a stolen
-#     etcd snapshot is useless without the KMS key handle).
+# 使用方：
+#   * RDS（加密存储）
+#   * OSS（可选在默认 AES256 基础上升级为 SSE-KMS 对象级加密）
+#   * ACK secret 绑定（信封加密 etcd 侧密钥，使被盗的 etcd
+#     快照在没有 KMS 密钥句柄时毫无价值）。
 #
-# One key for the whole CN stack. Rotate annually via Aliyun's
-# auto-rotation policy.
+# 整个 CN 栈共用一个密钥，通过阿里云自动轮换策略每年轮换一次。
 
 variable "env" { type = string }
 variable "common_tags" { type = map(string) }

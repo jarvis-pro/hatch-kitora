@@ -1,12 +1,11 @@
 # RFC 0006 §4.2 — ACK Kubernetes cluster + 2-node pool.
 #
-# Cluster control plane is managed (Aliyun-side). Node pool starts at
-# 2× ecs.g7.large (4c8g) — enough for 3 app pods + 1 cron pod +
-# Prometheus/Grafana with headroom. Scale via `node_pool_size` var.
+# 集群控制面由阿里云托管。节点池初始配置为 2× ecs.g7.large（4c8g）
+# —— 足以运行 3 个应用 Pod + 1 个 cron Pod + Prometheus/Grafana 并留有余量。
+# 通过 `node_pool_size` 变量扩缩容。
 #
-# Pod-level config (deployment, service, PDB) lives in `k8s/cn/`
-# manifests applied by deploy-cn.yml; this module only stands up the
-# cluster + node pool.
+# Pod 级配置（deployment、service、PDB）位于 `k8s/cn/` 清单，
+# 由 deploy-cn.yml 应用；本模块仅负责创建集群和节点池。
 
 variable "env" { type = string }
 variable "vpc_id" { type = string }
@@ -16,8 +15,8 @@ variable "node_pool_size" { type = number }
 variable "node_class" { type = string }
 variable "common_tags" { type = map(string) }
 
-# TODO: uncomment when ready. The provider's `alicloud_cs_managed_kubernetes`
-# resource takes 15+ minutes on first apply — be patient.
+# TODO: 就绪后取消注释。provider 的 `alicloud_cs_managed_kubernetes`
+# 资源首次 apply 需要 15 分钟以上 —— 请耐心等待。
 #
 # resource "alicloud_cs_managed_kubernetes" "main" {
 #   name                  = "kitora-cn-${var.env}-ack"

@@ -1,16 +1,16 @@
 # RFC 0006 PR-1 — Workspace inputs.
 #
-# Defaults assume the production CN deploy in cn-shanghai. Override per
-# environment (staging / DR) by passing -var-file=.
+# 默认值对应 cn-shanghai 生产环境部署。各环境（staging / DR）
+# 可通过 -var-file= 覆盖。
 
 variable "region" {
-  description = "Aliyun region. cn-shanghai is the default per RFC 0006 §12."
+  description = "阿里云 region。RFC 0006 §12 规定默认为 cn-shanghai。"
   type        = string
   default     = "cn-shanghai"
 }
 
 variable "env" {
-  description = "Environment label baked into resource names + tags."
+  description = "环境标识，嵌入资源名称和标签中。"
   type        = string
   default     = "prod"
 
@@ -21,25 +21,25 @@ variable "env" {
 }
 
 variable "az_a" {
-  description = "First AZ for HA pairs (RDS primary, ACK node pool slot 1)."
+  description = "HA 对的第一个可用区（RDS 主节点、ACK 节点池插槽 1）。"
   type        = string
   default     = "cn-shanghai-i"
 }
 
 variable "az_b" {
-  description = "Second AZ. Must differ from az_a."
+  description = "第二个可用区，必须与 az_a 不同。"
   type        = string
   default     = "cn-shanghai-j"
 }
 
 variable "vpc_cidr" {
-  description = "VPC CIDR block. RFC 0006 §4.1 picks 10.40.0.0/16."
+  description = "VPC CIDR 块。RFC 0006 §4.1 选用 10.40.0.0/16。"
   type        = string
   default     = "10.40.0.0/16"
 }
 
 variable "common_tags" {
-  description = "Tags applied to every taggable resource."
+  description = "应用于所有支持标签的资源的标签集。"
   type        = map(string)
   default = {
     project     = "kitora"
@@ -49,28 +49,28 @@ variable "common_tags" {
   }
 }
 
-# ─── Resource-specific knobs ─────────────────────────────────────────────────
+# ─── 各资源专属参数 ────────────────────────────────────────────────────────────
 
 variable "rds_instance_class" {
-  description = "RDS PostgreSQL spec. RFC 0006 §4.3 specs pg.n2.xlarge.2c."
+  description = "RDS PostgreSQL 规格。RFC 0006 §4.3 指定 pg.n2.xlarge.2c。"
   type        = string
   default     = "pg.n2.xlarge.2c"
 }
 
 variable "rds_storage_gb" {
-  description = "RDS attached SSD size in GB."
+  description = "RDS 附加 SSD 容量（GB）。"
   type        = number
   default     = 200
 }
 
 variable "redis_instance_class" {
-  description = "Aliyun Redis spec. RFC 0006 §4.4 specs amber.standard.smaller.default."
+  description = "阿里云 Redis 规格。RFC 0006 §4.4 指定 amber.standard.smaller.default。"
   type        = string
   default     = "redis.amber.standard.smaller.default"
 }
 
 variable "ack_node_pool_size" {
-  description = "Initial ACK node count (RFC 0006 §4.2 starts at 2)."
+  description = "ACK 节点初始数量（RFC 0006 §4.2 从 2 开始）。"
   type        = number
   default     = 2
 
@@ -81,19 +81,19 @@ variable "ack_node_pool_size" {
 }
 
 variable "ack_node_class" {
-  description = "ECS instance type for ACK nodes (RFC 0006 §4.2 ecs.g7.large)."
+  description = "ACK 节点的 ECS 实例规格（RFC 0006 §4.2 指定 ecs.g7.large）。"
   type        = string
   default     = "ecs.g7.large"
 }
 
 variable "oss_data_export_bucket" {
-  description = "Bucket name for RFC 0002 PR-3 data-export zips."
+  description = "RFC 0002 PR-3 数据导出 zip 包的 Bucket 名称。"
   type        = string
   default     = "kitora-cn-prod-data-export"
 }
 
 variable "oss_uploads_bucket" {
-  description = "Bucket name for user uploads (avatars, attachments)."
+  description = "用户上传文件（头像、附件）的 Bucket 名称。"
   type        = string
   default     = "kitora-cn-prod-uploads"
 }

@@ -1,8 +1,8 @@
 # RFC 0006 §4.1 — VPC + 2× vSwitches across two AZs.
 #
-# Two AZs is the minimum for ACK PodDisruptionBudget to mean anything.
-# CIDR carve-up is fixed at /24 per vSwitch — RDS / Redis / OSS run in
-# the same VPC's vSwitches, no cross-VPC peering needed for v1.
+# 两个可用区是 ACK PodDisruptionBudget 生效的最低要求。
+# 每个 vSwitch 固定划分 /24 CIDR —— RDS / Redis / OSS 运行在
+# 同一 VPC 的 vSwitch 中，v1 无需跨 VPC 对等连接。
 
 variable "env" { type = string }
 variable "region" { type = string }
@@ -41,9 +41,8 @@ variable "common_tags" { type = map(string) }
 #   nat_type      = "Enhanced"
 # }
 
-# Stub outputs — replace `null` with `alicloud_*.id` once resources are
-# uncommented above. `null` lets the top-level main.tf typecheck during
-# the skeleton phase.
+# 存根输出 —— 待上方资源取消注释后，将 `null` 替换为 `alicloud_*.id`。
+# 骨架阶段保留 `null` 使顶层 main.tf 能通过类型检查。
 
 output "vpc_id" { value = null }
 output "vswitch_id_a" { value = null }
