@@ -4,6 +4,9 @@ import { cva, type VariantProps } from 'class-variance-authority';
 
 import { cn } from '@/lib/utils';
 
+/**
+ * 按钮样式变体定义。支持多种外观（default、destructive、outline、secondary、ghost、link）和尺寸（default、sm、lg、icon）。
+ */
 const buttonVariants = cva(
   'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0',
   {
@@ -30,13 +33,24 @@ const buttonVariants = cva(
   },
 );
 
+/**
+ * 按钮组件的属性接口。
+ * @param asChild - 是否将样式应用到子元素而不是按钮本身（使用 Slot 组件）
+ */
 export interface ButtonProps
   extends React.ButtonHTMLAttributes<HTMLButtonElement>, VariantProps<typeof buttonVariants> {
   asChild?: boolean;
 }
 
+/**
+ * 按钮组件。支持多种变体（variant）和尺寸（size），可作为任意子元素的样式容器。
+ * @param variant - 按钮样式变体
+ * @param size - 按钮尺寸
+ * @param asChild - 是否将样式应用到子元素
+ */
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
   ({ className, variant, size, asChild = false, ...props }, ref) => {
+    // 如果 asChild 为真，使用 Slot 包装器；否则直接渲染为原生 button 元素
     const Comp = asChild ? Slot : 'button';
     return (
       <Comp className={cn(buttonVariants({ variant, size, className }))} ref={ref} {...props} />

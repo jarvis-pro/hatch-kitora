@@ -9,6 +9,9 @@ import { triggerUserExportAction } from '@/lib/account/data-export';
 import { Button } from '@/components/ui/button';
 import { useRouter } from '@/i18n/routing';
 
+/**
+ * 数据导出任务行数据结构
+ */
 export interface DataExportRow {
   id: string;
   status: DataExportStatus;
@@ -17,10 +20,19 @@ export interface DataExportRow {
   expiresAt: Date | null;
 }
 
+/**
+ * DataExportCard 组件 Props
+ * @property {DataExportRow[]} jobs - 历史导出任务列表
+ */
 interface Props {
   jobs: DataExportRow[];
 }
 
+/**
+ * 格式化字节大小为可读的单位（B/KB/MB）
+ * @param bytes - 字节数，null 时返回连字符
+ * @returns 格式化后的大小字符串
+ */
 function formatSize(bytes: number | null): string {
   if (bytes == null) return '—';
   if (bytes < 1024) return `${bytes} B`;
@@ -28,20 +40,32 @@ function formatSize(bytes: number | null): string {
   return `${(bytes / 1024 / 1024).toFixed(2)} MB`;
 }
 
+/**
+ * 用户数据导出卡片组件
+ * 允许用户请求导出个人数据（GDPR 合规），展示历史导出任务及下载链接。
+ * 支持速率限制和重试提示。
+ * @param {Props} props
+ * @returns 数据导出界面
+ */
 export function DataExportCard({ jobs }: Props) {
   const t = useTranslations('account.dataExport');
   const format = useFormatter();
   const router = useRouter();
   const [pending, startTransition] = useTransition();
 
+  /**
+   * 请求导出用户数据
+   */
   const onRequest = () => {
     startTransition(async () => {
+      // 调用服务端 action 触发数据导出任务
       const result = await triggerUserExportAction();
       if (result.ok) {
         toast.success(t('queued'));
         router.refresh();
         return;
       }
+      // 处理速率限制错误
       if (result.error === 'rate-limited') {
         toast.error(
           t('errors.rateLimited', {
@@ -118,7 +142,13 @@ export function DataExportCard({ jobs }: Props) {
     </div>
   );
 
+  /**
+   * 导出任务状态徽章
+   * @param status - 导出任务状态
+   * @returns 带样式的状态徽章
+   */
   function StatusBadge({ status }: { status: DataExportStatus }) {
+    // 根据任务状态返回相应的样式类
     const tone =
       status === 'COMPLETED'
         ? 'bg-emerald-500/10 text-emerald-700'

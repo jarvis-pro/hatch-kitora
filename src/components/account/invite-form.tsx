@@ -14,13 +14,25 @@ import { Label } from '@/components/ui/label';
 import { useRouter } from '@/i18n/routing';
 import { createInvitationAction } from '@/lib/orgs/invitations';
 
+/**
+ * 邀请表单验证 schema
+ */
 const schema = z.object({
   email: z.string().email(),
   role: z.enum([OrgRole.ADMIN, OrgRole.MEMBER]),
 });
 
+/**
+ * 表单数据类型
+ */
 type Values = z.infer<typeof schema>;
 
+/**
+ * 组织成员邀请表单组件
+ * 允许 ADMIN/OWNER 邀请新用户加入组织，支持指定角色（MEMBER/ADMIN）。
+ * 邀请后发送邮件给被邀请者。
+ * @returns 邀请表单
+ */
 export function InviteForm() {
   const t = useTranslations('orgs.members.invite');
   const router = useRouter();
@@ -35,14 +47,19 @@ export function InviteForm() {
     defaultValues: { role: OrgRole.MEMBER },
   });
 
+  /**
+   * 提交邀请表单
+   */
   const onSubmit = (values: Values) => {
     startTransition(async () => {
+      // 调用服务端 action 创建邀请
       const result = await createInvitationAction(values);
       if (!result.ok) {
         const errKey = `errors.${result.error}` as const;
         toast.error(t(errKey, { fallback: t('errors.generic') }));
         return;
       }
+      // 邀请成功，重置表单并刷新页面
       toast.success(t('sent'));
       reset({ email: '', role: OrgRole.MEMBER });
       router.refresh();

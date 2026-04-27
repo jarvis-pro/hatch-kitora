@@ -5,7 +5,11 @@ import { Toaster as Sonner } from 'sonner';
 
 type ToasterProps = React.ComponentProps<typeof Sonner>;
 
+/**
+ * Toaster 组件。通知/提示消息容器，集成 sonner 库和主题切换。
+ */
 const Toaster = ({ ...props }: ToasterProps) => {
+  // 获取当前主题，默认为 system
   const { theme = 'system' } = useTheme();
 
   return (

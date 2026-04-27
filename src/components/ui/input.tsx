@@ -2,6 +2,10 @@ import * as React from 'react';
 
 import { cn } from '@/lib/utils';
 
+/**
+ * 输入框组件。提供样式化的文本/输入元素。
+ * @param type - 输入类型（text、password、email、number 等）
+ */
 const Input = React.forwardRef<HTMLInputElement, React.InputHTMLAttributes<HTMLInputElement>>(
   ({ className, type, ...props }, ref) => {
     return (

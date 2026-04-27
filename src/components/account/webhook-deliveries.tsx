@@ -9,6 +9,9 @@ import { resendWebhookDeliveryAction } from '@/lib/orgs/webhook-endpoints';
 import { Button } from '@/components/ui/button';
 import { useRouter } from '@/i18n/routing';
 
+/**
+ * Webhook 发送记录行数据结构
+ */
 export interface WebhookDeliveryRow {
   id: string;
   eventId: string;
@@ -23,6 +26,12 @@ export interface WebhookDeliveryRow {
   completedAt: Date | null;
 }
 
+/**
+ * WebhookDeliveries 组件 Props
+ * @property {string} orgSlug - 组织 slug
+ * @property {string} endpointId - Webhook 端点 ID
+ * @property {WebhookDeliveryRow[]} deliveries - 发送记录列表
+ */
 interface Props {
   orgSlug: string;
   endpointId: string;
@@ -30,10 +39,11 @@ interface Props {
 }
 
 /**
- * RFC 0003 PR-2 — deliveries panel. Most-recent 50 rows in a table; click
- * to expand row → see signed payload + response body. Resend button on
- * non-pending rows so DEAD_LETTER can be requeued without firing the
- * source event again.
+ * Webhook 发送记录面板组件
+ * RFC 0003 PR-2 — 表格展示最近 50 条发送记录。点击行可展开查看签名的请求数据和响应体。
+ * 非 PENDING 状态的记录支持重新发送功能，允许将 DEAD_LETTER 状态重新放入队列而无需重新触发源事件。
+ * @param {Props} props
+ * @returns Webhook 发送记录面板
  */
 export function WebhookDeliveries({ orgSlug, endpointId, deliveries }: Props) {
   const t = useTranslations('orgs.webhooks');
@@ -42,8 +52,13 @@ export function WebhookDeliveries({ orgSlug, endpointId, deliveries }: Props) {
   const [pending, startTransition] = useTransition();
   const [expanded, setExpanded] = useState<string | null>(null);
 
+  /**
+   * 重新发送 Webhook 记录
+   * @param deliveryId - 发送记录 ID
+   */
   const onResend = (deliveryId: string) => {
     startTransition(async () => {
+      // 调用服务端 action 重新发送 webhook
       const result = await resendWebhookDeliveryAction({ orgSlug, endpointId, deliveryId });
       if (result.ok) {
         toast.success(t('deliveries.resent'));
@@ -90,6 +105,15 @@ export function WebhookDeliveries({ orgSlug, endpointId, deliveries }: Props) {
     </div>
   );
 
+  /**
+   * Webhook 发送记录展开行片段
+   * @param d - 发送记录数据
+   * @param open - 是否展开显示详情
+   * @param pending - 是否正在操作中
+   * @param onToggle - 切换展开/收起的回调
+   * @param onResend - 重新发送的回调
+   * @returns 发送记录表格行和详情展开行
+   */
   function DeliveryFragment({
     d,
     open,
@@ -127,6 +151,7 @@ export function WebhookDeliveries({ orgSlug, endpointId, deliveries }: Props) {
             {format.dateTime(d.createdAt, { dateStyle: 'short', timeStyle: 'medium' })}
           </td>
           <td className="px-3 py-2">
+            {/* 仅对非 PENDING/RETRYING 状态的记录显示重新发送按钮 */}
             <Button
               variant="outline"
               size="sm"
@@ -137,6 +162,7 @@ export function WebhookDeliveries({ orgSlug, endpointId, deliveries }: Props) {
             </Button>
           </td>
         </tr>
+        {/* 展开行显示请求数据和响应体 */}
         {open ? (
           <tr className="border-t bg-muted/20">
             <td colSpan={6} className="px-3 py-2">
@@ -164,7 +190,13 @@ export function WebhookDeliveries({ orgSlug, endpointId, deliveries }: Props) {
     );
   }
 
+  /**
+   * Webhook 发送记录状态徽章
+   * @param status - 发送状态
+   * @returns 带样式的状态徽章
+   */
   function StatusBadge({ status }: { status: WebhookDeliveryStatus }) {
+    // 根据发送状态返回相应的样式类
     const tone =
       status === 'DELIVERED'
         ? 'bg-emerald-500/10 text-emerald-700'

@@ -5,6 +5,15 @@ import { ThemeToggle } from '@/components/theme-toggle';
 import { Button } from '@/components/ui/button';
 import { Link } from '@/i18n/routing';
 
+/**
+ * 营销网站顶部导航栏组件。
+ *
+ * 顶部导航栏位置固定，包含品牌 logo、导航菜单（定价、API 文档、GitHub）、
+ * 语言和主题切换器，以及登录和注册按钮。在 md 尺寸及以上的屏幕显示完整
+ * 导航菜单，小屏幕上导航菜单隐藏。
+ *
+ * @returns 包含 logo、导航链接和操作按钮的粘性 header 元素。
+ */
 export function SiteHeader() {
   const t = useTranslations('marketing.nav');
 
@@ -14,6 +23,7 @@ export function SiteHeader() {
         <Link href="/" className="text-lg font-semibold tracking-tight">
           Kitora
         </Link>
+        {/* 在中等屏幕及以上显示主导航菜单 */}
         <nav className="hidden items-center gap-6 text-sm text-muted-foreground md:flex">
           <Link href="/pricing" className="transition-colors hover:text-foreground">
             {t('pricing')}
@@ -30,6 +40,7 @@ export function SiteHeader() {
             {t('github')}
           </a>
         </nav>
+        {/* 右侧操作区域：语言、主题、登录、注册 */}
         <div className="ml-auto flex items-center gap-2">
           <LocaleSwitcher />
           <ThemeToggle />

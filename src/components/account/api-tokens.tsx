@@ -10,6 +10,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useRouter } from '@/i18n/routing';
 
+/**
+ * API 令牌行数据结构
+ */
 export interface ApiTokenRow {
   id: string;
   name: string;
@@ -20,14 +23,30 @@ export interface ApiTokenRow {
   revokedAt: Date | null;
 }
 
+/**
+ * ApiTokens 组件 Props
+ * @property {ApiTokenRow[]} tokens - API 令牌列表
+ */
 interface Props {
   tokens: ApiTokenRow[];
 }
 
+/**
+ * 格式化日期为 YYYY-MM-DD 格式
+ * @param d - 要格式化的日期，null 时返回连字符
+ * @returns 格式化后的日期字符串
+ */
 function formatDate(d: Date | null): string {
   return d ? d.toISOString().slice(0, 10) : '—';
 }
 
+/**
+ * API 令牌管理组件
+ * 用于创建、查看和撤销 API 令牌。支持一次性显示新创建的令牌原文（之后无法查看），
+ * 提供复制到剪贴板功能，可撤销或删除过期令牌。
+ * @param {Props} props
+ * @returns 令牌管理界面
+ */
 export function ApiTokens({ tokens }: Props) {
   const t = useTranslations('account.apiTokens');
   const router = useRouter();
@@ -35,23 +54,33 @@ export function ApiTokens({ tokens }: Props) {
   const [name, setName] = useState('');
   const [revealed, setRevealed] = useState<{ raw: string; name: string } | null>(null);
 
+  /**
+   * 创建新 API 令牌
+   */
   const onCreate = () => {
     if (!name.trim()) return;
     startTransition(async () => {
+      // 调用服务端 action 创建令牌
       const result = await createApiTokenAction({ name: name.trim() });
       if (!result.ok) {
         toast.error(t('errors.create'));
         return;
       }
+      // 一次性显示新令牌的原文
       setRevealed({ raw: result.token.raw, name: result.token.name });
       setName('');
       router.refresh();
     });
   };
 
+  /**
+   * 撤销指定 API 令牌
+   * @param tokenId - 令牌 ID
+   */
   const onRevoke = (tokenId: string) => {
     if (!confirm(t('confirmRevoke'))) return;
     startTransition(async () => {
+      // 调用服务端 action 撤销令牌
       const result = await revokeApiTokenAction({ tokenId });
       if (result.ok) {
         toast.success(t('revoked'));
@@ -62,6 +91,10 @@ export function ApiTokens({ tokens }: Props) {
     });
   };
 
+  /**
+   * 复制令牌到剪贴板
+   * @param raw - 要复制的令牌原文
+   */
   const onCopy = async (raw: string) => {
     try {
       await navigator.clipboard.writeText(raw);
@@ -73,7 +106,7 @@ export function ApiTokens({ tokens }: Props) {
 
   return (
     <div className="space-y-6">
-      {/* Create form */}
+      {/* 创建令牌表单 */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
         <div className="flex-1 space-y-2">
           <Label htmlFor="token-name">{t('createLabel')}</Label>
@@ -90,7 +123,7 @@ export function ApiTokens({ tokens }: Props) {
         </Button>
       </div>
 
-      {/* One-time reveal */}
+      {/* 一次性显示新创建令牌的原文 */}
       {revealed ? (
         <div className="space-y-2 rounded-md border border-amber-500/40 bg-amber-500/10 p-4">
           <p className="text-sm font-medium text-amber-700 dark:text-amber-400">
@@ -111,12 +144,13 @@ export function ApiTokens({ tokens }: Props) {
         </div>
       ) : null}
 
-      {/* Token list */}
+      {/* 令牌列表 */}
       {tokens.length === 0 ? (
         <p className="text-sm text-muted-foreground">{t('empty')}</p>
       ) : (
         <ul className="divide-y rounded-md border">
           {tokens.map((token) => {
+            // 判断令牌是否已被撤销或已过期
             const revoked = !!token.revokedAt;
             const expired = !!token.expiresAt && token.expiresAt.getTime() < Date.now();
             return (
