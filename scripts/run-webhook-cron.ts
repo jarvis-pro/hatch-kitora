@@ -1,14 +1,13 @@
 #!/usr/bin/env tsx
 /**
- * RFC 0003 PR-2 — outbound webhook cron worker (CLI entry).
+ * RFC 0003 PR-2 — 出站 Webhook cron worker（CLI 入口）。
  *
- * Run from a Vercel / Fly cron every minute:
+ * 通过 Vercel / Fly cron 每分钟运行一次：
  *   pnpm tsx scripts/run-webhook-cron.ts
  *
- * The actual logic lives in `src/lib/webhooks/cron.ts` so e2e tests can
- * drive it in-process without a dynamic ESM import (Playwright + tsx
- * disagree on module type for ad-hoc TS imports). This script is just a
- * thin wrapper that resolves to a non-zero exit code on failure.
+ * 实际逻辑位于 `src/lib/webhooks/cron.ts`，这样 e2e 测试可以在进程内
+ * 驱动它，无需动态 ESM import（Playwright + tsx 对临时 TS import 的模块
+ * 类型处理存在分歧）。本脚本只是一个薄包装，失败时以非零退出码终止。
  */
 
 import { logger } from '@/lib/logger';

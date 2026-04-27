@@ -8,9 +8,8 @@ async function main() {
   const adminPassword = process.env.SEED_ADMIN_PASSWORD ?? 'Admin@12345';
   const passwordHash = await bcrypt.hash(adminPassword, 12);
 
-  // RFC 0005 — seeds always target the GLOBAL region. The CN / EU stacks
-  // have their own seed runs (parametrise via `SEED_REGION` if you ever
-  // need to seed a non-default region locally).
+  // RFC 0005 — seed 始终针对 GLOBAL region。CN / EU 栈有各自的 seed 运行
+  // （如需在非默认 region 本地 seed，通过 `SEED_REGION` 参数化即可）。
   const seedRegion = (process.env.SEED_REGION as Region | undefined) ?? Region.GLOBAL;
 
   const admin = await prisma.user.upsert({

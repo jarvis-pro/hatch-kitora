@@ -1,19 +1,17 @@
 #!/usr/bin/env tsx
 /**
- * RFC 0002 PR-4 / RFC 0008 PR-2 — daily deletion cron worker (CLI entry).
+ * RFC 0002 PR-4 / RFC 0008 PR-2 — 每日账号删除 cron worker（CLI 入口）。
  *
- * Run from Vercel / Fly cron once a day:
+ * 通过 Vercel / Fly cron 每天运行一次：
  *   pnpm tsx scripts/run-deletion-cron.ts
  *
- * The actual logic lives in `src/lib/account/deletion-cron.ts` so e2e tests
- * can drive it in-process and the new `deletion.tick` BackgroundJob wrapper
- * (RFC 0008) can call the same function. This script is a thin shim that
- * resolves to a non-zero exit code on failure.
+ * 实际逻辑位于 `src/lib/account/deletion-cron.ts`，这样 e2e 测试可以
+ * 在进程内驱动它，新的 `deletion.tick` BackgroundJob 包装器（RFC 0008）
+ * 也可以调用同一个函数。本脚本是一个薄垫片，失败时以非零退出码终止。
  *
- * NOTE: With RFC 0008 PR-4 the recommended cron entry becomes
- * `pnpm tsx scripts/run-jobs.ts` (single CLI fanning out to all schedules).
- * This shim is kept for one deprecation window so existing Vercel / Fly
- * cron configs migrate at their own pace.
+ * 注意：RFC 0008 PR-4 落地后，推荐的 cron 入口改为
+ * `pnpm tsx scripts/run-jobs.ts`（单一 CLI 统一分发所有 schedule）。
+ * 本垫片保留一个废弃窗口，供现有 Vercel / Fly cron 配置按自己节奏迁移。
  */
 
 import { logger } from '@/lib/logger';

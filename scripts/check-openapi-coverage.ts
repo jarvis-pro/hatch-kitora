@@ -1,22 +1,20 @@
 #!/usr/bin/env tsx
 /**
- * RFC 0003 PR-3 — OpenAPI coverage cross-check.
+ * RFC 0003 PR-3 — OpenAPI 覆盖率交叉检查。
  *
- * Walks `src/app/api/v1/**\/route.ts`, derives the (method, pathTemplate)
- * pairs each file exports, then compares against `openapi/v1.yaml`. Either
- * direction missing → exit 1 + a punch list.
+ * 遍历 `src/app/api/v1/**\/route.ts`，推导每个文件导出的 (method, pathTemplate)
+ * 对，再与 `openapi/v1.yaml` 进行比较。任意方向缺失 → exit 1 并输出差异清单。
  *
- * Run as part of CI:
+ * 作为 CI 的一部分运行：
  *   pnpm openapi:check
  *
- * What we DON'T check here (left to `redocly lint`):
- *   - schema validity
- *   - parameter types
- *   - example shape
- *   - dangling $refs
+ * 不在此检查（交给 `redocly lint`）：
+ *   - schema 有效性
+ *   - 参数类型
+ *   - 示例格式
+ *   - 悬空 $ref
  *
- * The point of this script is to keep the path-set in sync. Anything else
- * is `redocly`'s job — they're better at it.
+ * 本脚本的职责是保持 path 集合同步。其余工作由 `redocly` 负责 —— 它更擅长。
  */
 
 import { readFileSync } from 'node:fs';
@@ -34,25 +32,25 @@ const HTTP_METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD', 'OPTIONS'
 type Method = (typeof HTTP_METHODS)[number];
 
 interface RouteEntry {
-  /** OpenAPI-shaped path template, e.g. `/api/v1/orgs/{slug}/webhooks/{id}`. */
+  /** OpenAPI 格式的路径模板，例如 `/api/v1/orgs/{slug}/webhooks/{id}`。 */
   path: string;
   method: Method;
-  /** File path the entry was derived from, for error messages. */
+  /** 推导此条目的文件路径，用于错误信息。 */
   source: string;
 }
 
 async function listRouteFiles(): Promise<string[]> {
   const out: string[] = [];
-  // Node's built-in glob (since 22) returns AsyncIterable<string>.
+  // Node 22 内置 glob，返回 AsyncIterable<string>。
   for await (const entry of glob('**/route.ts', { cwd: ROUTES_DIR })) {
     out.push(entry);
   }
   return out;
 }
 
-/** Convert a `[slug]` segment in the file path to the OpenAPI-shaped `{slug}`. */
+/** 将文件路径中的 `[slug]` 段转换为 OpenAPI 格式的 `{slug}`。 */
 function dirToOpenApiPath(relPath: string): string {
-  // Drop the trailing `route.ts`, normalize separators, replace bracket params.
+  // 去掉末尾的 `route.ts`，统一分隔符，替换括号参数。
   const segments = relPath.split(sep).filter((s) => s.length > 0);
   segments.pop(); // route.ts
   const transformed = segments.map((seg) => {
@@ -60,7 +58,7 @@ function dirToOpenApiPath(relPath: string): string {
       return `{${seg.slice(1, -1)}}`;
     }
     if (seg.startsWith('(') && seg.endsWith(')')) {
-      // Route group — collapses, doesn't appear in URL.
+      // 路由组 —— 折叠，不出现在 URL 中。
       return null;
     }
     return seg;
@@ -70,9 +68,9 @@ function dirToOpenApiPath(relPath: string): string {
 }
 
 /**
- * Naive but durable: scan the file's text for `export async function METHOD`
- * and `export function METHOD` and `export const METHOD =`. Anything else is
- * not how Next.js App Router exposes a method handler anyway.
+ * 简单但健壮：扫描文件文本，查找 `export async function METHOD`、
+ * `export function METHOD` 和 `export const METHOD =`。
+ * Next.js App Router 暴露方法处理器只会用这几种形式。
  */
 function methodsFromSource(text: string): Method[] {
   const out: Method[] = [];
@@ -91,7 +89,7 @@ async function discoverRoutes(): Promise<RouteEntry[]> {
     const text = readFileSync(abs, 'utf8');
     const methods = methodsFromSource(text);
     if (methods.length === 0) {
-      console.warn(`[openapi-check] ⚠ ${relative(ROOT, abs)} declares no recognized HTTP exports`);
+      console.warn(`[openapi-check] ⚠ ${relative(ROOT, abs)} 未声明任何已知的 HTTP 导出`);
       continue;
     }
     const path = dirToOpenApiPath(f);
@@ -110,7 +108,7 @@ function loadSpecRoutes(): RouteEntry[] {
   const text = readFileSync(SPEC_PATH, 'utf8');
   const doc = yaml.load(text) as { paths?: Record<string, SpecPathItem> } | null;
   if (!doc || typeof doc !== 'object' || !doc.paths) {
-    throw new Error(`openapi/v1.yaml has no \`paths:\` block`);
+    throw new Error(`openapi/v1.yaml 缺少 \`paths:\` 块`);
   }
   const out: RouteEntry[] = [];
   for (const [path, item] of Object.entries(doc.paths)) {
@@ -142,23 +140,23 @@ async function main() {
   const missingFromCode = [...specKeys].filter((k) => !routeKeys.has(k)).sort();
 
   if (missingFromSpec.length === 0 && missingFromCode.length === 0) {
-    console.log(`[openapi-check] ✓ ${routeKeys.size} route(s) match openapi/v1.yaml exactly.`);
+    console.log(`[openapi-check] ✓ ${routeKeys.size} 条路由与 openapi/v1.yaml 完全匹配。`);
     return;
   }
 
   if (missingFromSpec.length > 0) {
-    console.error('\n[openapi-check] ✗ Routes implemented in code but missing from spec:');
+    console.error('\n[openapi-check] ✗ 代码中已实现但规范中缺失的路由：');
     for (const k of missingFromSpec) console.error('   - ' + k);
   }
   if (missingFromCode.length > 0) {
-    console.error('\n[openapi-check] ✗ Spec paths with no matching route handler:');
+    console.error('\n[openapi-check] ✗ 规范中存在但没有对应路由处理器的路径：');
     for (const k of missingFromCode) console.error('   - ' + k);
   }
-  console.error('\nFix by editing `openapi/v1.yaml` (and/or the route file) so both sides agree.');
+  console.error('\n请编辑 `openapi/v1.yaml`（和/或路由文件），使两侧保持一致。');
   exit(1);
 }
 
 main().catch((err) => {
-  console.error('[openapi-check] fatal:', err);
+  console.error('[openapi-check] 致命错误：', err);
   exit(1);
 });

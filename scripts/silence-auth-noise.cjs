@@ -1,21 +1,19 @@
 /**
- * Node.js `-r` preload — runs before any other module in the process.
+ * Node.js `-r` 预加载脚本 —— 在进程中任何其他模块之前运行。
  *
- * Wraps `process.stderr.write` to silently drop the `CredentialsSignin`
- * header + stack trace that next-auth v5 beta + Next.js's internal
- * `Log.error` emit on every wrong-password attempt. Real auth errors
- * (DB outage, OAuth misconfig) still bubble up unaffected.
+ * 包装 `process.stderr.write`，静默丢弃 next-auth v5 beta + Next.js 内部
+ * `Log.error` 在每次密码错误时输出的 `CredentialsSignin` 头部 + 堆栈跟踪。
+ * 真实的认证错误（数据库故障、OAuth 配置错误）仍然正常冒泡。
  *
- * Wired up via `NODE_OPTIONS="-r ./scripts/silence-auth-noise.cjs"` in
- * `playwright.config.ts` (and optionally in production deploy env).
+ * 通过 `playwright.config.ts` 中的
+ * `NODE_OPTIONS="-r ./scripts/silence-auth-noise.cjs"` 接入
+ * （生产部署环境变量中也可按需设置）。
  *
- * Implementation note — the noise comes through as TWO separate
- * `console.error` calls (header, then stack), each landing as its own
- * `stderr.write` chunk. The header carries the `CredentialsSignin` /
- * `[auth][error]` keyword and trips the suppression flag; the stack
- * chunk arrives next and is dropped because every line starts with
- * `\s+at `. Patching `console.error` directly used to short-circuit
- * before the flag could flip — that's the bug we don't want again.
+ * 实现说明 —— 噪音以两次独立的 `console.error` 调用到达（头部，然后是堆栈），
+ * 每次对应一个单独的 `stderr.write` 数据块。头部携带 `CredentialsSignin` /
+ * `[auth][error]` 关键词并触发抑制标志；堆栈块紧随其后，因每行都以
+ * `\s+at ` 开头而被丢弃。直接 patch `console.error` 曾导致标志在翻转前
+ * 就被短路 —— 这正是我们不想重现的 bug。
  */
 
 const looksLikeAuthNoise = (msg) =>
@@ -34,9 +32,8 @@ process.stderr.write = function patchedWrite(chunk, ...rest) {
   }
 
   if (suppressing) {
-    // Stack continuation lines start with whitespace + `at `. Trailing
-    // blank lines also belong to the stack. Anything else is unrelated
-    // output, so flip suppression off and write through.
+    // 堆栈续行以空白 + `at ` 开头。末尾的空行也属于堆栈的一部分。
+    // 其他内容是无关输出，关闭抑制并正常写入。
     if (/^\s+at\s/.test(str) || str === '\n' || str === '') return true;
     suppressing = false;
   }

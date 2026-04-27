@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """
-One-shot helper to merge PR-3 i18n keys into messages/en.json and messages/zh.json.
+一次性辅助脚本：将 PR-3 i18n 键合并到 messages/en.json 和 messages/zh.json。
 
-Run from repo root:
+从仓库根目录运行：
     python3 scripts/i18n-add-orgs.py
 
-Idempotent — re-running won't duplicate keys (last-writer-wins on collisions).
-After merging, re-format with prettier:
+幂等 —— 重复运行不会产生重复键（冲突时后写者覆盖先写者）。
+合并后用 prettier 重新格式化：
     pnpm format
 """
 import json
@@ -350,15 +350,15 @@ def patch(path: Path, dashboard_nav: dict, audit_actions: dict, orgs: dict):
     path.write_text(
         json.dumps(data, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
     )
-    print(f"  ✓ wrote {path.relative_to(REPO)}")
+    print(f"  ✓ 已写入 {path.relative_to(REPO)}")
 
 
 def main():
-    print("Patching messages/en.json")
+    print("正在处理 messages/en.json")
     patch(REPO / "messages" / "en.json", DASHBOARD_NAV_EN, AUDIT_ACTIONS_EN, ORGS_EN)
-    print("Patching messages/zh.json")
+    print("正在处理 messages/zh.json")
     patch(REPO / "messages" / "zh.json", DASHBOARD_NAV_ZH, AUDIT_ACTIONS_ZH, ORGS_ZH)
-    print("Done. Now run:  pnpm format")
+    print("完成。请运行：  pnpm format")
 
 
 if __name__ == "__main__":

@@ -1,19 +1,17 @@
 #!/usr/bin/env tsx
 /**
- * RFC 0002 PR-3 / RFC 0008 PR-2 — data export cron worker (CLI entry).
+ * RFC 0002 PR-3 / RFC 0008 PR-2 — 数据导出 cron worker（CLI 入口）。
  *
- * Run from a Vercel / Fly cron every minute:
+ * 通过 Vercel / Fly cron 每分钟运行一次：
  *   pnpm tsx scripts/run-export-jobs.ts
  *
- * The actual logic lives in `src/lib/data-export/cron.ts` so e2e tests can
- * drive it in-process and the new `export.tick` BackgroundJob wrapper
- * (RFC 0008) can call the same function. This script is a thin shim that
- * resolves to a non-zero exit code on failure.
+ * 实际逻辑位于 `src/lib/data-export/cron.ts`，这样 e2e 测试可以
+ * 在进程内驱动它，新的 `export.tick` BackgroundJob 包装器（RFC 0008）
+ * 也可以调用同一个函数。本脚本是一个薄垫片，失败时以非零退出码终止。
  *
- * NOTE: With RFC 0008 PR-4 the recommended cron entry becomes
- * `pnpm tsx scripts/run-jobs.ts` (single CLI fanning out to all schedules).
- * This shim is kept for one deprecation window so existing Vercel / Fly
- * cron configs migrate at their own pace.
+ * 注意：RFC 0008 PR-4 落地后，推荐的 cron 入口改为
+ * `pnpm tsx scripts/run-jobs.ts`（单一 CLI 统一分发所有 schedule）。
+ * 本垫片保留一个废弃窗口，供现有 Vercel / Fly cron 配置按自己节奏迁移。
  */
 
 import { logger } from '@/lib/logger';
