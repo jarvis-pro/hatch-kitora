@@ -33,7 +33,10 @@ export const test = base.extend<Fixtures>({
       await page.goto('/login');
       await page.getByLabel(/email/i).fill(user.email);
       await page.getByLabel(/password/i).fill(user.rawPassword);
-      await page.getByRole('button', { name: /sign in/i }).click();
+      // `exact: true` 是必要的 —— `/login` 页同时挂着「Sign in」(password 提交)
+      // 与「Sign in with a passkey」(WebAuthn) 两个按钮，用 `/sign in/i` 会
+      // 撞 strict mode violation。`exact` 把 accessible name 锁死成纯 "Sign in"。
+      await page.getByRole('button', { name: 'Sign in', exact: true }).click();
       await page.waitForURL(/\/dashboard/);
     });
   },

@@ -28,7 +28,8 @@ test.describe('auth', () => {
     await page.goto('/login');
     await page.getByLabel(/email/i).fill(testUser.email);
     await page.getByLabel(/password/i).fill('definitely-wrong-pw');
-    await page.getByRole('button', { name: /sign in/i }).click();
+    // exact: true —— `/login` 页另有「Sign in with a passkey」按钮会撞 strict mode。
+    await page.getByRole('button', { name: 'Sign in', exact: true }).click();
     // Stay on /login — toast should fire; don't depend on toast text since it
     // fades. Assert URL only.
     await page.waitForTimeout(500);

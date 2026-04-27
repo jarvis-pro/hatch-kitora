@@ -80,7 +80,8 @@ test.describe('account deletion grace period', () => {
       await page.goto('/login');
       await page.getByLabel(/email/i).fill(testUser.email);
       await page.getByLabel(/password/i).fill(testUser.rawPassword);
-      await page.getByRole('button', { name: /sign in/i }).click();
+      // exact: true —— `/login` 页另有「Sign in with a passkey」按钮会撞 strict mode。
+      await page.getByRole('button', { name: 'Sign in', exact: true }).click();
       // Either /dashboard (briefly, before middleware fires) or /settings.
       // We assert the *eventual* URL contains /settings.
       await page.waitForURL(/\/settings(\/|\?|$)/, { timeout: 10_000 });
