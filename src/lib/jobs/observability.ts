@@ -27,6 +27,8 @@
  *     与 v1 一致 —— 这条路在 vitest unit test、tsx CLI、e2e 三个环境都是常态。
  */
 
+import type * as SentryNextjs from '@sentry/nextjs';
+
 import { logger } from '@/lib/logger';
 
 /**
@@ -67,7 +69,7 @@ export function jobMetrics(): JobMetricsHook {
 
 // ── Sentry dynamic import ────────────────────────────────────────────
 
-type SentryModule = typeof import('@sentry/nextjs');
+type SentryModule = typeof SentryNextjs;
 let sentryPromise: Promise<SentryModule | null> | null = null;
 
 function loadSentry(): Promise<SentryModule | null> {
@@ -98,8 +100,15 @@ export async function withJobTransaction<T>(
   logger.debug({ jobType: type, jobId, attempt }, 'job-transaction-start');
 
   const Sentry = await loadSentry();
-  if (!Sentry) {
-    // SDK 不可用 —— 透传，仅靠 logger breadcrumbs。
+  // 两道兜底：
+  //   1. import 直接抛 → loadSentry 已 catch 返回 null（CLI 入口下 next/dist/* 缺失）。
+  //   2. import 没抛但模块「形状不对」—— Playwright e2e 的 tsx 进程能加载
+  //      `@sentry/nextjs` 但 server entry 的某些 transitive bind 失败，
+  //      `Sentry.startSpan` / `Sentry.captureException` 落不下来。命中时如果还硬调，
+  //      就把 `TypeError: Sentry.startSpan is not a function` 当成 handler 失败
+  //      传给 runner，被 retry / DLQ 误判（jobs.spec.ts e2e 实测过这条路径）。
+  //   两条都退化到「仅 logger breadcrumbs」的透传路径。
+  if (!Sentry || typeof Sentry.startSpan !== 'function') {
     return runWithLogger(type, jobId, attempt, fn);
   }
 
