@@ -1,7 +1,7 @@
-// Runnable Node.js example: drop into a Next.js API route or an Express handler.
-// Verifies the X-Kitora-Signature header + replay window in ~25 lines.
+// 可运行的 Node.js 示例：直接嵌入 Next.js API 路由或 Express 处理器。
+// 约 25 行代码完成 X-Kitora-Signature 请求头验证及重放窗口校验。
 //
-// Run as a smoke test:
+// 冒烟测试运行方式：
 //   node openapi/examples/verify-node.js
 import crypto from 'node:crypto';
 
@@ -30,7 +30,7 @@ export function verifyKitoraSignature({
   return crypto.timingSafeEqual(a, b);
 }
 
-// ─── Smoke test ──────────────────────────────────────────────────────────────
+// ─── 冒烟测试 ─────────────────────────────────────────────────────────────────
 if (import.meta.url === `file://${process.argv[1]}`) {
   const secret = 'whsec_test_secret';
   const body = JSON.stringify({ id: 'evt_1', type: 'subscription.created' });

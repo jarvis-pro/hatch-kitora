@@ -1,19 +1,19 @@
 <?php
 /**
- * Runnable PHP example: drop into a Laravel / Symfony / vanilla handler.
+ * 可运行的 PHP 示例：直接嵌入 Laravel / Symfony / 原生处理器。
  *
- * Run as a smoke test:
+ * 冒烟测试运行方式：
  *   php openapi/examples/verify-php.php
  */
 
 const MAX_AGE = 300; // seconds — must match Kitora's window
 
 /**
- * Verify the X-Kitora-Signature header against the raw request body.
+ * 验证 X-Kitora-Signature 请求头与原始请求体是否匹配。
  *
- * @param string $header  The full X-Kitora-Signature header value.
- * @param string $body    The raw request body bytes.
- * @param string $secret  The webhook signing secret (whsec_...).
+ * @param string $header  完整的 X-Kitora-Signature 请求头值。
+ * @param string $body    原始请求体字节。
+ * @param string $secret  Webhook 签名密钥（whsec_...）。
  * @return bool
  */
 function verify_kitora_signature(string $header, string $body, string $secret): bool {

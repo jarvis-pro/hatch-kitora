@@ -1,53 +1,38 @@
-# Kitora REST API — Integration guide
+# Kitora REST API — 集成指南
 
-This directory holds the source-of-truth OpenAPI spec for the Kitora public API
-(`openapi/v1.yaml`) plus integrator-facing examples. The spec is rendered
-in-product at `/docs/api` (Scalar) and served raw at `/api/openapi/v1.yaml`.
+本目录存放 Kitora 公开 API 的权威 OpenAPI 规范（`openapi/v1.yaml`）以及面向集成方的示例代码。规范在产品内渲染于 `/docs/api`（Scalar），并以原始文件形式对外暴露于 `/api/openapi/v1.yaml`。
 
-The contract is **handwritten**, not generated. When you add a public endpoint
-under `src/app/api/v1/**/route.ts`, you must mirror it into `v1.yaml` in the
-same PR. CI runs two cross-checks:
+该规范是**手写的**，不是自动生成的。当你在 `src/app/api/v1/**/route.ts` 下新增公开端点时，必须在同一个 PR 中同步更新 `v1.yaml`。CI 会执行两项交叉检查：
 
 ```bash
-pnpm openapi:lint       # @redocly/cli — schema-level lint
-pnpm openapi:check      # scripts/check-openapi-coverage.ts — paths × routes diff
+pnpm openapi:lint       # @redocly/cli — schema 级别 lint
+pnpm openapi:check      # scripts/check-openapi-coverage.ts — paths × routes 差异检查
 ```
 
-Both must pass before merge.
+两项均通过方可合并。
 
-## Why handwritten
+## 为什么手写而非生成
 
-A SaaS template's public API is a stability promise to integrators — a contract
-that should change more slowly than the code. Generating spec from code couples
-them too tightly: a stray `.optional()` in a Zod schema becomes a backwards-
-incompatible spec change. We trade a bit of duplication for a lot of intent.
+SaaS 模板的公开 API 是对集成方的稳定性承诺 —— 一份变更应比代码慢得多的契约。从代码生成规范会将两者耦合得过于紧密：Zod schema 里一个随手加的 `.optional()` 就可能造成破坏性的规范变更。我们用少量重复换来了充分的表达意图的空间。
 
-The coverage script catches the most common drift (route added, spec
-forgotten); the lint job catches the rest (typos, dangling refs, broken
-example shapes).
+覆盖率检查脚本捕获最常见的偏差（新增了路由但忘记更新规范）；lint 任务捕获其余问题（拼写错误、悬空引用、示例格式错误）。
 
-## Webhook signing
+## Webhook 签名验证
 
-Outbound webhook deliveries from Kitora carry an HMAC-SHA256 signature in the
-`X-Kitora-Signature` header. The format is:
+Kitora 的出站 Webhook 投递在 `X-Kitora-Signature` 请求头中携带 HMAC-SHA256 签名，格式为：
 
 ```
 X-Kitora-Signature: t=<unix_ts>,v1=<hex_sha256>
 ```
 
-where the signed payload is `<unix_ts>.<raw_request_body>`. Receivers MUST
-do two things:
+签名载荷为 `<unix_ts>.<原始请求体>`。接收方**必须**完成以下两件事：
 
-1. **Verify the signature** — recompute `hex(HMAC_SHA256(secret, ts + "." + body))`
-   with the **raw** request bytes (no JSON re-serialization) and constant-time
-   compare against `v1`.
-2. **Enforce a 5-minute timestamp window** — reject the request if `|now - t| > 300`,
-   to prevent replay of captured deliveries.
+1. **验证签名** —— 用**原始**请求字节（不得重新序列化 JSON）重新计算 `hex(HMAC_SHA256(secret, ts + "." + body))`，并与 `v1` 做常量时间比较。
+2. **执行 5 分钟时间窗口校验** —— 若 `|now - t| > 300`，则拒绝请求，以防止已捕获投递的重放攻击。
 
-Sample receiver code in three languages — pick the one that matches your stack
-and inline it. The `examples/` folder has full runnable copies.
+以下是三种语言的接收方示例代码，选择与你技术栈匹配的版本直接内嵌。`examples/` 目录中有完整可运行的版本。
 
-### Node.js (Next.js / Express)
+### Node.js（Next.js / Express）
 
 ```js
 import crypto from 'node:crypto';
@@ -73,7 +58,7 @@ export function verifyKitoraSignature({ header, body, secret, now = Date.now() /
 }
 ```
 
-### Python (FastAPI / Flask)
+### Python（FastAPI / Flask）
 
 ```python
 import hmac
@@ -96,7 +81,7 @@ def verify_kitora_signature(*, header: str, body: bytes, secret: str, now: float
     return hmac.compare_digest(expected, parts.get('v1', ''))
 ```
 
-### PHP (Laravel / Symfony / vanilla)
+### PHP（Laravel / Symfony / 原生）
 
 ```php
 function verifyKitoraSignature(string $header, string $body, string $secret): bool {
@@ -114,65 +99,45 @@ function verifyKitoraSignature(string $header, string $body, string $secret): bo
 }
 ```
 
-## Headers Kitora sends with every delivery
+## Kitora 每次投递携带的请求头
 
-| Header                | Description                                                                                  |
-| --------------------- | -------------------------------------------------------------------------------------------- |
-| `X-Kitora-Event-Id`   | Logical event id, stable across retries. Use this for receiver-side idempotency.             |
-| `X-Kitora-Event-Type` | E.g. `subscription.created`. See `WebhookEventType` in the spec for the full registry.       |
-| `X-Kitora-Timestamp`  | Epoch seconds the delivery was attempted (echo of the `t=` portion of the signature).        |
-| `X-Kitora-Signature`  | `t=<ts>,v1=<hex_sha256>` — see above for verification.                                       |
-| `User-Agent`          | `Kitora-Webhooks/1.0` — pin this in your firewall allow-list if you want stricter filtering. |
-| `Content-Type`        | `application/json`                                                                           |
+| 请求头                | 说明                                                                           |
+| --------------------- | ------------------------------------------------------------------------------ |
+| `X-Kitora-Event-Id`   | 逻辑事件 ID，在重试之间保持不变。用于接收方的幂等去重。                        |
+| `X-Kitora-Event-Type` | 例如 `subscription.created`。完整事件类型注册表见规范中的 `WebhookEventType`。 |
+| `X-Kitora-Timestamp`  | 投递发起时的 Unix 时间戳（秒），即签名中 `t=` 部分的回显。                     |
+| `X-Kitora-Signature`  | `t=<ts>,v1=<hex_sha256>` —— 验证方式见上文。                                   |
+| `User-Agent`          | `Kitora-Webhooks/1.0` —— 如需更严格的过滤，可将此值加入防火墙白名单。          |
+| `Content-Type`        | `application/json`                                                             |
 
-## Idempotency
+## 幂等性
 
-Use `X-Kitora-Event-Id` as your dedupe key. The cron worker will retry a
-delivery up to 8 times over ~44 hours; each attempt has the **same** event
-id but a different signature timestamp. Don't dedupe on the signature, the
-delivery row id, or the body hash — those all change across retries.
+使用 `X-Kitora-Event-Id` 作为去重键。cron worker 最多重试 8 次，持续约 44 小时；每次尝试的事件 ID **相同**，但签名时间戳不同。不要用签名、投递行 ID 或请求体哈希做去重 —— 这些值在重试间会变化。
 
-## Rate limits on the management API
+## 管理 API 的速率限制
 
-The `/api/v1/orgs/{slug}/webhooks*` management endpoints share the same
-per-token rate limiter as the rest of the API. Inspect the
-`X-RateLimit-Remaining` / `X-RateLimit-Reset` headers on every response. A
-429 means the bucket is empty until the reset epoch.
+`/api/v1/orgs/{slug}/webhooks*` 管理端点与其他 API 共享同一个基于 token 的速率限制器。请检查每次响应中的 `X-RateLimit-Remaining` / `X-RateLimit-Reset` 请求头。429 表示令牌桶已空，直到 reset 时间戳刷新前不会接受新请求。
 
-There is **no** separate rate limit on incoming deliveries to your endpoint —
-that's between you and your reverse proxy.
+对于发送到你端点的入站投递，**没有**独立的速率限制 —— 那是你和反向代理之间的事。
 
-## Auto-disable behavior
+## 自动禁用行为
 
-After 8 consecutive failed deliveries to a single endpoint (~44 hours under
-the default retry curve), Kitora pauses the endpoint by setting
-`disabledAt` and cancels its pending queue on the next cron tick. We send an
-email to OWNER + ADMIN and append an audit row with action
-`webhook.endpoint_auto_disabled`.
+向某个端点连续投递失败 8 次（默认重试曲线下约 44 小时）后，Kitora 会通过设置 `disabledAt` 暂停该端点，并在下一次 cron tick 时取消其待处理队列。系统会向组织的 OWNER 和 ADMIN 发送邮件，并追加一条 `webhook.endpoint_auto_disabled` 审计记录。
 
-When you re-enable the endpoint (`PATCH /webhooks/{id}` with `disabledAt:
-null`), pending deliveries do **not** automatically resume — they were
-cancelled, not paused. Trigger fresh events from your side to rebuild state.
+重新启用端点后（通过 `PATCH /webhooks/{id}` 将 `disabledAt` 设为 `null`），待处理的投递**不会**自动恢复 —— 它们已被取消，而非暂停。请从你这侧触发新事件来重建状态。
 
-The pause threshold and the retry curve aren't yet user-configurable; if you
-need them tuned, file an issue.
+暂停阈值和重试曲线目前不支持用户自定义配置；如有调整需求，请提交 issue。
 
-## Service status
+## 服务状态
 
-Production status, planned maintenance windows, and cron-tick announcements
-are published at https://status.kitora.example.com. Subscribe there to get
-pinged before changes that might affect API or webhook behavior.
+生产状态、计划维护窗口和 cron-tick 公告发布于 https://status.kitora.example.com。在该页面订阅，可在影响 API 或 Webhook 行为的变更前收到通知。
 
-## Observability hooks for self-hosters
+## 自托管的可观测性钩子
 
-If you're running Kitora yourself, the `/api/metrics` endpoint exposes
-Prometheus-format counters / gauges including:
+如果你自行部署 Kitora，`/api/metrics` 端点会以 Prometheus 格式暴露以下计数器/指标：
 
-- `kitora_webhook_endpoints_total{disabled="false|true"}` — live vs paused.
-- `kitora_webhook_deliveries_total{status="..."}` — current row state machine distribution.
-- `kitora_webhook_dead_letter_total` — alert baseline; a non-zero rate-of-change
-  is the wake-the-on-call signal.
+- `kitora_webhook_endpoints_total{disabled="false|true"}` —— 活跃端点 vs 已暂停端点数量。
+- `kitora_webhook_deliveries_total{status="..."}` —— 当前投递状态机的分布情况。
+- `kitora_webhook_dead_letter_total` —— 告警基线；非零的增长率是唤醒值班人员的信号。
 
-The endpoint requires a Bearer ApiToken whose owner has the platform `ADMIN`
-role. Configure your scraper to authenticate identically to a normal API
-client.
+该端点需要持有平台 `ADMIN` 角色的 Bearer ApiToken 进行认证。按照普通 API 客户端相同的方式配置你的抓取器进行认证。

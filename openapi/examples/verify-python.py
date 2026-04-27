@@ -1,6 +1,6 @@
-"""Runnable Python example: drop into a FastAPI / Flask / Django handler.
+"""可运行的 Python 示例：直接嵌入 FastAPI / Flask / Django 处理器。
 
-Run as a smoke test:
+冒烟测试运行方式：
     python openapi/examples/verify-python.py
 """
 import hmac
@@ -11,9 +11,9 @@ MAX_AGE = 300  # seconds — must match Kitora's window
 
 
 def verify_kitora_signature(*, header: str, body: bytes, secret: str, now: float | None = None) -> bool:
-    """Return True iff the X-Kitora-Signature header is valid for `body`.
+    """若 X-Kitora-Signature 请求头对 `body` 有效则返回 True。
 
-    `body` MUST be the raw request bytes (not a re-serialized JSON dict).
+    `body` 必须是原始请求字节（不得重新序列化 JSON 字典）。
     """
     if now is None:
         now = time.time()
