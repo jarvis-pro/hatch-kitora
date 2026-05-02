@@ -316,21 +316,38 @@ async function autoDisableEndpoint(endpoint: DisableTarget): Promise<void> {
 
   if (!org) return; // 孤立的端点——没有人要通知
 
-  await Promise.all(
-    recipients
-      .map((m) => m.user)
-      .filter((u): u is { email: string; name: string | null } => !!u?.email)
-      .map((u) =>
-        sendWebhookAutoDisabledEmail({
-          to: u.email,
-          name: u.name,
-          endpointUrl: endpoint.url,
-          endpointId: endpoint.id,
-          orgSlug: org.slug,
-          consecutiveFailures: endpoint.consecutiveFailures,
-        }),
-      ),
+  // 邮件扇出走 allSettled —— 单个收件人失败不应阻塞其它人收到通知，且
+  // 扇出本身不能让 cron tick 抛错（外层 worker tick 会把整个 sweep 标失败）。
+  // sendWebhookAutoDisabledEmail 内部已经 try/catch 吞错，这里再加一层
+  // settled 收集做日志聚合，方便排障。
+  const targets = recipients
+    .map((m) => m.user)
+    .filter((u): u is { email: string; name: string | null } => !!u?.email);
+  const settled = await Promise.allSettled(
+    targets.map((u) =>
+      sendWebhookAutoDisabledEmail({
+        to: u.email,
+        name: u.name,
+        endpointUrl: endpoint.url,
+        endpointId: endpoint.id,
+        orgSlug: org.slug,
+        consecutiveFailures: endpoint.consecutiveFailures,
+      }),
+    ),
   );
+  const rejected = settled.filter((r) => r.status === 'rejected');
+  if (rejected.length > 0) {
+    logger.warn(
+      {
+        endpointId: endpoint.id,
+        orgId: endpoint.orgId,
+        attempted: targets.length,
+        failed: rejected.length,
+        firstError: (rejected[0] as PromiseRejectedResult).reason,
+      },
+      'webhook-auto-disabled-notify-partial-failure',
+    );
+  }
 
   logger.warn(
     {
