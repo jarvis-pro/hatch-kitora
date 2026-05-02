@@ -41,6 +41,12 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),
+      // `'server-only'` 这个包在被 client-component 模块 import 时会立即抛错；
+      // Next.js 自己的 SSR / RSC 边界依赖它，但 Vitest 跑测试时没有 RSC 标记，
+      // 看上去就是「客户端」环境，于是任何 transitively 引到 `'server-only'`
+      // 的 lib（如 `auth/2fa-crypto.ts`、`api-org-gate.ts`）都会被它拒接。
+      // 给一个零行 stub 即可 —— 测试环境本就没有 client/server 边界要守。
+      'server-only': fileURLToPath(new URL('./src/test-stubs/server-only.ts', import.meta.url)),
     },
   },
 });
