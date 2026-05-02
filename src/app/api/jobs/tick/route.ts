@@ -13,9 +13,14 @@
  * 让本地 dev `pnpm dev` 启动后访问该路径不会误触发整套 sweep（生产 OOM 隐患的
  * 第一道防线）。CLI `pnpm tsx scripts/run-jobs.ts` 不走 HTTP 完全无影响。
  *
- * `maxDuration = 60`：Vercel Pro 60s function timeout；Hobby 自动收紧到 10s
- * （需要把 runWorkerTick 的 budgetMs 调到 8s + batchSize 1，本路由暂不做特殊处理，
- * 部署 Hobby 的用户用 `scripts/run-jobs.ts` 走 Fly Machines Cron 替代）。
+ * `maxDuration = 60`：Vercel Pro 60s function timeout；Hobby 自动收紧到 10s。
+ * 路由层根据 `VERCEL_PLAN` env 自适应 `runWorkerTick` 预算：
+ *   - Pro / Enterprise → batchSize 5、budgetMs 50_000（默认）
+ *   - Hobby            → batchSize 1、budgetMs 8_000（function 10s 留 2s 兜底）
+ *   - 未托管 Vercel    → 默认（自托管 / Fly Machines / ACK 走 CLI 入口，无 HTTP 限制）
+ *
+ * Vercel 在每个 invocation 自动注入 `VERCEL_PLAN`（取值 'hobby' | 'pro' | 'enterprise'）。
+ * 详情见 https://vercel.com/docs/projects/environment-variables/system-environment-variables。
  */
 
 import { NextResponse } from 'next/server';
@@ -50,10 +55,14 @@ export async function GET(request: Request) {
   }
 
   const workerId = `vercel-cron-${Date.now()}`;
+  // Hobby 计划 function timeout = 10s，给自身留 2s 兜底；同时 batchSize 收到 1，
+  // 避免一次 tick 跑多个 job 撞 timeout 让所有 RUNNING 行集体卡死。
+  const isHobby = process.env.VERCEL_PLAN === 'hobby';
+  const tickOpts = isHobby ? { batchSize: 1, budgetMs: 8_000 } : undefined;
   try {
     const sched = await fireSchedules();
-    const tick = await runWorkerTick(workerId);
-    logger.info({ workerId, sched, tick }, 'jobs-tick-route-done');
+    const tick = await runWorkerTick(workerId, tickOpts);
+    logger.info({ workerId, sched, tick, plan: process.env.VERCEL_PLAN }, 'jobs-tick-route-done');
     return NextResponse.json(
       { ok: true, workerId, sched, tick },
       { status: 200, headers: { 'Cache-Control': 'no-store' } },
