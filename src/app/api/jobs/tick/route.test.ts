@@ -24,6 +24,18 @@ vi.mock('@/lib/jobs/schedules', () => ({
 vi.mock('@/env', () => ({
   env: {} as { CRON_SECRET?: string },
 }));
+// 直接 stub logger，避免 transitively 拉起 pino —— pino 会在加载阶段
+// 读 env.LOG_LEVEL 初始化，被 mock 后的 env 给不出该字段就抛
+// "default level:undefined must be included in custom levels"。
+vi.mock('@/lib/logger', () => ({
+  logger: {
+    debug: vi.fn(),
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+    fatal: vi.fn(),
+  },
+}));
 
 import { env } from '@/env';
 import { runWorkerTick } from '@/lib/jobs/runner';
