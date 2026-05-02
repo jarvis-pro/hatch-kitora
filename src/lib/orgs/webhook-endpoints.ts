@@ -8,6 +8,7 @@ import { recordAudit } from '@/lib/audit';
 import { requireUser } from '@/lib/auth/session';
 import { prisma } from '@/lib/db';
 import { logger } from '@/lib/logger';
+import { findActiveMembership } from '@/lib/orgs/queries';
 import { WEBHOOK_EVENTS_SET } from '@/lib/webhooks/events';
 import { generateWebhookSecret } from '@/lib/webhooks/secret';
 import { validateWebhookUrl } from '@/lib/webhooks/url-guard';
@@ -62,7 +63,7 @@ const resendSchema = orgScopeSchema.extend({
  * @returns 组织 ID 或 null。
  */
 async function requireWebhookManager(userId: string, orgSlug: string): Promise<string | null> {
-  const membership = await prisma.membership.findFirst({
+  const membership = await findActiveMembership({
     where: {
       userId,
       organization: { slug: orgSlug },

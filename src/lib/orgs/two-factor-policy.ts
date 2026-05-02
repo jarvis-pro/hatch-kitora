@@ -8,6 +8,7 @@ import { recordAudit } from '@/lib/audit';
 import { requireActiveOrg, requireUser } from '@/lib/auth/session';
 import { prisma } from '@/lib/db';
 import { logger } from '@/lib/logger';
+import { findActiveMembership } from '@/lib/orgs/queries';
 
 const toggleSchema = z.object({
   orgSlug: z.string().min(1).max(80),
@@ -36,7 +37,7 @@ export async function toggleOrgRequire2faAction(input: z.infer<typeof toggleSche
     return { ok: false as const, error: 'invalid-input' as const };
   }
 
-  const membership = await prisma.membership.findFirst({
+  const membership = await findActiveMembership({
     where: {
       userId: me.id,
       organization: { slug: parsed.data.orgSlug },

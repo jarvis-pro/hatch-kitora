@@ -4,6 +4,7 @@ import { OrgRole } from '@prisma/client';
 
 import { type ApiTokenPrincipal, authenticateBearer } from '@/lib/api-auth';
 import { prisma } from '@/lib/db';
+import { findActiveMembership } from '@/lib/orgs/queries';
 
 /**
  * RFC 0003 PR-1 — 对 /api/v1/orgs/[slug]/* 的持有者认证 + org 成员资格门控。
@@ -45,7 +46,9 @@ export async function gateOrgApi(opts: Options): Promise<ApiOrgGateResult> {
   // 令牌必须绑定到*这个* org。RFC 0001 §9。
   if (principal.orgId !== org.id) return { ok: false, status: 403 };
 
-  const membership = await prisma.membership.findFirst({
+  // 软删除（SCIM `active: false`）的成员当然不算「在 org 里活跃」—— 走
+  // findActiveMembership 自动过滤 `deletedAt: null`，避免被停用的账号继续访问 API。
+  const membership = await findActiveMembership({
     where: { userId: principal.userId, orgId: org.id, role: { in: [...allowed] } },
     select: { id: true },
   });

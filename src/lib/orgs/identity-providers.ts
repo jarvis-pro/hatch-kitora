@@ -8,6 +8,7 @@ import { recordAudit } from '@/lib/audit';
 import { requireUser } from '@/lib/auth/session';
 import { prisma } from '@/lib/db';
 import { logger } from '@/lib/logger';
+import { findActiveMembership } from '@/lib/orgs/queries';
 import { removeConnections, syncOidcConnection, syncSamlConnection } from '@/lib/sso/connection';
 import { validateEmailDomain } from '@/lib/sso/domain';
 import { encryptOidcSecret, generateScimToken } from '@/lib/sso/secret';
@@ -98,7 +99,7 @@ interface OrgGate {
  * @returns 组织信息或 null。
  */
 async function requireSsoManager(userId: string, orgSlug: string): Promise<OrgGate | null> {
-  const membership = await prisma.membership.findFirst({
+  const membership = await findActiveMembership({
     where: {
       userId,
       organization: { slug: orgSlug },

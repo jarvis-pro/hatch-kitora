@@ -9,6 +9,7 @@
 
 import { logger } from '@/lib/logger';
 import { prisma } from '@/lib/db';
+import { listActiveMemberships } from '@/lib/orgs/queries';
 
 import { deliverWebhook } from './deliver';
 import { sendWebhookAutoDisabledEmail } from './email-flows';
@@ -305,7 +306,9 @@ async function autoDisableEndpoint(endpoint: DisableTarget): Promise<void> {
       where: { id: endpoint.orgId },
       select: { slug: true },
     }),
-    prisma.membership.findMany({
+    // 软删除（SCIM `active: false`）的 OWNER/ADMIN 不应再收到自动禁用通知 —
+    // 走 listActiveMemberships 自动过滤 deletedAt，避免给停用账号发邮件。
+    listActiveMemberships({
       where: { orgId: endpoint.orgId, role: { in: ['OWNER', 'ADMIN'] } },
       select: { user: { select: { email: true, name: true } } },
     }),
