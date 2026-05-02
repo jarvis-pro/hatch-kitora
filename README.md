@@ -45,16 +45,31 @@ CN 部署 pipeline（`.github/workflows/deploy-cn.yml`）走 GitHub OIDC → Ali
 
 ## 🛠 技术栈
 
-| 层级   | 技术选型                  |
-| ------ | ------------------------- |
-| 框架   | Next.js 14+（App Router） |
-| 语言   | TypeScript                |
-| 样式   | Tailwind CSS              |
-| 数据库 | PostgreSQL + Prisma       |
-| 认证   | NextAuth.js               |
-| 支付   | Stripe                    |
-| 邮件   | Resend                    |
-| 部署   | Vercel                    |
+底层骨架（与 region 无关）：
+
+| 层级     | 技术选型                                                             |
+| -------- | -------------------------------------------------------------------- |
+| 框架     | Next.js 14+（App Router · server actions · edge middleware）         |
+| 语言     | TypeScript（严格模式 + zod runtime 校验）                            |
+| 样式     | Tailwind CSS + shadcn/ui                                             |
+| 数据库   | PostgreSQL + Prisma                                                  |
+| 认证     | Auth.js v5（Credentials + GitHub/Google OAuth + WebAuthn/Passkey）   |
+| SSO      | BoxyHQ saml-jackson（SAML 2.0 + OIDC）+ SCIM v2                      |
+| 国际化   | next-intl（en / zh）                                                 |
+| 后台任务 | 自研 Postgres-backed jobs 系统（RFC 0008，`FOR UPDATE SKIP LOCKED`） |
+| 可观测性 | Sentry + pino + Prometheus `/api/metrics` + AuditLog                 |
+| 测试     | Vitest（单测）+ Playwright（e2e）                                    |
+| 工程化   | ESLint + Prettier + commitlint + husky + lint-staged                 |
+
+按 region 切换的 provider（factory 走 `src/lib/region/providers.ts`）：
+
+| 模块     | GLOBAL / EU                           | CN                                          |
+| -------- | ------------------------------------- | ------------------------------------------- |
+| 计费     | Stripe                                | 支付宝 + 微信支付（周期扣款 + Native 扫码） |
+| 邮件     | Resend                                | 阿里云 DirectMail                           |
+| 对象存储 | Amazon S3（或兼容）                   | 阿里云 OSS                                  |
+| 限流 KV  | Upstash Redis（REST）                 | 阿里云 Redis（ioredis TCP，VPC 内网）       |
+| 部署     | Vercel / Fly Machines / 自托管 Docker | 阿里云 ACK + ACR + GitHub OIDC pipeline     |
 
 ---
 
@@ -147,45 +162,79 @@ kitora/
 ├── src/
 │   ├── app/
 │   │   ├── [locale]/
-│   │   │   ├── (auth)/              # 登录 / 注册
-│   │   │   ├── (dashboard)/         # 受保护的控制台页面
-│   │   │   ├── (marketing)/         # 公开营销页面
+│   │   │   ├── (admin)/             # 管理后台（用户 / 订阅 / Stripe events / API tokens / Jobs / 审计）
+│   │   │   ├── (auth)/              # 登录 / 注册 / 邮箱验证 / 重置密码 / 2FA / Passkey
+│   │   │   ├── (dashboard)/         # 受保护的控制台 + onboarding + settings（账户 / 安全 / 计费 / Org / SSO / Webhook）
+│   │   │   ├── (marketing)/         # 公开营销页面 + ICP / pricing / region-mismatch / legal
+│   │   │   ├── docs/                # OpenAPI Scalar 交互式文档
+│   │   │   ├── invite/[token]/      # Org 邀请落地页
 │   │   │   ├── error.tsx            # 全局错误边界
 │   │   │   └── not-found.tsx        # 404
 │   │   ├── api/
-│   │   │   ├── auth/[...nextauth]/  # Auth.js v5 路由
-│   │   │   ├── stripe/              # checkout / portal / webhook
-│   │   │   └── health/              # 健康检查
+│   │   │   ├── auth/                # Auth.js v5 + WebAuthn + SSO 回调
+│   │   │   ├── billing/             # 支付宝 / 微信支付 webhook（CN region）
+│   │   │   ├── stripe/              # Stripe checkout / portal / webhook
+│   │   │   ├── scim/v2/             # SCIM v2 用户 / 组同步
+│   │   │   ├── v1/                  # 公开 REST API（/me / /orgs/...）
+│   │   │   ├── exports/[jobId]/     # GDPR 数据导出下载
+│   │   │   ├── jobs/tick/           # Vercel Cron 后台任务入口
+│   │   │   ├── openapi/v1.yaml/     # OpenAPI 契约 raw 文件
+│   │   │   ├── health/              # DB / Redis 探测
+│   │   │   └── metrics/             # Prometheus 指标
 │   │   ├── globals.css
 │   │   ├── robots.ts
 │   │   └── sitemap.ts
 │   ├── components/
 │   │   ├── ui/                      # shadcn/ui 组件
-│   │   ├── auth/                    # 登录 / 注册表单
+│   │   ├── account/                 # 设置页 cards（2FA / Passkey / Sessions / SSO / Members / Webhook）
+│   │   ├── admin/                   # 管理后台 UI
+│   │   ├── auth/                    # 登录 / 注册 / 重置 / 2FA challenge
+│   │   ├── billing/                 # checkout button / portal / 订阅卡
 │   │   ├── dashboard/               # 控制台导航 / 用户菜单
-│   │   ├── marketing/               # 站点 header / footer
+│   │   ├── docs/                    # OpenAPI 文档站客户端组件
+│   │   ├── marketing/               # 站点 header / footer / pricing
 │   │   ├── providers/               # ThemeProvider 等
 │   │   ├── theme-toggle.tsx
 │   │   └── locale-switcher.tsx
 │   ├── lib/
-│   │   ├── auth/                    # Auth.js 配置 + Server Actions
+│   │   ├── account/                 # 账户 / 设备会话 / 2FA / Passkey / 删除流
+│   │   ├── admin/                   # admin 后台 server actions
+│   │   ├── auth/                    # Auth.js 配置 + Credentials + JWT 状态机
+│   │   ├── billing/provider/        # billing provider 抽象 + Stripe / 支付宝 / 微信实现（RFC 0006）
+│   │   ├── data-export/             # GDPR ZIP 工件构建 + cron sweep（RFC 0002 PR-3）
+│   │   ├── email/                   # Resend / Aliyun DirectMail 邮件抽象
+│   │   ├── jobs/                    # 通用后台任务系统（RFC 0008）
+│   │   ├── orgs/                    # 多租户 / Membership / Invitation / SSO / Webhook 端点
+│   │   ├── region/                  # 按 region 切换的 provider factory
+│   │   ├── sso/                     # BoxyHQ saml-jackson 包装 + SCIM provision
+│   │   ├── storage/                 # 对象存储抽象（Local FS / S3 / 阿里云 OSS）
 │   │   ├── stripe/                  # Stripe client / customer / plans
-│   │   ├── email/                   # Resend 客户端 + 发送封装
+│   │   ├── webauthn/                # Passkey 注册 / 验签 / 匿名挑战（RFC 0007）
+│   │   ├── webhooks/                # 出站 webhook 签名 + 投递 cron + DLQ（RFC 0003）
 │   │   ├── db.ts                    # Prisma client 单例
 │   │   ├── logger.ts                # pino 日志
 │   │   ├── analytics.ts             # 埋点抽象
-│   │   ├── rate-limit.ts            # Upstash 限流
-│   │   ├── request.ts               # 请求上下文工具
+│   │   ├── rate-limit.ts            # Upstash + Aliyun Redis 双轨限流
+│   │   ├── region.ts                # currentRegion() — 进程级缓存 + 弃用警告
+│   │   ├── region-parse.ts          # 零依赖纯函数 — Edge / Node 共享解析逻辑
+│   │   ├── api-auth.ts              # Bearer token 鉴权（公开 API）
+│   │   ├── api-org-gate.ts          # 公开 API 的 org 路径校验
+│   │   ├── audit.ts                 # AuditLog 写入封装
 │   │   └── utils.ts                 # cn / formatDate / formatCurrency
 │   ├── emails/                      # React Email 模板
 │   ├── i18n/                        # next-intl routing & request config
 │   ├── types/                       # 全局类型 (next-auth.d.ts 等)
 │   ├── env.ts                       # zod + @t3-oss/env 校验
-│   └── middleware.ts                # i18n + auth 中间件
+│   └── middleware.ts                # i18n + auth + region + 2FA + 删除宽限中间件
 ├── messages/                        # 翻译文件 en.json / zh.json
-├── prisma/                          # schema.prisma + seed.ts
-├── .github/workflows/               # CI
-├── Dockerfile · docker-compose.yml  # 部署
+├── prisma/                          # schema.prisma + 19 个 migrations + seed.ts
+├── tests/e2e/                       # Playwright e2e 套（19 个 spec）
+├── scripts/                         # CLI 入口（jobs / 数据导出 / 删除 / OpenAPI / egress audit）
+├── openapi/                         # OpenAPI 3.1 契约 + 多语言 verify 示例
+├── docs/                            # rfcs / deploy / getting-started 三组文档
+├── infra/aliyun/                    # CN 部署 Terraform（VPC / RDS / Redis / OSS / ACK / SLS）
+├── .github/workflows/               # CI（含 deploy-cn.yml）
+├── Dockerfile · docker-compose.{,cn,eu}.yml  # 部署
 └── public/                          # 静态资源
 ```
 
@@ -228,6 +277,10 @@ Kitora 设计上支持克隆后直接用于新项目，复用步骤如下：
 - [x] 多租户 / 团队协作（Organization · OWNER/ADMIN/MEMBER · 邀请流 · per-org 计费 · cookie 切换）
 - [x] 安全合规进阶（Active Sessions · 2FA · GDPR 数据导出 · 30 天注销宽限 · Org 强制 2FA — RFC 0002）
 - [x] CN 区落地工程层（Aliyun OSS / DirectMail / Alipay+WeChat 完整支付 / ioredis 限流 / `pnpm egress:check` / `/legal/data-rights` / `deploy-cn.yml` — RFC 0006）
+- [x] 出站 Webhook 平台（HMAC 签名 / 8 阶指数退避 / 自动禁用 / DLQ / OpenAPI 3.1 + Scalar — RFC 0003）
+- [x] 企业级 SSO（SAML 2.0 + OIDC via BoxyHQ Jackson · SCIM v2 用户 provision · 强制 SSO 登录 — RFC 0004）
+- [x] WebAuthn / Passkey 双轨（与 TOTP 同级 2FA 因子 + 登录页 Discoverable 快捷登录 — RFC 0007）
+- [x] 通用 Background Jobs 系统（Postgres `FOR UPDATE SKIP LOCKED` + 注册表式 handler + 4 档重试策略 + DLQ + admin 看板 — RFC 0008）
 
 ---
 
