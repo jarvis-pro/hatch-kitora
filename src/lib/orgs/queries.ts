@@ -1,4 +1,8 @@
-import 'server-only';
+// 注意：这里故意*不*是 `'server-only'` —— 本模块被 src/lib/webhooks/cron.ts
+// 传递性引用，而 cron.ts 又被 Playwright e2e 测试在进程内直接 import 跑
+// runWebhookCronTick。一旦本文件加 `'server-only'`，e2e 跑测试运行器（被 React
+// 视作客户端环境）时会立即抛 "This module cannot be imported from a Client
+// Component module"。透传的 `@/lib/db`（prisma）依赖仍然防止意外的客户端捆绑。
 
 import { prisma } from '@/lib/db';
 import type { Prisma } from '@/lib/db';
