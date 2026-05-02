@@ -22,9 +22,26 @@ import { Region } from '@prisma/client';
 
 import { getProvider as getStripeBackedBillingProvider } from '@/lib/billing/provider';
 import type { BillingProvider } from '@/lib/billing/provider/types';
+import { logger } from '@/lib/logger';
 import { currentRegion } from '@/lib/region';
 import { storage as defaultStorage } from '@/lib/storage';
 import type { StorageProvider } from '@/lib/storage';
+
+/**
+ * EU 区域当前没有独立 provider 实现，工厂会回落到 GLOBAL 配置（Stripe / Resend / S3）。
+ * 这是 RFC 0005 §11 的「软占位」决定 —— EU 在 nice-to-have 轨道，等独立部署上线
+ * 才接入区内 provider（参见后续 RFC）。本地保留一个一次性 warning，让 EU 部署
+ * 的运维清楚看到「现在跑的还是 GLOBAL 配置」，避免 GDPR 合规误判。
+ */
+let euFallbackWarningEmitted = false;
+function warnEuFallbackOnce(domain: 'email' | 'storage' | 'billing'): void {
+  if (euFallbackWarningEmitted) return;
+  euFallbackWarningEmitted = true;
+  logger.warn(
+    { domain, fallback: 'GLOBAL' },
+    'eu-region-provider-fallback-to-global — EU 区暂未实现独立 provider，回退到 GLOBAL 配置',
+  );
+}
 
 // ─── Email ─────────────────────────────────────────────────────────────────
 
@@ -50,6 +67,8 @@ export function getEmailProvider(): EmailProviderHandle {
     case Region.CN:
       return AliyunDmHandle;
     case Region.EU:
+      warnEuFallbackOnce('email');
+      return ResendHandle;
     case Region.GLOBAL:
     default:
       return ResendHandle;
@@ -68,8 +87,10 @@ export function getEmailProvider(): EmailProviderHandle {
  */
 export function getStorageProvider(): StorageProvider {
   switch (currentRegion()) {
-    case Region.CN:
     case Region.EU:
+      warnEuFallbackOnce('storage');
+      return defaultStorage;
+    case Region.CN:
     case Region.GLOBAL:
     default:
       return defaultStorage;
@@ -88,5 +109,6 @@ export function getStorageProvider(): StorageProvider {
  * 导入，无论提供者域。
  */
 export function getBillingProvider(): BillingProvider {
+  if (currentRegion() === Region.EU) warnEuFallbackOnce('billing');
   return getStripeBackedBillingProvider();
 }
