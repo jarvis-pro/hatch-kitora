@@ -78,10 +78,6 @@ async function dispatch(event: Stripe.Event) {
     case 'customer.subscription.updated':
     case 'customer.subscription.deleted':
       return upsertSubscription(event.data.object, event.type);
-    case 'customer.subscription.created':
-    case 'customer.subscription.updated':
-    case 'customer.subscription.deleted':
-      return upsertSubscription(event.data.object, event.type);
 
     case 'invoice.payment_succeeded':
     case 'invoice.payment_failed':
