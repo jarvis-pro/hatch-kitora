@@ -104,12 +104,18 @@ export function validateWebhookUrl(
       }
     }
   }
-  // IPv6 字面量 —— 阻止环回（`[::1]`）、链路本地（`[fe80::*]`）、
-  // ULA（`[fc00::*]` / `[fd00::*]`）。更复杂的任何东西超出
-  // v1 范围；cron 端解析将捕获其余的。
+  // IPv6 字面量 —— 阻止环回（`::1`）、链路本地（`fe80::*`）、
+  // ULA（`fc00::*` / `fd00::*`）。更复杂的任何东西超出 v1 范围；
+  // cron 端解析将捕获其余的。
+  //
+  // WHATWG URL 把 IPv6 字面量的 `hostname` 表示成带方括号的字符串
+  // （`new URL('https://[fe80::1]/').hostname === '[fe80::1]'`），所以前缀比较
+  // 必须先剥掉方括号 —— 历史代码直接 `host.startsWith('fe80:')` 永远不会命中，
+  // 等价于 link-local / ULA 完全没拦住。
   if (host.startsWith('[') || host.includes(':')) {
-    if (host === '::1' || host === '[::1]') return { ok: false, reason: 'blocked-host' };
-    if (host.startsWith('fe80:') || host.startsWith('fc') || host.startsWith('fd')) {
+    const inner = host.startsWith('[') && host.endsWith(']') ? host.slice(1, -1) : host;
+    if (inner === '::1') return { ok: false, reason: 'blocked-host' };
+    if (inner.startsWith('fe80:') || inner.startsWith('fc') || inner.startsWith('fd')) {
       return { ok: false, reason: 'blocked-host' };
     }
   }
