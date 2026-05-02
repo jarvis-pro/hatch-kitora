@@ -12,6 +12,7 @@ import { currentRegion } from '@/lib/region';
 
 import { authConfig } from './config';
 import { createDeviceSession, generateSid, hashSid, validateDeviceSession } from './device-session';
+import { decideTfaPending, decideTokenLifecycle } from './jwt-state';
 
 // RFC 0004 PR-2 — 通过 Auth.js 的 `CredentialsSignin.code` 浮出，
 // 所以 `loginAction` 服务器操作可以将其映射到 UI 的
@@ -206,9 +207,9 @@ export const {
         }
       }
 
-      // 重新验证所有后续调用以防对抗 DB，
-      // 所以被撤销的令牌（sessionVersion 碰撞）被硬杀。
-      // 一个索引的 PK 查找；便宜。
+      // 后续调用：从 DB 拉一份 fresh 状态，把决策逻辑甩给纯函数（jwt-state.ts），
+      // 这里只剩 IO（DB 读 + sid 验证）。任何新增维度（订阅过期降级 / 邮箱待验证只读
+      // 等）都在 jwt-state.ts 加一笔 + 给纯函数补 case，不用动这块事务/网络代码。
       if (!user && base.id) {
         const fresh = await prisma.user.findUnique({
           where: { id: base.id as string },
@@ -220,63 +221,46 @@ export const {
             region: true,
           },
         });
-        if (!fresh) {
-          // 用户被删除 — 完全使令牌无效。
+
+        const lifecycle = decideTokenLifecycle(
+          { sessionVersion: base.sessionVersion as number | undefined },
+          fresh,
+        );
+        if (lifecycle.kind === 'kill') {
+          // 用户被硬删除 / sessionVersion 碰撞 — 完全使令牌无效。
           return null;
         }
-        if (fresh.sessionVersion !== base.sessionVersion) {
-          return null;
-        }
-        // 在令牌中反映当前角色（例如管理员提升
-        // 在下一个请求时生效，而无需强制重新登录）。
-        base.role = fresh.role;
-        // RFC 0002 PR-4 — 保持 `status` 同步，
-        // 以便中间件在操作提交时立即看到
-        // PENDING_DELETION 翻转，无需等待新鲜的 JWT 铸造。
-        base.status = fresh.status;
-        // RFC 0005 — 区域在 User 行上是不可变的，
-        // 但 pre-RFC-0005 令牌不会声称它。
-        // 从 DB 刷新，以便中间件总是有一个区域来对抗
-        // `currentRegion()` 进行比较。
-        base.region = fresh.region;
+        // 在令牌中反映 fresh role / status / region（管理员提升 / PENDING_DELETION 翻转 /
+        // 区域回填都在下一个请求生效，无需强制重新登录）。
+        base.role = lifecycle.mutations.role;
+        base.status = lifecycle.mutations.status;
+        base.region = lifecycle.mutations.region;
 
-        // ── RFC 0002 PR-2: tfa_pending 状态机 ──────────────────
-        //
-        // 这里处理了三个转换：
-        //   (a) 使用 `session.tfa === 'verified'` 的 `update` 触发器
-        //       清除标志 — 这是 /login/2fa 的成功路径。
-        //   (b) 2FA 刚被禁用（DB 显示 false） → 清除标志
-        //       以便用户不会卡在质询页面上。
-        //   (c) 2FA 在会话中间被启用 → 设置标志，
-        //       以便用户在任何进一步操作前被推送到质询。
-        if (trigger === 'update' && (session as { tfa?: string } | undefined)?.tfa === 'verified') {
-          base.tfa_pending = false;
-        } else if (!fresh.twoFactorEnabled) {
-          base.tfa_pending = false;
-        } else if (fresh.twoFactorEnabled && base.tfa_pending !== false) {
-          // 预先存在的令牌（早于 PR-2）不会设置
-          // tfa_pending。一旦 2FA 开启，将 undefined
-          // 视为"需要质询"，以便启用 2FA 的用户
-          // 不能用旧令牌绕过。
-          if (base.tfa_pending === undefined) {
-            base.tfa_pending = true;
-          }
+        // tfa_pending 状态机由纯函数决策；undefined 表示「保持原值」。
+        const sessionTfa = (session as { tfa?: string } | undefined)?.tfa;
+        // fresh 在此分支已被 lifecycle 守护过非空，但 TS 不知道；显式拿出来。
+        const freshSafe = fresh as NonNullable<typeof fresh>;
+        const nextTfa = decideTfaPending(
+          base.tfa_pending as boolean | undefined,
+          freshSafe.twoFactorEnabled,
+          trigger,
+          sessionTfa,
+        );
+        if (nextTfa !== undefined) {
+          base.tfa_pending = nextTfa;
         }
 
-        // ── 每会话 sid 验证 ────────────────────────────────
+        // ── 每会话 sid 验证（IO，留在 callback）──────────────────
         //
-        // 早于 PR-1 的令牌不携带 sid；让它们通过
-        // 直到自然轮换。新令牌必须指向未撤销的
-        // DeviceSession 行，否则我们硬拒绝（=下一个请求上强制
-        // 重新登录）。
+        // 早于 PR-1 的令牌不携带 sid；让它们通过直到自然轮换。新令牌必须指向
+        // 未撤销的 DeviceSession 行，否则硬拒绝（=下一个请求上强制重新登录）。
         if (typeof base.sid === 'string' && base.sid.length > 0) {
           const result = await validateDeviceSession(base.sid);
           if (!result.ok) {
             return null;
           }
-          // 保持 sidHash 与滚动的 jwt 同步 —
-          // 会话回调（边缘安全）读取这个以在 UI 中标记
-          // "当前"设备。
+          // 保持 sidHash 与滚动的 jwt 同步 — session 回调（边缘安全）读取这个
+          // 以在 UI 中标记"当前"设备。
           base.sidHash = result.sidHash;
         }
       }
