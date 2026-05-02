@@ -12,10 +12,10 @@ Kitora 的重大架构决策都以 RFC 形式记录。RFC 不是"事后补的设
 | [0002](./0002-security-compliance.md)  | 安全合规进阶（2FA / Active Sessions / 数据导出 / 注销宽限） | **Implemented** (2026-04-26)         | 0.2.0 → 0.3.0 | TOTP 2FA、设备会话列表、GDPR 数据导出、30 天注销宽限、Org 强制 2FA |
 | [0003](./0003-webhooks-and-openapi.md) | 出站 Webhook & OpenAPI 文档站                               | **Implemented** (2026-04-26)         | 0.3.0 → 0.4.0 | HMAC 签名、重试退避、终态 sweep、OpenAPI 3.1 + Scalar              |
 | [0004](./0004-sso.md)                  | SSO（SAML + OIDC + SCIM）                                   | **Implemented** (2026-04-26)         | 0.4.0 → 0.5.0 | BoxyHQ Jackson 接 SAML/OIDC，SCIM v2 用户自动 provision            |
-| [0005](./0005-data-residency.md)       | 数据驻留 / 中国区（Multi-Region Share-Nothing）             | **Draft** (2026-04-26)               | 0.5.0 → 0.6.0 | `KITORA_REGION` 进程常量 + 每行 region 列 + 跨区域只走 HTTP        |
+| [0005](./0005-data-residency.md)       | 数据驻留 / 中国区（Multi-Region Share-Nothing）             | **Implemented** (2026-04-27, v0.6.0) | 0.5.0 → 0.6.0 | `KITORA_REGION` 进程常量 + 每行 region 列 + 跨区域只走 HTTP        |
 | [0006](./0006-cn-region-deployment.md) | 中国区落地（ICP / 阿里云 / 支付宝微信 / DirectMail / OSS）  | **Implemented** (2026-04-26, 工程层) | 0.6.0 → 0.7.0 | CN 栈完全独立孪生，BillingEvent + Aliyun provider 全套接入         |
-| [0007](./0007-webauthn-passkey.md)     | WebAuthn / Passkey（双轨：2FA 因子 + 密码快捷登录）         | **Draft** (2026-04-26)               | 0.7.0 → 0.8.0 | Passkey 与 TOTP 同级 2FA 因子，登录页可选快捷入口                  |
-| [0008](./0008-background-jobs.md)      | 通用 Background Jobs 抽象                                   | **Draft** (2026-04-26)               | v0.9.0        | Postgres 队列 + 注册表式 handler + 外部 cron 驱动 + 指数退避       |
+| [0007](./0007-webauthn-passkey.md)     | WebAuthn / Passkey（双轨：2FA 因子 + 密码快捷登录）         | **Implemented** (2026-04-26, v0.8.0) | 0.7.0 → 0.8.0 | Passkey 与 TOTP 同级 2FA 因子，登录页可选快捷入口                  |
+| [0008](./0008-background-jobs.md)      | 通用 Background Jobs 抽象                                   | **Implemented** (2026-04-27, v0.9.0) | v0.9.0        | Postgres 队列 + 注册表式 handler + 外部 cron 驱动 + 指数退避       |
 
 > 状态值约定：`Draft` → `Accepted` → `Implemented` → `Superseded`。`Draft` 写完待评审；`Accepted` 通过评审，正在写代码；`Implemented` 至少一个 PR 落地（同时把第一个落地版本写进"影响版本"）；`Superseded` 被新 RFC 替代，RFC 头部写明替代者编号。
 
