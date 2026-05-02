@@ -3,6 +3,7 @@ import createIntlMiddleware from 'next-intl/middleware';
 import { NextResponse, type NextRequest } from 'next/server';
 
 import { authConfig } from '@/lib/auth/config';
+import { parseRegion } from '@/lib/region-parse';
 import { routing } from '@/i18n/routing';
 
 /**
@@ -50,22 +51,17 @@ const REGION_MISMATCH = /^\/(?:[a-z]{2}\/)?region-mismatch(?:\/|$)/;
 /**
  * RFC 0005 — 在边缘运行时读取部署区域。
  *
- * 中间件无法导入 `currentRegion()`（仅 Node 环境，会传递性导入 pino + Prisma）。
- * 此处内联复制解析规则，确保在边缘运行时可用。
- * 必须与 `src/lib/region.ts` 中的逻辑保持同步。
+ * 中间件无法导入 `currentRegion()`（仅 Node 环境，会传递性导入 pino + Prisma），
+ * 但解析规则统一封装在零依赖纯函数 `parseRegion()`（`src/lib/region-parse.ts`），
+ * Node 入口与 Edge 入口共享同一份实现，避免双轨漂移。
  *
  * @returns 部署区域：'GLOBAL'、'CN' 或 'EU'。
  */
 function deployRegion(): 'GLOBAL' | 'CN' | 'EU' {
-  // 优先读取规范环境变量 KITORA_REGION（大写）
-  const raw = process.env.KITORA_REGION;
-  if (raw === 'GLOBAL' || raw === 'CN' || raw === 'EU') return raw;
-  // 后向兼容：尝试读取遗留的 REGION 变量（小写）
-  const legacy = process.env.REGION;
-  if (legacy === 'cn') return 'CN';
-  if (legacy === 'global') return 'GLOBAL';
-  // 默认回退到全球部署
-  return 'GLOBAL';
+  return parseRegion({
+    KITORA_REGION: process.env.KITORA_REGION,
+    REGION: process.env.REGION,
+  });
 }
 
 /**

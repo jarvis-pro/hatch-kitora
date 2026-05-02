@@ -1,18 +1,14 @@
 // RFC 0005 — 多区域运行时入口点。
 //
-// `currentRegion()` 是部署区域的*唯一*批准读取器。
-// 解析规则：
+// `currentRegion()` 是部署区域的*唯一*批准读取器。解析规则封装在零依赖纯函数
+// `parseRegion()`（`src/lib/region-parse.ts`），edge runtime 的 middleware 直接
+// import 同一份纯函数，避免双轨实现漂移。本文件在纯函数之外多承担三件事：
 //
-//   1. `KITORA_REGION` — 规范、大写的环境变量与 Prisma `Region`
-//      枚举对齐。
-//   2. 遗留 `REGION`（`'global' | 'cn'`） — 接受一个弃用
-//      窗口（v0.6 + v0.7）；一次 `logger.warn` 首次
-//      回退到它时触发。
-//   3. 都未设置 — 默认为 `GLOBAL`。这对于
-//      `pnpm dev` / 单元测试是有意宽松的；生产部署通过
-//      Dockerfile + compose 设置变量（见 `docs/deploy/global.md`）。
+//   1. 回填到 Prisma `Region` enum 类型（让上层 ORM 调用类型对齐）。
+//   2. 一次性 deprecation warning（legacy `REGION` 字段命中时触发）。
+//   3. 进程级缓存（区域在进程生命周期内不可变）。
 //
-// 我们即使每个使费者都是 server-side 也避免了 'server-only' —
+// 我们即使每个使用者都是 server-side 也避免了 'server-only' —
 // Playwright e2e fixtures 可传递导入 `currentRegion()`（通过
 // `recordAudit` 和 `provisionSsoUser`）并且测试运行器是 Node，不是
 // Next 打包程序。可传递 `@/lib/db` deps 仍然把模块
@@ -22,15 +18,7 @@ import { Region } from '@prisma/client';
 
 import { env } from '@/env';
 import { logger } from '@/lib/logger';
-
-/**
- * 从遗留小写 `REGION` 环境变量到新 `Region`
- * 枚举的映射。保持紧凑 — 仅接受 v0.5 实际运送的值。
- */
-const LEGACY_REGION_MAP = {
-  global: Region.GLOBAL,
-  cn: Region.CN,
-} as const satisfies Record<string, Region>;
+import { isLegacyRegionFallback, parseRegion } from '@/lib/region-parse';
 
 let legacyWarningEmitted = false;
 
@@ -41,7 +29,7 @@ function emitLegacyWarning(value: string): void {
     {
       legacyValue: value,
       replacement: 'KITORA_REGION',
-      removalIn: 'v0.8',
+      removalIn: 'v0.10',
     },
     'env-REGION-deprecated',
   );
@@ -57,20 +45,14 @@ let cached: Region | null = null;
 export function currentRegion(): Region {
   if (cached !== null) return cached;
 
-  const fromCanonical = env.KITORA_REGION;
-  if (fromCanonical) {
-    cached = fromCanonical;
-    return cached;
-  }
+  const legacyValue = isLegacyRegionFallback({
+    KITORA_REGION: env.KITORA_REGION,
+    REGION: env.REGION,
+  });
+  if (legacyValue) emitLegacyWarning(legacyValue);
 
-  const legacy = env.REGION;
-  if (legacy) {
-    emitLegacyWarning(legacy);
-    cached = LEGACY_REGION_MAP[legacy];
-    return cached;
-  }
-
-  cached = Region.GLOBAL;
+  // parseRegion 返回字符串字面量；这里转回 Prisma `Region` enum 让 ORM 调用类型对齐。
+  cached = Region[parseRegion({ KITORA_REGION: env.KITORA_REGION, REGION: env.REGION })];
   return cached;
 }
 
