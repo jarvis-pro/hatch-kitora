@@ -1,7 +1,9 @@
+import { headers } from 'next/headers';
 import { NextResponse } from 'next/server';
 
 import { authenticateBearer } from '@/lib/api-auth';
 import { prisma } from '@/lib/db';
+import { apiLimiter } from '@/lib/rate-limit';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -13,12 +15,51 @@ export const dynamic = 'force-dynamic';
  * 因此 Prometheus scraper / 外部监视器可以在不存储 Cookie 的情况下轮询它。
  *
  *   curl -H "Authorization: Bearer kitora_..." https://app.kitora.com/api/metrics
+ *
+ * 限流：8 次 prisma count/groupBy 在大数据量下成本不低，且端点公开可被探测。
+ * 套 `apiLimiter`（默认 60 req/min）按 token id 维度限流；未鉴权的请求按 IP
+ * 限流，防止持续 401 也能放大 DB 负载。
  */
 export async function GET(request: Request) {
+  // 第一道防线：未鉴权请求按 IP 限流，避免 401 风暴打 DB（authenticateBearer 内部
+  // 会查 ApiToken 表）。客户端日常 scraper 都带 token，正常路径几乎不会进这条。
+  const headersList = await headers();
+  const ip =
+    headersList.get('x-forwarded-for')?.split(',')[0]?.trim() ??
+    headersList.get('x-real-ip') ??
+    headersList.get('cf-connecting-ip') ??
+    'anonymous';
+
   const principal = await authenticateBearer(request);
   if (!principal) {
+    const ipRate = await apiLimiter.limit(`metrics:ip:${ip}`);
+    if (!ipRate.success) {
+      return NextResponse.json(
+        { error: 'rate-limited' },
+        { status: 429, headers: { 'Retry-After': '60' } },
+      );
+    }
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   }
+
+  // 已鉴权请求按 token id 限流，每个 Prometheus scraper（一般每 token 一个）
+  // 独享配额，不会因为 IP 共享被互相挤压。
+  const rate = await apiLimiter.limit(`metrics:token:${principal.tokenId}`);
+  if (!rate.success) {
+    return NextResponse.json(
+      { error: 'rate-limited' },
+      {
+        status: 429,
+        headers: {
+          'Retry-After': '60',
+          'X-RateLimit-Limit': String(rate.limit),
+          'X-RateLimit-Remaining': '0',
+          'X-RateLimit-Reset': String(rate.reset),
+        },
+      },
+    );
+  }
+
   const owner = await prisma.user.findUnique({
     where: { id: principal.userId },
     select: { role: true },
