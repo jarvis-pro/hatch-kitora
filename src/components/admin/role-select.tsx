@@ -4,7 +4,7 @@ import { useTranslations } from 'next-intl';
 import { useTransition } from 'react';
 import { toast } from 'sonner';
 
-import { setUserRoleAction } from '@/lib/admin/actions';
+import { setUserRoleAction } from '@/services/admin/actions';
 import { cn } from '@/lib/utils';
 
 /**

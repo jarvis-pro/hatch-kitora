@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server';
 import { gateOrgApi } from '@/lib/api-org-gate';
 import { prisma } from '@/lib/db';
 import { apiLimiter } from '@/lib/rate-limit';
-import { generateWebhookSecret } from '@/lib/webhooks/secret';
+import { generateWebhookSecret } from '@/services/webhooks/secret';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';

@@ -5,7 +5,7 @@ import { useFormatter, useTranslations } from 'next-intl';
 import { useState, useTransition } from 'react';
 import { toast } from 'sonner';
 
-import { resendWebhookDeliveryAction } from '@/lib/orgs/webhook-endpoints';
+import { resendWebhookDeliveryAction } from '@/services/orgs/webhook-endpoints';
 import { Button } from '@/components/ui/button';
 import { useRouter } from '@/i18n/routing';
 

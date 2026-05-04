@@ -12,7 +12,7 @@ import { NextResponse } from 'next/server';
 
 import { z } from 'zod';
 
-import { recordAudit } from '@/lib/audit';
+import { recordAudit } from '@/services/audit';
 import { requireUser } from '@/lib/auth/session';
 import { recomputeTwoFactorEnabled } from '@/lib/auth/two-factor-state';
 import { prisma } from '@/lib/db';

@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Link } from '@/i18n/routing';
 import { requireActiveOrg } from '@/lib/auth/session';
-import { getCurrentBilling } from '@/lib/billing/current';
+import { getCurrentBilling } from '@/services/billing/current';
 
 /**
  * 计费页的元数据。

@@ -4,7 +4,7 @@ import { useTranslations } from 'next-intl';
 import { useTransition } from 'react';
 import { toast } from 'sonner';
 
-import { toggleOrgRequire2faAction } from '@/lib/orgs/two-factor-policy';
+import { toggleOrgRequire2faAction } from '@/services/orgs/two-factor-policy';
 import { Button } from '@/components/ui/button';
 import { useRouter } from '@/i18n/routing';
 

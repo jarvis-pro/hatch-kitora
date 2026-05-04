@@ -1,8 +1,8 @@
 import { OrgRole } from '@prisma/client';
 
 import { prisma } from '@/lib/db';
-import { authenticateScim, scimError, scimJson } from '@/lib/sso/scim-auth';
-import { groupDisplayName, groupIdForRole } from '@/lib/sso/scim-user';
+import { authenticateScim, scimError, scimJson } from '@/services/sso/scim-auth';
+import { groupDisplayName, groupIdForRole } from '@/services/sso/scim-user';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';

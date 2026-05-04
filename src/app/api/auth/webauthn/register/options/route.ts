@@ -15,7 +15,7 @@ import { generateRegistrationOptions } from '@simplewebauthn/server';
 import { requireUser } from '@/lib/auth/session';
 import { prisma } from '@/lib/db';
 import { logger } from '@/lib/logger';
-import { getRpId, getRpName } from '@/lib/webauthn/config';
+import { getRpId, getRpName } from '@/services/webauthn/config';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';

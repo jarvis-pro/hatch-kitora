@@ -8,8 +8,8 @@ import {
   createWebhookEndpointAction,
   deleteWebhookEndpointAction,
   rotateWebhookSecretAction,
-} from '@/lib/orgs/webhook-endpoints';
-import { WEBHOOK_EVENTS } from '@/lib/webhooks/events';
+} from '@/services/orgs/webhook-endpoints';
+import { WEBHOOK_EVENTS } from '@/services/webhooks/events';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';

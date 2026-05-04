@@ -1,4 +1,4 @@
-import { authenticateScim, scimError, scimJson } from '@/lib/sso/scim-auth';
+import { authenticateScim, scimError, scimJson } from '@/services/sso/scim-auth';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';

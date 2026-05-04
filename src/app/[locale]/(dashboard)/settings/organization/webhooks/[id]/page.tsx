@@ -7,7 +7,7 @@ import { WebhookDetail } from '@/components/account/webhook-detail';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { requireActiveOrg } from '@/lib/auth/session';
 import { prisma } from '@/lib/db';
-import { can } from '@/lib/orgs/permissions';
+import { can } from '@/services/orgs/permissions';
 
 /**
  * Webhook 端点详情页的元数据。

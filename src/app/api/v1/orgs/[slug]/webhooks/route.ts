@@ -3,9 +3,9 @@ import { NextResponse } from 'next/server';
 import { gateOrgApi } from '@/lib/api-org-gate';
 import { prisma } from '@/lib/db';
 import { apiLimiter } from '@/lib/rate-limit';
-import { WEBHOOK_EVENTS_SET } from '@/lib/webhooks/events';
-import { generateWebhookSecret } from '@/lib/webhooks/secret';
-import { validateWebhookUrl } from '@/lib/webhooks/url-guard';
+import { WEBHOOK_EVENTS_SET } from '@/services/webhooks/events';
+import { generateWebhookSecret } from '@/services/webhooks/secret';
+import { validateWebhookUrl } from '@/services/webhooks/url-guard';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';

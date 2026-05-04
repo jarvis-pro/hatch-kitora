@@ -12,7 +12,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useRouter } from '@/i18n/routing';
-import { createInvitationAction } from '@/lib/orgs/invitations';
+import { createInvitationAction } from '@/services/orgs/invitations';
 
 /**
  * 邀请表单验证 schema

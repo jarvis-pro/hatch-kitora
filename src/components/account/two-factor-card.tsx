@@ -9,7 +9,7 @@ import {
   enrollConfirmAction,
   enrollStartAction,
   regenerateBackupCodesAction,
-} from '@/lib/account/two-factor';
+} from '@/services/account/two-factor';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';

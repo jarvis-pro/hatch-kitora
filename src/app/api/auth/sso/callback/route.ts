@@ -1,12 +1,12 @@
 import { NextResponse } from 'next/server';
 
 import { env } from '@/env';
-import { recordAudit } from '@/lib/audit';
+import { recordAudit } from '@/services/audit';
 import { prisma } from '@/lib/db';
 import { logger } from '@/lib/logger';
-import { attachSsoSessionCookie, issueSsoSession } from '@/lib/sso/issue-session';
-import { getOauthController } from '@/lib/sso/jackson';
-import { provisionSsoUser } from '@/lib/sso/jit';
+import { attachSsoSessionCookie, issueSsoSession } from '@/services/sso/issue-session';
+import { getOauthController } from '@/services/sso/jackson';
+import { provisionSsoUser } from '@/services/sso/jit';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';

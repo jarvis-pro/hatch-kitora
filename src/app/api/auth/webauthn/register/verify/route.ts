@@ -10,13 +10,13 @@ import { NextResponse } from 'next/server';
 import type { RegistrationResponseJSON } from '@simplewebauthn/server';
 import { z } from 'zod';
 
-import { recordAudit } from '@/lib/audit';
+import { recordAudit } from '@/services/audit';
 import { requireUser } from '@/lib/auth/session';
 import { recomputeTwoFactorEnabled } from '@/lib/auth/two-factor-state';
 import { prisma } from '@/lib/db';
 import { logger } from '@/lib/logger';
-import { consumeChallenge } from '@/lib/webauthn/challenge';
-import { verifyRegistration } from '@/lib/webauthn/verify';
+import { consumeChallenge } from '@/services/webauthn/challenge';
+import { verifyRegistration } from '@/services/webauthn/verify';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';

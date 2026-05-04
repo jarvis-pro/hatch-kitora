@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 
 import { env } from '@/env';
 import { logger } from '@/lib/logger';
-import { getOauthController } from '@/lib/sso/jackson';
+import { getOauthController } from '@/services/sso/jackson';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';

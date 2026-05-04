@@ -7,7 +7,7 @@ import { useForm } from 'react-hook-form';
 import { toast } from 'sonner';
 import { z } from 'zod';
 
-import { verifyTfaForCurrentSessionAction } from '@/lib/account/two-factor';
+import { verifyTfaForCurrentSessionAction } from '@/services/account/two-factor';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';

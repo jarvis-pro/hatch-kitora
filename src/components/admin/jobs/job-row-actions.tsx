@@ -6,7 +6,7 @@ import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
 import { useRouter } from '@/i18n/routing';
-import { cancelJobAction, retryJobAction } from '@/lib/admin/actions';
+import { cancelJobAction, retryJobAction } from '@/services/admin/actions';
 
 interface Props {
   jobId: string;

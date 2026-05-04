@@ -2,7 +2,7 @@
  * RFC 0008 §4.5 / §5.1 / PR-4 — Vercel Cron 入口（HTTP 形式的 run-jobs.ts）。
  *
  * Vercel Cron 一分钟一次 GET 此路由，与 `scripts/run-jobs.ts` CLI 跑一模一样的
- * `fireSchedules → runWorkerTick` 序列 —— 两个入口共用 `@/lib/jobs/*` 一套实现，
+ * `fireSchedules → runWorkerTick` 序列 —— 两个入口共用 `@/services/jobs/*` 一套实现，
  * 维护成本只有一份。
  *
  * 鉴权：`Authorization: Bearer ${CRON_SECRET}` 严格匹配。Vercel Cron 自动注入此
@@ -26,9 +26,9 @@
 import { NextResponse } from 'next/server';
 
 import { env } from '@/env';
-import '@/lib/jobs/bootstrap'; // 副作用：把所有 job / schedule 注册进 registry
-import { runWorkerTick } from '@/lib/jobs/runner';
-import { fireSchedules } from '@/lib/jobs/schedules';
+import '@/services/jobs/bootstrap'; // 副作用：把所有 job / schedule 注册进 registry
+import { runWorkerTick } from '@/services/jobs/runner';
+import { fireSchedules } from '@/services/jobs/schedules';
 import { logger } from '@/lib/logger';
 
 export const runtime = 'nodejs';

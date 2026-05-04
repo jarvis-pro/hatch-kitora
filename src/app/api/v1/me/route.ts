@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 
 import { authenticateBearer } from '@/lib/api-auth';
-import { getCurrentBilling } from '@/lib/billing/current';
+import { getCurrentBilling } from '@/services/billing/current';
 import { prisma } from '@/lib/db';
 import { apiLimiter } from '@/lib/rate-limit';
 

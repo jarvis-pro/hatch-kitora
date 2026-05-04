@@ -14,11 +14,11 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-vi.mock('@/lib/jobs/bootstrap', () => ({}));
-vi.mock('@/lib/jobs/runner', () => ({
+vi.mock('@/services/jobs/bootstrap', () => ({}));
+vi.mock('@/services/jobs/runner', () => ({
   runWorkerTick: vi.fn(),
 }));
-vi.mock('@/lib/jobs/schedules', () => ({
+vi.mock('@/services/jobs/schedules', () => ({
   fireSchedules: vi.fn(),
 }));
 vi.mock('@/env', () => ({
@@ -38,8 +38,8 @@ vi.mock('@/lib/logger', () => ({
 }));
 
 import { env } from '@/env';
-import { runWorkerTick } from '@/lib/jobs/runner';
-import { fireSchedules } from '@/lib/jobs/schedules';
+import { runWorkerTick } from '@/services/jobs/runner';
+import { fireSchedules } from '@/services/jobs/schedules';
 
 import { GET } from './route';
 

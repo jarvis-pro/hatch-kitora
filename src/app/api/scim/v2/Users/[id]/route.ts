@@ -1,10 +1,10 @@
 import { OrgRole } from '@prisma/client';
 
-import { recordAudit } from '@/lib/audit';
+import { recordAudit } from '@/services/audit';
 import { prisma } from '@/lib/db';
 import { logger } from '@/lib/logger';
-import { authenticateScim, scimError, scimJson } from '@/lib/sso/scim-auth';
-import { roleFromGroupId, toScimUser } from '@/lib/sso/scim-user';
+import { authenticateScim, scimError, scimJson } from '@/services/sso/scim-auth';
+import { roleFromGroupId, toScimUser } from '@/services/sso/scim-user';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';

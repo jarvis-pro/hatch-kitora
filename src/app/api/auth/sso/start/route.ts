@@ -3,8 +3,8 @@ import { NextResponse } from 'next/server';
 import { env } from '@/env';
 import { prisma } from '@/lib/db';
 import { logger } from '@/lib/logger';
-import { extractDomainFromEmail } from '@/lib/sso/domain';
-import { JACKSON_PRODUCT, getOauthController } from '@/lib/sso/jackson';
+import { extractDomainFromEmail } from '@/services/sso/domain';
+import { JACKSON_PRODUCT, getOauthController } from '@/services/sso/jackson';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';

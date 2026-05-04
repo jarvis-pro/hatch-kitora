@@ -15,8 +15,8 @@ import { generateAuthenticationOptions } from '@simplewebauthn/server';
 import { logger } from '@/lib/logger';
 import { authLimiter } from '@/lib/rate-limit';
 import { getClientIp } from '@/lib/request';
-import { setAnonymousChallenge } from '@/lib/webauthn/anonymous-challenge';
-import { getRpId } from '@/lib/webauthn/config';
+import { setAnonymousChallenge } from '@/services/webauthn/anonymous-challenge';
+import { getRpId } from '@/services/webauthn/config';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';

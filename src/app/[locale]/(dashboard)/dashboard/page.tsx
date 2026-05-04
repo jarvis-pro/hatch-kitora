@@ -7,9 +7,9 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Link } from '@/i18n/routing';
 import { auth } from '@/lib/auth';
-import { getCurrentBilling } from '@/lib/billing/current';
+import { getCurrentBilling } from '@/services/billing/current';
 import { prisma } from '@/lib/db';
-import { checkOrg2faCompliance } from '@/lib/orgs/two-factor-policy';
+import { checkOrg2faCompliance } from '@/services/orgs/two-factor-policy';
 
 /**
  * 仪表板首页的元数据。

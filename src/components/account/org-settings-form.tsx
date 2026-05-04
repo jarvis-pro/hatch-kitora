@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useRouter } from '@/i18n/routing';
-import { updateOrgAction } from '@/lib/orgs/actions';
+import { updateOrgAction } from '@/services/orgs/actions';
 
 /**
  * 组织设置表单验证 schema

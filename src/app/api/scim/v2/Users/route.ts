@@ -1,16 +1,16 @@
 import { OrgRole, type Prisma } from '@prisma/client';
 
-import { recordAudit } from '@/lib/audit';
+import { recordAudit } from '@/services/audit';
 import { prisma } from '@/lib/db';
 import { logger } from '@/lib/logger';
-import { provisionSsoUser } from '@/lib/sso/jit';
-import { authenticateScim, scimError, scimJson } from '@/lib/sso/scim-auth';
+import { provisionSsoUser } from '@/services/sso/jit';
+import { authenticateScim, scimError, scimJson } from '@/services/sso/scim-auth';
 import {
   parseFilterField,
   parseUserNameEqFilter,
   roleFromGroupId,
   toScimUser,
-} from '@/lib/sso/scim-user';
+} from '@/services/sso/scim-user';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';

@@ -4,8 +4,8 @@ import { useFormatter, useTranslations } from 'next-intl';
 import { useState, useTransition } from 'react';
 import { toast } from 'sonner';
 
-import { updateWebhookEndpointAction } from '@/lib/orgs/webhook-endpoints';
-import { WEBHOOK_EVENTS } from '@/lib/webhooks/events';
+import { updateWebhookEndpointAction } from '@/services/orgs/webhook-endpoints';
+import { WEBHOOK_EVENTS } from '@/services/webhooks/events';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';

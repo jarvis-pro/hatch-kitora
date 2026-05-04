@@ -19,12 +19,12 @@
 
 import { OrgRole, Prisma } from '@prisma/client';
 
-import { recordAudit } from '@/lib/audit';
-import { decodeAlipayPassback, verifyAlipayNotify } from '@/lib/billing/provider/alipay';
+import { recordAudit } from '@/services/audit';
+import { decodeAlipayPassback, verifyAlipayNotify } from '@/services/billing/provider/alipay';
 import { prisma } from '@/lib/db';
 import { logger } from '@/lib/logger';
-import { enqueueWebhook } from '@/lib/webhooks/enqueue';
-import type { WebhookEventType } from '@/lib/webhooks/events';
+import { enqueueWebhook } from '@/services/webhooks/enqueue';
+import type { WebhookEventType } from '@/services/webhooks/events';
 
 async function ownerOfOrg(orgId: string): Promise<string | null> {
   const m = await prisma.membership.findFirst({

@@ -11,8 +11,8 @@ import {
   removeMemberAction,
   transferOwnershipAction,
   updateMemberRoleAction,
-} from '@/lib/orgs/actions';
-import { revokeInvitationAction } from '@/lib/orgs/invitations';
+} from '@/services/orgs/actions';
+import { revokeInvitationAction } from '@/services/orgs/invitations';
 import { cn } from '@/lib/utils';
 
 /**

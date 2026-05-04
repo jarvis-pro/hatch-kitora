@@ -4,12 +4,12 @@ import type Stripe from 'stripe';
 import { OrgRole, type SubscriptionStatus } from '@prisma/client';
 
 import { env } from '@/env';
-import { recordAudit } from '@/lib/audit';
+import { recordAudit } from '@/services/audit';
 import { prisma } from '@/lib/db';
 import { logger } from '@/lib/logger';
 import { stripe } from '@/lib/stripe/client';
-import { enqueueWebhook } from '@/lib/webhooks/enqueue';
-import type { WebhookEventType } from '@/lib/webhooks/events';
+import { enqueueWebhook } from '@/services/webhooks/enqueue';
+import type { WebhookEventType } from '@/services/webhooks/events';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';

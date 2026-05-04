@@ -5,7 +5,7 @@ import { useFormatter, useTranslations } from 'next-intl';
 import { useTransition } from 'react';
 import { toast } from 'sonner';
 
-import { triggerOrgExportAction } from '@/lib/account/data-export';
+import { triggerOrgExportAction } from '@/services/account/data-export';
 import { Button } from '@/components/ui/button';
 import { useRouter } from '@/i18n/routing';
 

@@ -15,7 +15,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { useRouter } from '@/i18n/routing';
-import { setActiveOrgAction } from '@/lib/orgs/actions';
+import { setActiveOrgAction } from '@/services/orgs/actions';
 import { cn } from '@/lib/utils';
 
 export interface OrgOption {

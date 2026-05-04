@@ -6,7 +6,7 @@ import { WebhookEndpoints } from '@/components/account/webhook-endpoints';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { requireActiveOrg } from '@/lib/auth/session';
 import { prisma } from '@/lib/db';
-import { can } from '@/lib/orgs/permissions';
+import { can } from '@/services/orgs/permissions';
 
 export const metadata: Metadata = { title: 'Webhooks' };
 export const dynamic = 'force-dynamic';

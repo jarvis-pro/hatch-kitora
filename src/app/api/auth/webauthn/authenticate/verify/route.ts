@@ -17,14 +17,14 @@ import { NextResponse } from 'next/server';
 import type { AuthenticationResponseJSON } from '@simplewebauthn/server';
 import { z } from 'zod';
 
-import { recordAudit } from '@/lib/audit';
-import { attachSsoSessionCookie, issueSsoSession } from '@/lib/sso/issue-session';
+import { recordAudit } from '@/services/audit';
+import { attachSsoSessionCookie, issueSsoSession } from '@/services/sso/issue-session';
 import { prisma } from '@/lib/db';
 import { logger } from '@/lib/logger';
 import { authLimiter } from '@/lib/rate-limit';
 import { getClientIp } from '@/lib/request';
-import { consumeAnonymousChallenge } from '@/lib/webauthn/anonymous-challenge';
-import { verifyAuthentication } from '@/lib/webauthn/verify';
+import { consumeAnonymousChallenge } from '@/services/webauthn/anonymous-challenge';
+import { verifyAuthentication } from '@/services/webauthn/verify';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';

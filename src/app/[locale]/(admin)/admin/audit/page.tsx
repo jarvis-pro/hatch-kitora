@@ -4,7 +4,7 @@ import { getTranslations } from 'next-intl/server';
 
 import { DataPagination } from '@/components/admin/data-pagination';
 import { SearchForm } from '@/components/admin/search-form';
-import { AUDIT_ACTIONS, auditActionToI18nKey, type AuditAction } from '@/lib/audit';
+import { AUDIT_ACTIONS, auditActionToI18nKey, type AuditAction } from '@/services/audit';
 import { prisma } from '@/lib/db';
 import { cn } from '@/lib/utils';
 

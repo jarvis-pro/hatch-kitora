@@ -4,7 +4,7 @@ import { useTranslations } from 'next-intl';
 import { useTransition } from 'react';
 import { toast } from 'sonner';
 
-import { unlinkProviderAction } from '@/lib/account/actions';
+import { unlinkProviderAction } from '@/services/account/actions';
 import { Button } from '@/components/ui/button';
 import { useRouter } from '@/i18n/routing';
 

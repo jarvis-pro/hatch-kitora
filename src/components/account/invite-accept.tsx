@@ -6,7 +6,7 @@ import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
 import { useRouter } from '@/i18n/routing';
-import { acceptInvitationAction } from '@/lib/orgs/invitations';
+import { acceptInvitationAction } from '@/services/orgs/invitations';
 
 /**
  * InviteAcceptButton 组件 Props

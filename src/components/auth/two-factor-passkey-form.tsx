@@ -9,7 +9,7 @@ import { startAuthentication } from '@simplewebauthn/browser';
 import {
   getPasskeyChallengeAction,
   verifyPasskeyForCurrentSessionAction,
-} from '@/lib/account/passkeys';
+} from '@/services/account/passkeys';
 import { Button } from '@/components/ui/button';
 import { useRouter } from '@/i18n/routing';
 

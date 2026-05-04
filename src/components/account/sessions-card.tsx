@@ -4,7 +4,7 @@ import { useTranslations } from 'next-intl';
 import { useTransition } from 'react';
 import { toast } from 'sonner';
 
-import { signOutEverywhereAction } from '@/lib/account/actions';
+import { signOutEverywhereAction } from '@/services/account/actions';
 import { Button } from '@/components/ui/button';
 
 export function SessionsCard() {

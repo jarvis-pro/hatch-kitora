@@ -3,8 +3,8 @@ import { NextResponse } from 'next/server';
 import { gateOrgApi } from '@/lib/api-org-gate';
 import { prisma } from '@/lib/db';
 import { apiLimiter } from '@/lib/rate-limit';
-import { validateEmailDomain } from '@/lib/sso/domain';
-import { encryptOidcSecret } from '@/lib/sso/secret';
+import { validateEmailDomain } from '@/services/sso/domain';
+import { encryptOidcSecret } from '@/services/sso/secret';
 import { OrgRole, SsoProtocol } from '@prisma/client';
 
 export const runtime = 'nodejs';
