@@ -1,13 +1,13 @@
 import { createOrgWithOwner, createTestUser, deleteOrg, deleteUser, prisma } from './fixtures/db';
 import { expect, test } from './fixtures/test';
 
-import { validateEmailDomain } from '../../src/lib/sso/domain';
+import { validateEmailDomain } from '../../src/services/sso/domain';
 import {
   decryptOidcSecret,
   encryptOidcSecret,
   generateScimToken,
   hashScimToken,
-} from '../../src/lib/sso/secret';
+} from '../../src/services/sso/secret';
 
 /**
  * RFC 0004 PR-1 — IdP CRUD + SCIM token e2e。

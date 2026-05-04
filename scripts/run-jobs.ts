@@ -29,11 +29,11 @@
  * `run-jobs.ts`，等下一个 minor 再删旧脚本。
  */
 
-import '@/lib/jobs/bootstrap';
+import '@/services/jobs/bootstrap';
 
 import { logger } from '@/lib/logger';
-import { runWorkerTick } from '@/lib/jobs/runner';
-import { fireSchedules } from '@/lib/jobs/schedules';
+import { runWorkerTick } from '@/services/jobs/runner';
+import { fireSchedules } from '@/services/jobs/schedules';
 
 async function main() {
   const workerId = `worker-${process.pid}-${Date.now()}`;

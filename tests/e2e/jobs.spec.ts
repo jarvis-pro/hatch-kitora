@@ -5,9 +5,9 @@ import { z } from 'zod';
 import { prisma } from './fixtures/db';
 import { expect, test } from './fixtures/test';
 
-import { cancelJob, enqueueJob } from '../../src/lib/jobs/enqueue';
-import { registerJob } from '../../src/lib/jobs/registry';
-import { runWorkerTick } from '../../src/lib/jobs/runner';
+import { cancelJob, enqueueJob } from '../../src/services/jobs/enqueue';
+import { registerJob } from '../../src/services/jobs/registry';
+import { runWorkerTick } from '../../src/services/jobs/runner';
 
 /**
  * RFC 0008 PR-5 — Background jobs e2e。

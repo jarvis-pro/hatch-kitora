@@ -5,8 +5,8 @@ import { join } from 'node:path';
 import { prisma } from './fixtures/db';
 import { expect, test } from './fixtures/test';
 
-import { buildUserExport } from '../../src/lib/data-export/builder';
-import { makeZip } from '../../src/lib/data-export/zip';
+import { buildUserExport } from '../../src/services/data-export/builder';
+import { makeZip } from '../../src/services/data-export/zip';
 // 静态导入 —— Playwright 的 TS loader 会转译这些文件，但不会
 // 将动态 `import()` 调用解析为 `.ts` 文件（否则转译器将解析后的文件
 // 视为 CJS，导致 SyntaxError）。

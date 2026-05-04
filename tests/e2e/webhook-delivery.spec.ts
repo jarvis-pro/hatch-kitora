@@ -4,10 +4,14 @@ import type { AddressInfo } from 'node:net';
 import { createOrgWithOwner, createTestUser, deleteOrg, deleteUser, prisma } from './fixtures/db';
 import { expect, test } from './fixtures/test';
 
-import { runWebhookCronTick } from '../../src/lib/webhooks/cron';
-import { deliverWebhook } from '../../src/lib/webhooks/deliver';
-import { decryptSecret, encryptSecret, generateWebhookSecret } from '../../src/lib/webhooks/secret';
-import { signWebhookPayload, verifyWebhookSignature } from '../../src/lib/webhooks/sign';
+import { runWebhookCronTick } from '../../src/services/webhooks/cron';
+import { deliverWebhook } from '../../src/services/webhooks/deliver';
+import {
+  decryptSecret,
+  encryptSecret,
+  generateWebhookSecret,
+} from '../../src/services/webhooks/secret';
+import { signWebhookPayload, verifyWebhookSignature } from '../../src/services/webhooks/sign';
 
 /**
  * RFC 0003 PR-2 — 出站投递 + HMAC e2e。

@@ -15,7 +15,7 @@
  */
 
 import { logger } from '@/lib/logger';
-import { runExportJobsTick } from '@/lib/data-export/cron';
+import { runExportJobsTick } from '@/services/data-export/cron';
 
 runExportJobsTick()
   .then(() => process.exit(0))

@@ -1,7 +1,7 @@
 import { createOrgWithOwner, createTestUser, deleteOrg, deleteUser, prisma } from './fixtures/db';
 import { expect, test } from '@playwright/test';
 
-import { generateScimToken } from '../../src/lib/sso/secret';
+import { generateScimToken } from '../../src/services/sso/secret';
 
 /**
  * RFC 0004 PR-4 — SCIM e2e。

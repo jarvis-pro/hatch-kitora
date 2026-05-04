@@ -1,8 +1,8 @@
 import { createOrgWithOwner, createTestUser, deleteOrg, deleteUser, prisma } from './fixtures/db';
 import { expect, test } from '@playwright/test';
 
-import { issueSsoSession } from '../../src/lib/sso/issue-session';
-import { provisionSsoUser } from '../../src/lib/sso/jit';
+import { issueSsoSession } from '../../src/services/sso/issue-session';
+import { provisionSsoUser } from '../../src/services/sso/jit';
 
 /**
  * RFC 0004 PR-2 — SAML 登录流程 e2e。

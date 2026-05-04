@@ -11,7 +11,7 @@
  */
 
 import { logger } from '@/lib/logger';
-import { runWebhookCronTick } from '@/lib/webhooks/cron';
+import { runWebhookCronTick } from '@/services/webhooks/cron';
 
 runWebhookCronTick()
   .then(() => process.exit(0))

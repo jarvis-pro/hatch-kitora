@@ -15,7 +15,7 @@
  */
 
 import { logger } from '@/lib/logger';
-import { runDeletionCronTick } from '@/lib/account/deletion-cron';
+import { runDeletionCronTick } from '@/services/account/deletion-cron';
 
 runDeletionCronTick()
   .then(() => process.exit(0))

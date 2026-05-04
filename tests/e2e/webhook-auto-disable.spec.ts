@@ -4,8 +4,8 @@ import type { AddressInfo } from 'node:net';
 import { createOrgWithOwner, createTestUser, deleteOrg, deleteUser, prisma } from './fixtures/db';
 import { expect, test } from '@playwright/test';
 
-import { runWebhookCronTick } from '../../src/lib/webhooks/cron';
-import { generateWebhookSecret } from '../../src/lib/webhooks/secret';
+import { runWebhookCronTick } from '../../src/services/webhooks/cron';
+import { generateWebhookSecret } from '../../src/services/webhooks/secret';
 
 /**
  * RFC 0003 PR-4 — 自动禁用 + sweep e2e。

@@ -1,7 +1,7 @@
 import { createOrgWithOwner, createTestUser, deleteOrg, deleteUser, prisma } from './fixtures/db';
 import { expect, test } from './fixtures/test';
 
-import { validateWebhookUrl } from '../../src/lib/webhooks/url-guard';
+import { validateWebhookUrl } from '../../src/services/webhooks/url-guard';
 
 /**
  * RFC 0003 PR-1 — Webhook 端点 CRUD e2e。

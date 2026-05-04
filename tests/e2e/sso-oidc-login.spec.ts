@@ -1,7 +1,7 @@
 import { createOrgWithOwner, createTestUser, deleteOrg, deleteUser, prisma } from './fixtures/db';
 import { expect, test } from '@playwright/test';
 
-import { encryptOidcSecret } from '../../src/lib/sso/secret';
+import { encryptOidcSecret } from '../../src/services/sso/secret';
 
 /**
  * RFC 0004 PR-3 — OIDC start 端点冒烟测试。
