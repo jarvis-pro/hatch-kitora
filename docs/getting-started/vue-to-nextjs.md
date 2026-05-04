@@ -24,7 +24,7 @@
 | Midway Service / IoC 容器 | 普通 ESM module，`src/lib/**`                                     | **没有 IoC、没有装饰器**。直接 `import` 函数。Service 就是一个文件里 `export` 出来的函数。                                        |
 | Midway Configuration      | `src/env.ts` (Zod 校验) + `next.config.mjs`                       | 所有 env 必须在 `env.ts` 中声明 schema，运行时类型安全。                                                                          |
 | TypeORM / Sequelize       | Prisma                                                            | Prisma Schema = 数据建模 + 迁移 + 类型生成三合一。学完 §4.4 即可。                                                                |
-| `@midwayjs/cron`          | `src/lib/jobs/`（自研）+ `/api/jobs/tick`                         | 见 §4.7。我们没用 BullMQ，而是用 Postgres 做队列。                                                                                |
+| `@midwayjs/cron`          | `src/services/jobs/`（自研）+ `/api/jobs/tick`                    | 见 §4.7。我们没用 BullMQ，而是用 Postgres 做队列。                                                                                |
 | `winston` / `egg-logger`  | `pino`（`src/lib/logger.ts`）                                     | API 几乎一样，少烦恼。                                                                                                            |
 | Vite + Vitest             | Next.js 内置 webpack/turbopack + Vitest + Playwright              | 单测 Vitest 沿用熟悉的 API；E2E 用 Playwright（与 Cypress 思路相似）。                                                            |
 | `Egg.js` 中间件           | Route Handler 内手动 compose / `src/lib/api-auth.ts` 这类高阶函数 | 没有"洋葱模型"，需要的横切能力以**函数包装**的形式手写。                                                                          |
@@ -161,7 +161,7 @@ URL `/<locale>/settings/security` 对应的渲染顺序是：
 - 所有需要登录的页面，第一行 `const session = await auth(); if (!session) redirect('/login')`，或者用现成的 wrapper。
 - 所有写操作要校验"该用户对该 org 有权限"，统一走 `src/lib/api-org-gate.ts`。
 
-### 4.3 SSO 与 SCIM（`src/lib/sso/` + `src/app/api/scim/v2/`）
+### 4.3 SSO 与 SCIM（`src/services/sso/` + `src/app/api/scim/v2/`）
 
 **问题**：B2B 客户的 IT 部门要求"我的员工不在你的系统里建账号，从我的 IdP 直接 push 过来"。
 
@@ -200,15 +200,15 @@ URL `/<locale>/settings/security` 对应的渲染顺序是：
 
 **ICP / 公安备案**只在 `KITORA_REGION=CN` 且 `ICP_NUMBER` 非空时渲染（见 marketing 区的 `icp/` 路由），这是合规硬要求。
 
-### 4.6 计费（`src/lib/billing/` + `src/lib/stripe/`）
+### 4.6 计费（`src/services/billing/` + `src/lib/stripe/`）
 
 **问题**：海外用 Stripe，国内用支付宝 + 微信支付，且要能 A/B 切换价格、处理订阅升降级。
 
 **设计**：
 
-- `src/lib/billing/provider/types.ts` 定义统一接口 `BillingProvider`（`createCheckout`、`createPortal`、`handleWebhook` 等）
+- `src/services/billing/provider/types.ts` 定义统一接口 `BillingProvider`（`createCheckout`、`createPortal`、`handleWebhook` 等）
 - `stripe.ts` / `alipay.ts` / `wechat.ts` 各自实现这个接口
-- `src/lib/billing/current.ts` 根据当前 region 选择 provider——**不在业务代码里 if region**
+- `src/services/billing/current.ts` 根据当前 region 选择 provider——**不在业务代码里 if region**
 - Webhook 处理器**幂等**——所有 provider event 都先写入 `StripeEvent`（或对应表）做去重
 
 **陷阱**：
@@ -216,7 +216,7 @@ URL `/<locale>/settings/security` 对应的渲染顺序是：
 - 中国大陆的支付回调是**服务端推**而不是浏览器跳转，所以 `/api/billing/alipay/notify` 必须公网可达且能验签。
 - Stripe webhook 一定要校验 `Stripe-Signature` header，否则任何人都能伪造订阅生效。
 
-### 4.7 后台任务系统（`src/lib/jobs/`）
+### 4.7 后台任务系统（`src/services/jobs/`）
 
 **问题**：发邮件、生成导出、清理过期 token 这类"用户请求时不想等"的活儿。
 
@@ -228,11 +228,11 @@ URL `/<locale>/settings/security` 对应的渲染顺序是：
 
 实现方式：
 
-- `src/lib/jobs/define.ts` 注册 job handler
-- `src/lib/jobs/enqueue.ts` 入队（写一行 `Job` 表）
-- `src/lib/jobs/runner.ts` 出队执行
+- `src/services/jobs/define.ts` 注册 job handler
+- `src/services/jobs/enqueue.ts` 入队（写一行 `Job` 表）
+- `src/services/jobs/runner.ts` 出队执行
 - `src/app/api/jobs/tick` 是一个**外部 cron**（Vercel Cron / 阿里云定时触发器）每分钟打的 endpoint，每次拉一批 due job 执行
-- `src/lib/jobs/retry.ts` 里有指数退避策略
+- `src/services/jobs/retry.ts` 里有指数退避策略
 - `observability.ts` 把每次执行的状态写到日志和 Sentry
 
 **接 issue 前必须知道**：handler 必须**幂等**，因为 cron 多实例 / 重试可能会让同一 job 跑两次。

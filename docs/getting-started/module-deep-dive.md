@@ -235,7 +235,7 @@ B2B 客户的 IT 部门会要求：
 ### 6.3 核心抽象
 
 ```typescript
-// src/lib/billing/provider/types.ts
+// src/services/billing/provider/types.ts
 interface BillingProvider {
   createCheckout(opts): Promise<CheckoutSession>;
   createPortal(opts): Promise<PortalSession>;

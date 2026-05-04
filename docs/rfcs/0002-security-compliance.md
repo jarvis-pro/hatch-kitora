@@ -186,7 +186,7 @@ enum DataExportStatus {
 3. 发邮件，附下载链接（`/api/exports/[jobId]/download`，鉴权后 302 到 signed URL 或本地流）。
 4. 失败：`FAILED + errorMessage`，UI 展示重试按钮。
 
-storage abstraction 已在 `src/lib/billing/provider/` 有先例；新建 `src/lib/storage/`，先实现 `LocalFsProvider`（dev）+ `S3Provider`（prod）。
+storage abstraction 已在 `src/services/billing/provider/` 有先例；新建 `src/lib/storage/`，先实现 `LocalFsProvider`（dev）+ `S3Provider`（prod）。
 
 #### 导出内容
 

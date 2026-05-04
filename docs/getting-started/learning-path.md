@@ -98,7 +98,7 @@
 
 **项目内必读代码**
 
-- `src/lib/account/actions.ts`（或 `src/lib/auth/actions.ts`） — 一个完整的 Server Action 实现：Zod 校验 → 鉴权 → DB 操作 → revalidate → 返回 typed result
+- `src/services/account/actions.ts`（或 `src/lib/auth/actions.ts`） — 一个完整的 Server Action 实现：Zod 校验 → 鉴权 → DB 操作 → revalidate → 返回 typed result
 - `src/lib/api-org-gate.ts` — 跨多个 action 复用的"Org 权限闸门"
 - `prisma/schema.prisma` 全文 — 这是项目里最重要的 1 个文件，至少完整读一遍
 
@@ -166,9 +166,9 @@
 **项目内必读代码**
 
 - `src/lib/region.ts` 全文 + `src/lib/region/providers.ts`
-- `src/lib/billing/provider/types.ts` + 三个实现（`stripe.ts` / `alipay.ts` / `wechat.ts`）
+- `src/services/billing/provider/types.ts` + 三个实现（`stripe.ts` / `alipay.ts` / `wechat.ts`）
 - `src/app/api/stripe/webhook/route.ts` 与 `src/app/api/billing/alipay/notify/route.ts` 对比读
-- `src/lib/jobs/` 全部（这是本项目最自豪的一块自研——读懂受益终生）
+- `src/services/jobs/` 全部（这是本项目最自豪的一块自研——读懂受益终生）
 - `src/i18n/` + `messages/` 一份语言包
 
 **周末自我验证**
@@ -201,7 +201,7 @@
 **项目内必读代码**
 
 - `src/lib/rate-limit.ts` 全文
-- `src/lib/audit.ts` — 审计日志的写入抽象
+- `src/services/audit.ts` — 审计日志的写入抽象
 - `next.config.mjs` — 看自定义的 image / headers / experimental flag
 - `sentry.*.config.ts` 三件套
 

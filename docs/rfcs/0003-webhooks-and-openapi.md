@@ -129,7 +129,7 @@ async function main() {
 任何业务代码（Stripe webhook handler / membership action / audit recorder）调 `enqueueWebhook(orgId, eventType, payload)`：
 
 ```ts
-// src/lib/webhooks/enqueue.ts
+// src/services/webhooks/enqueue.ts
 export async function enqueueWebhook(orgId: string, eventType: WebhookEventType, payload: object) {
   const endpoints = await prisma.webhookEndpoint.findMany({
     where: {
@@ -367,8 +367,8 @@ POST   /api/v1/orgs/{slug}/webhooks/{id}/deliveries/{deliveryId}/resend
 
 ### PR-2 投递流水线 + 重试 ✓
 
-- [x] `scripts/run-webhook-cron.ts`，复用 cron-claim 模式。库形式在 `src/lib/webhooks/cron.ts`，CLI 是薄壳。
-- [x] HMAC 签名 + 时间戳头（`src/lib/webhooks/sign.ts`，`X-Kitora-Signature: t=...,v1=...`）。
+- [x] `scripts/run-webhook-cron.ts`，复用 cron-claim 模式。库形式在 `src/services/webhooks/cron.ts`，CLI 是薄壳。
+- [x] HMAC 签名 + 时间戳头（`src/services/webhooks/sign.ts`，`X-Kitora-Signature: t=...,v1=...`）。
 - [x] v1 事件接入：在 `recordAudit` / `stripe.webhook` 里调 `enqueueWebhook(...)`，membership actions 等审计走 `audit.recorded` 通道。
 - [x] Deliveries 列表 UI + payload preview（webhook 详情页表格 + 单行展开）。
 - [x] e2e：local http receiver + 签名校验 + 502 重试 + 400 dead-letter + 端到端 cron 跑通。
