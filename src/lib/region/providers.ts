@@ -20,8 +20,8 @@ import 'server-only';
 
 import { Region } from '@prisma/client';
 
-import { getProvider as getStripeBackedBillingProvider } from '@/lib/billing/provider';
-import type { BillingProvider } from '@/lib/billing/provider/types';
+import { getProvider as getStripeBackedBillingProvider } from '@/services/billing/provider';
+import type { BillingProvider } from '@/services/billing/provider/types';
 import { logger } from '@/lib/logger';
 import { currentRegion } from '@/lib/region';
 import { storage as defaultStorage } from '@/lib/storage';

@@ -4,7 +4,7 @@ import { OrgRole } from '@prisma/client';
 
 import { type ApiTokenPrincipal, authenticateBearer } from '@/lib/api-auth';
 import { prisma } from '@/lib/db';
-import { findActiveMembership } from '@/lib/orgs/queries';
+import { findActiveMembership } from '@/services/orgs/queries';
 
 /**
  * RFC 0003 PR-1 — 对 /api/v1/orgs/[slug]/* 的持有者认证 + org 成员资格门控。
