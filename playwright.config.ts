@@ -132,10 +132,6 @@ export default defineConfig({
           // 非 Vercel 环境下还需要 AUTH_TRUST_HOST。
           AUTH_URL: BASE_URL,
           AUTH_TRUST_HOST: 'true',
-          // 在任何框架模块加载之前预加载 stderr 过滤器 ——
-          // 在 `instrumentation.ts` 里打补丁太晚了，因为 Next.js 在自身
-          // 模块初始化时就已经接管了 `process.stderr.write`。
-          NODE_OPTIONS: '-r ./scripts/silence-auth-noise.cjs',
         },
       },
 });

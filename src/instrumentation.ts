@@ -4,14 +4,6 @@
  * 根据运行时环境（Node 或 Edge）加载对应的 Sentry 配置，
  * 并在 Node 运行时执行部署区域与数据库的一致性检查。
  *
- * 注意：
- * - Auth.js 在用户密码输错时会向控制台打印 `CredentialsSignin` 报错。
- *   这属于正常业务行为而非程序异常，但会持续刷屏干扰日志排查。
- *   该噪音无法在此处过滤——`register()` 执行时 Next.js 已完成初始化并接管
- *   了 stderr，在这里挂过滤器已经太晚。因此改由启动参数 `--require` 预加载
- *   `scripts/silence-auth-noise.cjs`，在 Next.js 初始化之前提前挂上过滤器。
- *   注意 `--require` 只支持同步代码，有异步初始化需求应放在本文件的 register() 中。
- *
  * 文档：https://nextjs.org/docs/app/building-your-application/optimizing/instrumentation
  */
 export async function register() {
