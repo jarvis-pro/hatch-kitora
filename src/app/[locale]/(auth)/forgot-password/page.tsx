@@ -1,8 +1,9 @@
 import type { Metadata } from 'next';
 import { useTranslations } from 'next-intl';
 
-import { ForgotPasswordForm } from '@/components/auth/forgot-password-form';
 import { Link } from '@/i18n/routing';
+
+import { ForgotPasswordForm } from './_components/forgot-password-form';
 
 /**
  * 忘记密码页的元数据。

@@ -2,13 +2,14 @@ import type { OrgRole } from '@prisma/client';
 import type { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
 
-import { InviteAcceptButton } from '@/components/account/invite-accept';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Link } from '@/i18n/routing';
 import { auth } from '@/lib/auth';
 import { hashToken } from '@/lib/auth/tokens';
 import { prisma } from '@/lib/db';
+
+import { InviteAcceptButton } from './_components/invite-accept';
 
 // 禁用缓存，每次请求都重新验证邀请状态
 export const dynamic = 'force-dynamic';

@@ -1,7 +1,8 @@
 import { redirect } from 'next/navigation';
 
-import { AdminNav } from '@/components/admin/admin-nav';
-import { UserMenu } from '@/components/dashboard/user-menu';
+import { UserMenu } from '@/components/user-menu';
+
+import { AdminNav } from './_components/admin-nav';
 import { auth } from '@/lib/auth';
 
 /**

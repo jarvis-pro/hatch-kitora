@@ -1,8 +1,9 @@
 import type { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
 
-import { MetricCard } from '@/components/admin/metric-card';
 import { getAdminMetrics } from '@/services/admin/metrics';
+
+import { MetricCard } from './_components/metric-card';
 
 export const metadata: Metadata = {
   title: 'Admin · Overview',

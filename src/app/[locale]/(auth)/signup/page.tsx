@@ -1,8 +1,9 @@
 import type { Metadata } from 'next';
 import { useTranslations } from 'next-intl';
 
-import { SignupForm } from '@/components/auth/signup-form';
 import { Link } from '@/i18n/routing';
+
+import { SignupForm } from './_components/signup-form';
 
 /**
  * 注册页的元数据。

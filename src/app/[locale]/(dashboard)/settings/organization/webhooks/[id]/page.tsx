@@ -2,12 +2,13 @@ import type { Metadata } from 'next';
 import { notFound, redirect } from 'next/navigation';
 import { getTranslations } from 'next-intl/server';
 
-import { WebhookDeliveries } from '@/components/account/webhook-deliveries';
-import { WebhookDetail } from '@/components/account/webhook-detail';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { requireActiveOrg } from '@/lib/auth/session';
 import { prisma } from '@/lib/db';
 import { can } from '@/services/orgs/permissions';
+
+import { WebhookDeliveries } from './_components/webhook-deliveries';
+import { WebhookDetail } from './_components/webhook-detail';
 
 /**
  * Webhook 端点详情页的元数据。

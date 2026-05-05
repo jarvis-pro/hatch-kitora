@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 
-import { ApiReferenceClient } from '@/components/docs/api-reference-client';
+import { ApiReferenceClient } from './_components/api-reference-client';
 
 /**
  * RFC 0003 PR-3 — `/{locale}/docs/api` Scalar API 参考页面。

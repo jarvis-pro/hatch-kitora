@@ -2,11 +2,12 @@ import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 import { getTranslations } from 'next-intl/server';
 
-import { PasskeyList } from '@/components/account/passkey-list';
-import { RegisterPasskeyButton } from '@/components/account/register-passkey-button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { requireUser } from '@/lib/auth/session';
 import { prisma } from '@/lib/db';
+
+import { PasskeyList } from './_components/passkey-list';
+import { RegisterPasskeyButton } from './_components/register-passkey-button';
 
 export const metadata: Metadata = {
   title: 'Passkeys',

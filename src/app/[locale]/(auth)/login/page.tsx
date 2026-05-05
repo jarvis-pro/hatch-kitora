@@ -1,9 +1,10 @@
 import type { Metadata } from 'next';
 import { useTranslations } from 'next-intl';
 
-import { LoginForm } from '@/components/auth/login-form';
-import { SignInWithPasskeyButton } from '@/components/auth/sign-in-with-passkey-button';
 import { Link } from '@/i18n/routing';
+
+import { LoginForm } from './_components/login-form';
+import { SignInWithPasskeyButton } from './_components/sign-in-with-passkey-button';
 
 export const metadata: Metadata = {
   title: 'Sign in',

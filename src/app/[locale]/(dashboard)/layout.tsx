@@ -1,12 +1,13 @@
 import { redirect } from 'next/navigation';
 
-import { DashboardNav } from '@/components/dashboard/dashboard-nav';
-import { OrgSwitcher } from '@/components/dashboard/org-switcher';
-import { UserMenu } from '@/components/dashboard/user-menu';
-import { DeletionBanner } from '@/components/account/deletion-banner';
+import { UserMenu } from '@/components/user-menu';
 import { auth } from '@/lib/auth';
 import { listMyOrgs, requireActiveOrg } from '@/lib/auth/session';
 import { prisma } from '@/lib/db';
+
+import { DashboardNav } from './_components/dashboard-nav';
+import { DeletionBanner } from './_components/deletion-banner';
+import { OrgSwitcher } from './_components/org-switcher';
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const session = await auth();

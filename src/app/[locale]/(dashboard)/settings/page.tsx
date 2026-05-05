@@ -2,20 +2,21 @@ import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 import { getTranslations } from 'next-intl/server';
 
-import { ActiveSessions } from '@/components/account/active-sessions';
-import { ApiTokens } from '@/components/account/api-tokens';
-import { ConnectedAccounts } from '@/components/account/connected-accounts';
-import { DangerZone } from '@/components/account/danger-zone';
-import { DataExportCard } from '@/components/account/data-export-card';
-import { PasswordForm } from '@/components/account/password-form';
-import { ProfileForm } from '@/components/account/profile-form';
-import { SessionsCard } from '@/components/account/sessions-card';
-import { TwoFactorCard } from '@/components/account/two-factor-card';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { env } from '@/env';
 import { listActiveDeviceSessions } from '@/lib/auth/device-session';
 import { getCurrentSidHash, requireActiveOrg } from '@/lib/auth/session';
 import { prisma } from '@/lib/db';
+
+import { ActiveSessions } from './_components/active-sessions';
+import { ApiTokens } from './_components/api-tokens';
+import { ConnectedAccounts } from './_components/connected-accounts';
+import { DangerZone } from './_components/danger-zone';
+import { DataExportCard } from './_components/data-export-card';
+import { PasswordForm } from './_components/password-form';
+import { ProfileForm } from './_components/profile-form';
+import { SessionsCard } from './_components/sessions-card';
+import { TwoFactorCard } from './_components/two-factor-card';
 
 export const metadata: Metadata = {
   title: 'Settings',

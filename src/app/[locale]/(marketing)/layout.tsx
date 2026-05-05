@@ -1,5 +1,5 @@
-import { SiteFooter } from '@/components/marketing/site-footer';
-import { SiteHeader } from '@/components/marketing/site-header';
+import { SiteFooter } from './_components/site-footer';
+import { SiteHeader } from './_components/site-header';
 
 /**
  * 营销模块的布局容器。

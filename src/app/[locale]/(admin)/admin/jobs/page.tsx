@@ -3,10 +3,11 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { getTranslations } from 'next-intl/server';
 
-import { DataPagination } from '@/components/admin/data-pagination';
-import { JobRowActions } from '@/components/admin/jobs/job-row-actions';
 import { prisma } from '@/lib/db';
 import { cn } from '@/lib/utils';
+
+import { DataPagination } from '../_components/data-pagination';
+import { JobRowActions } from './_components/job-row-actions';
 
 export const metadata: Metadata = {
   title: 'Admin · Background jobs',

@@ -1,9 +1,10 @@
 import type { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
 
-import { ResendVerificationForm } from '@/components/auth/resend-verification-form';
 import { Link } from '@/i18n/routing';
 import { verifyEmailAction } from '@/lib/auth/actions';
+
+import { ResendVerificationForm } from './_components/resend-verification-form';
 
 export const metadata: Metadata = {
   title: 'Verify email',

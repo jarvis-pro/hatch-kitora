@@ -3,12 +3,13 @@ import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 import { getTranslations } from 'next-intl/server';
 
-import { InviteForm } from '@/components/account/invite-form';
-import { MembersList, type InvitationRow, type MemberRow } from '@/components/account/members';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { requireActiveOrg } from '@/lib/auth/session';
 import { prisma } from '@/lib/db';
 import { can } from '@/services/orgs/permissions';
+
+import { InviteForm } from './_components/invite-form';
+import { MembersList, type InvitationRow, type MemberRow } from './_components/members';
 
 export const metadata: Metadata = { title: 'Members' };
 export const dynamic = 'force-dynamic';

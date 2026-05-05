@@ -2,11 +2,12 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { getTranslations } from 'next-intl/server';
 
-import { DataPagination } from '@/components/admin/data-pagination';
-import { SearchForm } from '@/components/admin/search-form';
-import { AUDIT_ACTIONS, auditActionToI18nKey, type AuditAction } from '@/services/audit';
 import { prisma } from '@/lib/db';
 import { cn } from '@/lib/utils';
+import { AUDIT_ACTIONS, auditActionToI18nKey, type AuditAction } from '@/services/audit';
+
+import { DataPagination } from '../_components/data-pagination';
+import { SearchForm } from '../_components/search-form';
 
 export const metadata: Metadata = {
   title: 'Admin · Audit log',

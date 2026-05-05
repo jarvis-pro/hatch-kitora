@@ -2,12 +2,13 @@ import type { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
 import type { Prisma } from '@prisma/client';
 
-import { DataPagination } from '@/components/admin/data-pagination';
-import { Reset2faButton } from '@/components/admin/reset-2fa-button';
-import { RoleSelect } from '@/components/admin/role-select';
-import { SearchForm } from '@/components/admin/search-form';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
+
+import { DataPagination } from '../_components/data-pagination';
+import { SearchForm } from '../_components/search-form';
+import { Reset2faButton } from './_components/reset-2fa-button';
+import { RoleSelect } from './_components/role-select';
 
 /**
  * 用户管理页的元数据。

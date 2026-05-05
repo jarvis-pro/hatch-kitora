@@ -3,9 +3,10 @@
 import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 
-import { TwoFactorChallengeForm } from '@/components/auth/two-factor-challenge-form';
-import { TwoFactorPasskeyForm } from '@/components/auth/two-factor-passkey-form';
 import { cn } from '@/lib/utils';
+
+import { TwoFactorChallengeForm } from './two-factor-challenge-form';
+import { TwoFactorPasskeyForm } from './two-factor-passkey-form';
 
 interface Props {
   callbackUrl: string;

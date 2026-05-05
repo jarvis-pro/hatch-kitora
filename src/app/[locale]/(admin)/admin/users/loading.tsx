@@ -1,4 +1,4 @@
-import { TableSkeleton } from '@/components/admin/table-skeleton';
+import { TableSkeleton } from '../_components/table-skeleton';
 
 /**
  * 用户管理页的加载占位符。

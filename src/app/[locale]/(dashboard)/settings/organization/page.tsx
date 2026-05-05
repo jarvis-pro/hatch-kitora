@@ -2,15 +2,16 @@ import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 import { getTranslations } from 'next-intl/server';
 
-import { OrgDangerZone } from '@/components/account/org-danger-zone';
-import { OrgDataExportCard } from '@/components/account/org-data-export-card';
-import { OrgRequire2faToggle } from '@/components/account/org-require-2fa-toggle';
-import { OrgSettingsForm } from '@/components/account/org-settings-form';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { OrgRole } from '@prisma/client';
 import { requireActiveOrg } from '@/lib/auth/session';
 import { prisma } from '@/lib/db';
 import { can } from '@/services/orgs/permissions';
+
+import { OrgDangerZone } from './_components/org-danger-zone';
+import { OrgDataExportCard } from './_components/org-data-export-card';
+import { OrgRequire2faToggle } from './_components/org-require-2fa-toggle';
+import { OrgSettingsForm } from './_components/org-settings-form';
 
 export const metadata: Metadata = { title: 'Organization' };
 export const dynamic = 'force-dynamic';

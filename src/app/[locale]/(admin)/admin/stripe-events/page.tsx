@@ -2,9 +2,10 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { getTranslations } from 'next-intl/server';
 
-import { DataPagination } from '@/components/admin/data-pagination';
 import { prisma } from '@/lib/db';
 import { cn } from '@/lib/utils';
+
+import { DataPagination } from '../_components/data-pagination';
 
 export const metadata: Metadata = {
   title: 'Admin · Stripe events',

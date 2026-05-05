@@ -1,8 +1,9 @@
 import type { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
 
-import { ResetPasswordForm } from '@/components/auth/reset-password-form';
 import { Link } from '@/i18n/routing';
+
+import { ResetPasswordForm } from './_components/reset-password-form';
 
 /**
  * 重置密码页的元数据。

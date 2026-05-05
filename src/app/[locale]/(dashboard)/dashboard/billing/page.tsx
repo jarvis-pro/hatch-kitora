@@ -2,8 +2,8 @@ import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 import { getTranslations } from 'next-intl/server';
 
-import { ManageSubscriptionButton } from '@/components/billing/manage-subscription-button';
-import { SubscriptionStatusBadge } from '@/components/billing/status-badge';
+import { ManageSubscriptionButton } from './_components/manage-subscription-button';
+import { SubscriptionStatusBadge } from '../_components/status-badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Link } from '@/i18n/routing';

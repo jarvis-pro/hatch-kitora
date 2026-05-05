@@ -1,4 +1,4 @@
-import { TableSkeleton } from '@/components/admin/table-skeleton';
+import { TableSkeleton } from '../_components/table-skeleton';
 
 /**
  * API 令牌列表页的加载占位符。

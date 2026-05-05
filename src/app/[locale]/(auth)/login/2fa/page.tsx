@@ -2,9 +2,10 @@ import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 
-import { TwoFactorChallengeTabs } from '@/components/auth/two-factor-challenge-tabs';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
+
+import { TwoFactorChallengeTabs } from './_components/two-factor-challenge-tabs';
 
 export const metadata: Metadata = {
   title: 'Two-factor authentication',

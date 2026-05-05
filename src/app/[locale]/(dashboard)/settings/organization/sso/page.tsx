@@ -2,11 +2,12 @@ import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 import { getTranslations } from 'next-intl/server';
 
-import { SsoProviders } from '@/components/account/sso-providers';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { requireActiveOrg } from '@/lib/auth/session';
 import { prisma } from '@/lib/db';
 import { can } from '@/services/orgs/permissions';
+
+import { SsoProviders } from './_components/sso-providers';
 
 export const metadata: Metadata = { title: 'SSO' };
 export const dynamic = 'force-dynamic';
