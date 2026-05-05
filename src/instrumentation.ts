@@ -12,7 +12,7 @@ export async function register() {
     // 加载服务端 Sentry 配置（包含源地图、上下文捕获等）
     await import('../sentry.server.config');
 
-    // RFC 0005 — 区域与数据库一致性检查。
+    // 区域与数据库一致性检查。
     // 本项目每个区域（GLOBAL / CN / EU）拥有独立的数据库，数据互不相通。
     // 此处在启动时核对：当前进程所在区域，是否与数据库中已有数据的归属区域一致。
     // 不一致则立即终止启动，防止"CN 服务写入 GLOBAL 数据库"之类的数据错乱事故。

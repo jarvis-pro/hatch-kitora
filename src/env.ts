@@ -108,7 +108,7 @@ export const env = createEnv({
      */
     UPSTASH_REDIS_REST_TOKEN: z.string().optional(),
 
-    // ===== RFC 0005 — 多区域部署配置 =====
+    // ===== 多区域部署配置 =====
     /**
      * 规范的部署区域标识符。值为大写：
      * - 'GLOBAL' — 全球部署
@@ -138,7 +138,7 @@ export const env = createEnv({
      */
     PUBLIC_SECURITY_NUMBER: z.string().optional(),
 
-    // ===== RFC 0006 PR-2 — 阿里云基础设施凭证（中国部署）=====
+    // ===== 阿里云基础设施凭证（中国部署）=====
     /**
      * 阿里云账户 AccessKey ID。由 OSS 和 DirectMail 共享。
      * 所有阿里云变量在 env 层为可选（dev / GLOBAL 堆栈无需配置），
@@ -195,13 +195,7 @@ export const env = createEnv({
      */
     ALIYUN_REDIS_URL: z.string().optional(),
 
-    // ===== RFC 0006 PR-3 — 中国支付凭证（支付宝 + 微信支付）=====
-    /**
-     * 所有支付凭证在 env 层为可选（dev / GLOBAL 堆栈无需配置），
-     * 但在中国部署时由提供商本身在缺少凭证时抛出配置错误。
-     */
-
-    // ===== 支付宝支付配置（PC 网站支付 + 周期扣款）=====
+    // ===== 支付宝支付配置（PC 网站支付 + 周期扣款，仅中国部署）=====
     /**
      * 支付宝应用 ID（从蚂蚁金服开放平台获取）。
      */
@@ -222,7 +216,7 @@ export const env = createEnv({
     ALIPAY_GATEWAY: z.string().url().default('https://openapi.alipay.com/gateway.do'),
     /**
      * 支付宝 Webhook notify_url 所用的公网 API 地址。
-     * 中国区域推荐 https://api.kitora.cn（RFC 0006 §3.5）；
+     * 中国区域推荐 https://api.kitora.cn；
      * dev / staging 回退使用 NEXT_PUBLIC_APP_URL。
      */
     CN_PUBLIC_API_URL: z.string().url().optional(),
@@ -270,7 +264,7 @@ export const env = createEnv({
       .enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent'])
       .default('info'),
 
-    // ===== RFC 0002 PR-3 — 用户数据导出配置 =====
+    // ===== 用户数据导出配置 =====
     /**
      * 数据导出存储后端。Cron worker 将用户数据打包为 ZIP 工件后存储于此。
      * - 'local' — 本地文件系统（DATA_EXPORT_LOCAL_DIR）
@@ -298,7 +292,7 @@ export const env = createEnv({
      */
     DATA_EXPORT_S3_SECRET_ACCESS_KEY: z.string().optional(),
 
-    // ===== RFC 0007 — WebAuthn / Passkey 配置 =====
+    // ===== WebAuthn / Passkey 配置 =====
     /**
      * Relying Party ID（依赖方 ID）。凭据绑定到的 eTLD+1 域名。
      * 必须与浏览器文档主机名精确匹配。
@@ -335,12 +329,12 @@ export const env = createEnv({
      */
     SENTRY_ENVIRONMENT: z.string().optional(),
 
-    // ===== RFC 0008 PR-4 — Vercel Cron 后台任务密钥 =====
+    // ===== Vercel Cron 后台任务密钥 =====
     /**
      * Cron 认证密钥。用于保护 `/api/jobs/tick` Webhook 端点。
      *
      * Vercel Cron 调度器在请求中自动注入 `Authorization: Bearer ${CRON_SECRET}` header。
-     * 外部直接访问时返回 401（不泄露路径存在性，沿用 RFC 0003 webhook 模式）。
+     * 外部直接访问时返回 401，不泄露路径存在性。
      *
      * 生产环境必须配置 >= 32 字符的强随机字符串：
      *   openssl rand -base64 32
@@ -378,6 +372,11 @@ export const env = createEnv({
   /**
    * 运行时环境变量映射。
    * 将 process.env 中的变量映射到验证后的 env 对象中。
+   *
+   * 注意：server 和 client 中定义的每个 key 都必须在此处显式列出，
+   * 缺少任何一项会导致启动时报错。
+   * Next.js 构建管道要求以字面量形式访问 process.env，
+   * 不能用动态方式（如 process.env[key]）批量读取。
    */
   runtimeEnv: {
     NODE_ENV: process.env.NODE_ENV,
