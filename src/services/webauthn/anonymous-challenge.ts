@@ -14,6 +14,8 @@ import 'server-only';
 
 import { cookies } from 'next/headers';
 
+import { env } from '@/env';
+
 const COOKIE_NAME = 'webauthn-passkey-challenge';
 const TTL_SECONDS = 5 * 60;
 
@@ -22,7 +24,7 @@ export async function setAnonymousChallenge(challenge: string): Promise<void> {
   jar.set(COOKIE_NAME, challenge, {
     httpOnly: true,
     sameSite: 'lax',
-    secure: process.env.NODE_ENV === 'production',
+    secure: env.NODE_ENV === 'production',
     path: '/api/auth/webauthn/authenticate',
     maxAge: TTL_SECONDS,
   });
@@ -40,7 +42,7 @@ export async function consumeAnonymousChallenge(): Promise<string | null> {
     jar.set(COOKIE_NAME, '', {
       httpOnly: true,
       sameSite: 'lax',
-      secure: process.env.NODE_ENV === 'production',
+      secure: env.NODE_ENV === 'production',
       path: '/api/auth/webauthn/authenticate',
       maxAge: 0,
     });

@@ -10,6 +10,8 @@ import { ACTIVE_ORG_COOKIE, requireActiveOrg } from '@/lib/auth/session';
 import { prisma } from '@/lib/db';
 import { logger } from '@/lib/logger';
 
+import { env } from '@/env';
+
 import { can } from './permissions';
 
 const ACTIVE_ORG_COOKIE_MAX_AGE = 60 * 60 * 24 * 365; // 1 year
@@ -56,7 +58,7 @@ export async function setActiveOrgAction(input: z.infer<typeof switchSchema>) {
   c.set(ACTIVE_ORG_COOKIE, parsed.data.slug, {
     httpOnly: true,
     sameSite: 'lax',
-    secure: process.env.NODE_ENV === 'production',
+    secure: env.NODE_ENV === 'production',
     path: '/',
     maxAge: ACTIVE_ORG_COOKIE_MAX_AGE,
   });
@@ -101,7 +103,7 @@ export async function updateOrgAction(input: z.infer<typeof updateOrgSchema>) {
     c.set(ACTIVE_ORG_COOKIE, parsed.data.slug, {
       httpOnly: true,
       sameSite: 'lax',
-      secure: process.env.NODE_ENV === 'production',
+      secure: env.NODE_ENV === 'production',
       path: '/',
       maxAge: ACTIVE_ORG_COOKIE_MAX_AGE,
     });
