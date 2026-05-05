@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
-import { getTranslations } from 'next-intl/server';
+import { useTranslations } from 'next-intl';
 
 import { Link } from '@/i18n/routing';
 import { isCnRegion } from '@/lib/region';
@@ -10,18 +10,17 @@ export const metadata: Metadata = {
 };
 
 /**
- * RFC 0006 §3.4 / §8.3 — PIPL §44 数据权利访问登录页。
+ * PIPL §44 数据权利访问登录页。
  *
  * 仅限中国大陆。PIPL 第 44 条列举了处理器必须提供的四项数据权利：查询、更正、删除、转移。
- * 我们无需新增机制来实现它们 —— RFC 0001/0002/0005 已经交付了底层流程。
  * 此页是单一授权入口点，监管机构/用户可以通过 5 次点击找到这些权利，
  * 这是 2024+ MIIT 抽查判定"符合 UX"的方式。
  *
  * 在 CN 区域外返回 404，以便全局部署不会泄露空页面（与 `/icp` 相同）。
  */
-export default async function DataRightsPage() {
+export default function DataRightsPage() {
   if (!isCnRegion()) notFound();
-  const t = await getTranslations('marketing.dataRights');
+  const t = useTranslations('marketing.dataRights');
 
   const cards = [
     {

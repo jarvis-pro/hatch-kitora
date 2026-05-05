@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
-import { getTranslations } from 'next-intl/server';
+import { useTranslations } from 'next-intl';
 
 import { env } from '@/env';
 import { isCnRegion } from '@/lib/region';
@@ -13,9 +13,9 @@ export const metadata: Metadata = {
  * 适用于中国大陆部署的合规落地页，展示 ICP 备案号和公安部备案信息。
  * 在 CN 以外的 region 返回 404，避免 `global` 部署暴露空页面。
  */
-export default async function IcpPage() {
+export default function IcpPage() {
   if (!isCnRegion()) notFound();
-  const t = await getTranslations('marketing.icp');
+  const t = useTranslations('marketing.icp');
 
   return (
     <div className="container max-w-2xl py-16">
