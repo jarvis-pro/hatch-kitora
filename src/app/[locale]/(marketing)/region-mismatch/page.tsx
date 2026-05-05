@@ -1,14 +1,17 @@
 import type { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
 
-import { Link } from '@/i18n/routing';
-
-export const metadata: Metadata = {
-  title: 'Wrong region',
-};
+import { Link, type Locale } from '@/i18n/routing';
 
 interface Props {
+  params: Promise<{ locale: Locale }>;
   searchParams: Promise<{ expected?: string }>;
+}
+
+export async function generateMetadata({ params }: { params: Props['params'] }): Promise<Metadata> {
+  const { locale } = await params;
+  const t = await getTranslations({ locale, namespace: 'marketing.regionMismatch' });
+  return { title: t('metaTitle') };
 }
 
 const REGION_HOMES: Record<string, { url: string; label: string }> = {
@@ -18,7 +21,7 @@ const REGION_HOMES: Record<string, { url: string; label: string }> = {
 };
 
 /**
- * RFC 0005 — 跨 region session 跳转的落地页。
+ * 跨 region session 跳转的落地页。
  *
  * 当携带 `userRegion=X` 的已登录 session 落地到服务 region `Y` 的实例时触发。
  * 生产环境下理论上不会发生（Cookie 不跨域），但保留此友好说明页

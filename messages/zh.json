@@ -110,6 +110,7 @@
       }
     },
     "regionMismatch": {
+      "metaTitle": "区域不匹配",
       "title": "该账号属于其他区域",
       "subtitle": "您当前登录的账号属于另一个 Kitora 区域。kitora.io、kitora.cn、kitora.eu 各自是独立的账号体系，互不打通。",
       "go": "请前往 <link>{name}</link> 登录。",

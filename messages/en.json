@@ -115,6 +115,7 @@
       }
     },
     "regionMismatch": {
+      "metaTitle": "Wrong region",
       "title": "Wrong region for this account",
       "subtitle": "You are signed in to an account that belongs to a different Kitora region. Each region (kitora.io / kitora.cn / kitora.eu) has its own independent account system.",
       "go": "Sign in instead at <link>{name}</link>.",
