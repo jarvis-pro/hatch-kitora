@@ -1,0 +1,22 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pnpm typecheck *)",
+      "Bash(pnpm lint *)",
+      "Bash(pnpm test:unit *)",
+      "Bash(pnpm test:e2e *)",
+      "Bash(pnpm format:check *)",
+      "Bash(pnpm openapi:lint *)",
+      "Bash(pnpm openapi:check *)",
+      "Bash(git status *)",
+      "Bash(git diff *)",
+      "Bash(git log *)",
+      "Bash(git show *)",
+      "Bash(git blame *)",
+      "Bash(git check-ignore *)",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(git reset *)"
+    ]
+  }
+}
